@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Nueva Oferta - Zaas{% endblock %}
+{% block content %}
+<div class="card" style="max-width:600px;margin:2rem auto;">
+    <h2 class="mb-2">Nueva Oferta de Trabajo</h2>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+            {{ form.titulo.label }} {{ form.titulo() }}
+        </div>
+        <div class="form-group">
+            {{ form.descripcion.label }} {{ form.descripcion() }}
+        </div>
+        <div class="form-group">
+            {{ form.presupuesto.label }} {{ form.presupuesto() }}
+        </div>
+        <div class="form-group">
+            {{ form.fecha_entrega.label }} {{ form.fecha_entrega() }}
+        </div>
+        <button type="submit" class="btn btn-primary">Publicar Oferta</button>
+    </form>
+</div>
+{% endblock %}

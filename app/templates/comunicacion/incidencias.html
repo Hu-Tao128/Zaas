@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Incidencias - Zaas{% endblock %}
+{% block content %}
+<div class="flex" style="justify-content:space-between;align-items:center;">
+    <h1>Incidencias</h1>
+    {% if current_user.tipo_usuario != 'admin' %}
+        <a href="{{ url_for('comunicacion.nueva_incidencia') }}" class="btn btn-danger">+ Reportar</a>
+    {% endif %}
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Tipo</th>
+            <th>Usuario</th>
+            <th>Estado</th>
+            <th>Fecha</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for inc in incidencias %}
+        <tr>
+            <td>#{{ inc.id }}</td>
+            <td>{{ inc.tipo }}</td>
+            <td>{{ inc.usuario.nombres if inc.usuario else 'N/A' }}</td>
+            <td><span class="badge badge-{{ 'success' if inc.estado == 'resuelta' else 'warning' }}">{{ inc.estado }}</span></td>
+            <td>{{ inc.fecha_hora.strftime('%d/%m/%Y') }}</td>
+            <td>
+                <a href="{{ url_for('comunicacion.ver_incidencia', id=inc.id) }}" class="btn btn-secondary btn-sm">Ver</a>
+                {% if current_user.tipo_usuario == 'admin' and inc.estado != 'resuelta' %}
+                    <form method="POST" action="{{ url_for('comunicacion.resolver_incidencia', id=inc.id) }}" style="display:inline;">
+                        <input type="text" name="resolucion" placeholder="Resolución" style="padding:0.3rem;width:200px;">
+                        <button type="submit" class="btn btn-success btn-sm">Resolver</button>
+                    </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">No hay incidencias.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

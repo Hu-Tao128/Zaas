@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Chat - Contrato #{{ contrato.id }} - Zaas{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Chat — Contrato #{{ contrato.id }}</h2>
+    <p><strong>Otra parte:</strong> <a href="{{ url_for('auth.ver_perfil', id=receptor_id) }}">{{ receptor_id }}</a></p>
+</div>
+
+<div id="chat-box" class="card" style="max-height:400px;overflow-y:auto;">
+    {% for msg in mensajes %}
+    <div style="padding:0.5rem;margin-bottom:0.5rem;border-radius:8px;{% if msg.id_emisor == current_user.id %}background:#e3f2fd;margin-left:2rem;{% else %}background:#f5f5f5;margin-right:2rem;{% endif %}">
+        <p>{{ msg.contenido }}</p>
+        <small style="color:#999;">{{ msg.fecha_hora.strftime('%H:%M') }}</small>
+        {% if msg.id_emisor == current_user.id and msg.leido %}
+            <small style="color:#4caf50;">✓✓</small>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<form method="POST" class="card flex" style="margin-top:0.5rem;">
+    {{ form.hidden_tag() }}
+    {{ form.contenido(style="flex:1;padding:0.5rem;border:1px solid #ddd;border-radius:4px;resize:none;", rows=2) }}
+    <button type="submit" class="btn btn-primary">Enviar</button>
+</form>
+
+<a href="{{ url_for('contratos.ver_contrato', id=contrato.id) }}" class="btn btn-secondary mt-2">Volver al Contrato</a>
+{% endblock %}

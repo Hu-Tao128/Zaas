@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Catálogo - Zaas{% endblock %}
+{% block content %}
+<h1 class="mb-2">Catálogo de Proyectos</h1>
+
+<form method="GET" class="card mb-2" style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+    <input type="text" name="q" value="{{ search }}" placeholder="Buscar..." style="flex:1;min-width:200px;padding:0.5rem;border:1px solid #ddd;border-radius:4px;">
+    {% if categorias %}
+    <select name="categoria" style="padding:0.5rem;border:1px solid #ddd;border-radius:4px;">
+        <option value="">Todas las categorías</option>
+        {% for cat in categorias %}
+            <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+        {% endfor %}
+    </select>
+    {% endif %}
+    <button type="submit" class="btn btn-primary">Buscar</button>
+</form>
+
+{% if current_user.is_authenticated %}
+    <a href="{{ url_for('catalogo.nuevo_proyecto') }}" class="btn btn-primary mb-2">+ Nuevo Proyecto</a>
+    <a href="{{ url_for('catalogo.nueva_oferta') }}" class="btn btn-secondary mb-2">+ Nueva Oferta</a>
+{% endif %}
+
+<div class="grid grid-3">
+    {% for proyecto in proyectos.items %}
+    <div class="card">
+        <h4><a href="{{ url_for('catalogo.detalle_proyecto', id=proyecto.id) }}">{{ proyecto.titulo }}</a></h4>
+        <p>{{ proyecto.descripcion[:120] }}{% if proyecto.descripcion|length > 120 %}...{% endif %}</p>
+        <div class="flex" style="justify-content:space-between;align-items:center;">
+            <strong>${{ proyecto.precio }}</strong>
+            {% if proyecto.demo_habilitada %}<span class="badge badge-success">Demo</span>{% endif %}
+        </div>
+        <small>{{ proyecto.fecha_publicacion.strftime('%d/%m/%Y') }}</small>
+    </div>
+    {% else %}
+    <p>No hay proyectos disponibles.</p>
+    {% endfor %}
+</div>
+
+{% if proyectos.pages > 1 %}
+<div class="flex mt-2" style="justify-content:center;">
+    {% if proyectos.has_prev %}
+        <a href="{{ url_for('catalogo.index', page=proyectos.prev, q=search) }}" class="btn btn-secondary btn-sm">← Anterior</a>
+    {% endif %}
+    <span class="btn-sm" style="padding:0.5rem;">Página {{ proyectos.page }} de {{ proyectos.pages }}</span>
+    {% if proyectos.has_next %}
+        <a href="{{ url_for('catalogo.index', page=proyectos.next, q=search) }}" class="btn btn-secondary btn-sm">Siguiente →</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

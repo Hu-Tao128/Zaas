@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Pagar Contrato #{{ contrato.id }} - Zaas{% endblock %}
+{% block content %}
+<div class="card" style="max-width:500px;margin:2rem auto;">
+    <h2 class="mb-2">Pago Escrow — Contrato #{{ contrato.id }}</h2>
+    <p><strong>Monto a pagar:</strong> ${{ contrato.costo_acordado }}</p>
+    <p><strong>Estado:</strong> Los fondos quedarán <em>retenidos</em> hasta que el cliente apruebe el entregable.</p>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        <p class="alert alert-info">Este es un pago simulado. No se requiere información de tarjeta.</p>
+        <button type="submit" class="btn btn-primary">Confirmar Pago (Simulado)</button>
+    </form>
+    <a href="{{ url_for('contratos.ver_contrato', id=contrato.id) }}" class="btn btn-secondary mt-1">Cancelar</a>
+</div>
+{% endblock %}

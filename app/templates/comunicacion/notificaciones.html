@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Notificaciones - Zaas{% endblock %}
+{% block content %}
+<div class="flex" style="justify-content:space-between;align-items:center;">
+    <h1>Notificaciones</h1>
+    <form method="POST" action="{{ url_for('comunicacion.marcar_leidas') }}">
+        <button type="submit" class="btn btn-secondary btn-sm">Marcar todas como leídas</button>
+    </form>
+</div>
+
+{% for n in notificaciones %}
+<div class="card{% if not n.leido %} notif-unread{% endif %}">
+    <h4>{{ n.asunto }}</h4>
+    <p>{{ n.mensaje }}</p>
+    {% if n.link %}
+        <a href="{{ n.link }}">Ver más →</a>
+    {% endif %}
+    <small>{{ n.fecha_hora_creacion.strftime('%d/%m/%Y %H:%M') }}</small>
+    {% if not n.leido %}<span class="badge badge-warning">Nuevo</span>{% endif %}
+</div>
+{% else %}
+<p>No tienes notificaciones.</p>
+{% endfor %}
+{% endblock %}

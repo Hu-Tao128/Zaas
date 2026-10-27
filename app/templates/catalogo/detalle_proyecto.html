@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ proyecto.titulo }} - Zaas{% endblock %}
+{% block content %}
+<div class="card">
+    <h1>{{ proyecto.titulo }}</h1>
+    <p><strong>Autor:</strong> <a href="{{ url_for('auth.ver_perfil', id=proyecto.autor.id) }}">{{ proyecto.autor.nombres }} {{ proyecto.autor.apellido_paterno }}</a></p>
+    <p><strong>Fecha:</strong> {{ proyecto.fecha_publicacion.strftime('%d/%m/%Y') }}</p>
+    <p><strong>Precio:</strong> ${{ proyecto.precio }}</p>
+    {% if proyecto.demo_habilitada %}<span class="badge badge-success">Demo habilitada</span>{% endif %}
+
+    <h3 class="mt-2">Descripción</h3>
+    <p>{{ proyecto.descripcion or 'Sin descripción.' }}</p>
+
+    <div class="mt-2 flex">
+        {% if current_user.is_authenticated %}
+            {% if proyecto.demo_habilitada %}
+                <a href="{{ url_for('catalogo.solicitar_demo', id=proyecto.id) }}" class="btn btn-primary">Solicitar Demo</a>
+            {% endif %}
+            <a href="{{ url_for('catalogo.postular_oferta', id=proyecto.id) }}" class="btn btn-secondary">Contratar</a>
+        {% endif %}
+        {% if current_user.is_authenticated and current_user.id == proyecto.id_usuario %}
+            <a href="{{ url_for('catalogo.editar_proyecto', id=proyecto.id) }}" class="btn btn-secondary btn-sm">Editar</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

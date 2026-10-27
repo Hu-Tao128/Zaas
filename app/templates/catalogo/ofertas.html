@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Ofertas de Trabajo - Zaas{% endblock %}
+{% block content %}
+<h1 class="mb-2">Ofertas de Trabajo</h1>
+
+{% if current_user.is_authenticated and current_user.tipo_usuario == 'cliente' %}
+    <a href="{{ url_for('catalogo.nueva_oferta') }}" class="btn btn-primary mb-2">+ Nueva Oferta</a>
+{% endif %}
+
+<div class="grid grid-2">
+    {% for oferta in ofertas.items %}
+    <div class="card">
+        <h4><a href="{{ url_for('catalogo.detalle_oferta', id=oferta.id) }}">{{ oferta.titulo }}</a></h4>
+        <p>{{ oferta.descripcion_requerimientos[:120] if oferta.descripcion_requerimientos else 'Sin descripción' }}{% if oferta.descripcion_requerimientos and oferta.descripcion_requerimientos|length > 120 %}...{% endif %}</p>
+        {% if oferta.presupuesto %}<p><strong>Presupuesto:</strong> ${{ oferta.presupuesto }}</p>{% endif %}
+        {% if oferta.fecha_entrega %}<p><strong>Entrega:</strong> {{ oferta.fecha_entrega.strftime('%d/%m/%Y') }}</p>{% endif %}
+        <span class="badge badge-success">{{ oferta.estado }}</span>
+        <small class="mt-1">{{ oferta.fecha_publicacion.strftime('%d/%m/%Y') }}</small>
+    </div>
+    {% else %}
+    <p>No hay ofertas disponibles.</p>
+    {% endfor %}
+</div>
+
+{% if ofertas.pages > 1 %}
+<div class="flex mt-2" style="justify-content:center;">
+    {% if ofertas.has_prev %}
+        <a href="{{ url_for('catalogo.ver_ofertas', page=ofertas.prev) }}" class="btn btn-secondary btn-sm">← Anterior</a>
+    {% endif %}
+    <span class="btn-sm" style="padding:0.5rem;">Página {{ ofertas.page }} de {{ ofertas.pages }}</span>
+    {% if ofertas.has_next %}
+        <a href="{{ url_for('catalogo.ver_ofertas', page=ofertas.next) }}" class="btn btn-secondary btn-sm">Siguiente →</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

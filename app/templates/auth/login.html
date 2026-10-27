@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Iniciar Sesión - Zaas{% endblock %}
+{% block content %}
+<div class="card" style="max-width:400px;margin:2rem auto;">
+    <h2 class="mb-2">Iniciar Sesión</h2>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+            {{ form.email.label }} {{ form.email() }}
+        </div>
+        <div class="form-group">
+            {{ form.password.label }} {{ form.password() }}
+        </div>
+        <div class="form-group">
+            {{ form.remember() }} {{ form.remember.label }}
+        </div>
+        {{ form.submit() if form.submit else '<button type="submit" class="btn btn-primary">Entrar</button>'|safe }}
+        <button type="submit" class="btn btn-primary">Entrar</button>
+    </form>
+    <p class="mt-2">¿No tienes cuenta? <a href="{{ url_for('auth.registro') }}">Regístrate</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Contratos - Zaas{% endblock %}
+{% block content %}
+<h1 class="mb-2">Mis Contratos</h1>
+<a href="{{ url_for('contratos.nuevo_contrato') }}" class="btn btn-primary mb-2">+ Nuevo Contrato</a>
+
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Otra Parte</th>
+            <th>Costo</th>
+            <th>Estado</th>
+            <th>Fecha</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for c in contratos %}
+        <tr>
+            <td>#{{ c.id }}</td>
+            <td>
+                {% if current_user.id == c.id_cliente %}
+                    <a href="{{ url_for('auth.ver_perfil', id=c.id_desarrollador) }}">{{ c.desarrollador_contratos.nombres if c.desarrollador_contratos else 'N/A' }}</a>
+                {% else %}
+                    <a href="{{ url_for('auth.ver_perfil', id=c.id_cliente) }}">{{ c.cliente_contratos.nombres if c.cliente_contratos else 'N/A' }}</a>
+                {% endif %}
+            </td>
+            <td>${{ c.costo_acordado }}</td>
+            <td><span class="badge badge-{{ 'success' if c.estado in ('aceptado','en_progreso','finalizado') else 'warning' }}">{{ c.estado }}</span></td>
+            <td>{{ c.fecha_creacion.strftime('%d/%m/%Y') }}</td>
+            <td><a href="{{ url_for('contratos.ver_contrato', id=c.id) }}" class="btn btn-secondary btn-sm">Ver</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">No hay contratos.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

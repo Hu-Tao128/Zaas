@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ oferta.titulo }} - Zaas{% endblock %}
+{% block content %}
+<div class="card">
+    <h1>{{ oferta.titulo }}</h1>
+    <p><strong>Cliente:</strong> <a href="{{ url_for('auth.ver_perfil', id=oferta.cliente.id) }}">{{ oferta.cliente.nombres }} {{ oferta.cliente.apellido_paterno }}</a></p>
+    <p><strong>Estado:</strong> <span class="badge badge-{{ 'success' if oferta.estado == 'abierto' else 'secondary' }}">{{ oferta.estado }}</span></p>
+    <p><strong>Presupuesto:</strong> {% if oferta.presupuesto %}${{ oferta.presupuesto }}{% else %}No especificado{% endif %}</p>
+    {% if oferta.fecha_entrega %}<p><strong>Fecha de entrega:</strong> {{ oferta.fecha_entrega.strftime('%d/%m/%Y') }}</p>{% endif %}
+
+    <h3 class="mt-2">Requerimientos</h3>
+    <p>{{ oferta.descripcion_requerimientos or 'Sin descripción.' }}</p>
+
+    {% if current_user.is_authenticated and current_user.tipo_usuario == 'desarrollador' and oferta.estado == 'abierto' %}
+        <a href="{{ url_for('catalogo.postular_oferta', id=oferta.id) }}" class="btn btn-primary mt-2">Postularme</a>
+    {% endif %}
+</div>
+
+{% if oferta.postulaciones %}
+<h3 class="mt-2">Postulaciones ({{ oferta.postulaciones|length }})</h3>
+{% for post in oferta.postulaciones %}
+<div class="card">
+    <p><strong>{{ post.desarrollador.nombres }} {{ post.desarrollador.apellido_paterno }}</strong></p>
+    <p>{{ post.detalles }}</p>
+    <p><strong>Costo propuesto:</strong> ${{ post.costo_propuesto }}</p>
+    <span class="badge badge-info">{{ post.estado }}</span>
+    <small>{{ post.fecha_hora.strftime('%d/%m/%Y') }}</small>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

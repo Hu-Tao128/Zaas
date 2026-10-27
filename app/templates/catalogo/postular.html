@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Postularse - Zaas{% endblock %}
+{% block content %}
+<div class="card" style="max-width:600px;margin:2rem auto;">
+    <h2 class="mb-2">Postularse a: {{ oferta.titulo }}</h2>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+            {{ form.detalles.label }} {{ form.detalles() }}
+        </div>
+        <div class="form-group">
+            {{ form.costo_propuesto.label }} {{ form.costo_propuesto() }}
+        </div>
+        <button type="submit" class="btn btn-primary">Enviar Postulación</button>
+        <a href="{{ url_for('catalogo.detalle_oferta', id=oferta.id) }}" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+{% endblock %}
