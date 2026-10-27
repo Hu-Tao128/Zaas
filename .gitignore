@@ -11,6 +11,7 @@ build/
 MANIFEST
 
 # Virtual env
+.venv/
 venv/
 .env
 .env.bak
