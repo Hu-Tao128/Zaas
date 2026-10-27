@@ -30,12 +30,16 @@ class Contrato(db.Model):
     firma_desarrollador = db.Column(db.String(64))
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
 
-    cliente = db.relationship('Usuario', foreign_keys=[id_cliente], backref='contratos_como_cliente')
-    desarrollador = db.relationship('Usuario', foreign_keys=[id_desarrollador], backref='contratos_como_desarrollador')
-    producto = db.relationship('Proyecto', backref='contratos')
-    encargo = db.relationship('OfertaTrabajo', backref='contratos')
+    cliente = db.relationship('Usuario', foreign_keys=[id_cliente], back_populates='contratos_como_cliente')
+    desarrollador = db.relationship('Usuario', foreign_keys=[id_desarrollador], back_populates='contratos_como_desarrollador')
+    producto = db.relationship('Proyecto', back_populates='contratos')
+    encargo = db.relationship('OfertaTrabajo', back_populates='contratos')
     entregables = db.relationship('Entregable', back_populates='contrato', cascade='all, delete-orphan')
     aceptaciones = db.relationship('Aceptacion', back_populates='contrato', cascade='all, delete-orphan')
+    conversaciones = db.relationship('Conversacion', back_populates='contrato', cascade='all, delete-orphan')
+    disputas = db.relationship('Disputa', back_populates='contrato', cascade='all, delete-orphan')
+    calificaciones = db.relationship('Calificacion', back_populates='contrato', cascade='all, delete-orphan')
+    pagos = db.relationship('Pago', back_populates='contrato', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Contrato {self.id} - {self.estado}>'
@@ -71,7 +75,7 @@ class Aceptacion(db.Model):
     ip = db.Column(db.String(45))
 
     contrato = db.relationship('Contrato', back_populates='aceptaciones')
-    usuario = db.relationship('Usuario', backref='aceptaciones')
+    usuario = db.relationship('Usuario', back_populates='aceptaciones')
 
     def __repr__(self):
         return f'<Aceptacion Contrato{self.id_contrato} Usuario{self.id_usuario}>'

@@ -13,7 +13,7 @@ class Pago(db.Model):
     fecha_pago = db.Column(db.DateTime, default=datetime.utcnow)
     fecha_liberacion = db.Column(db.DateTime)
 
-    contrato = db.relationship('Contrato', backref='pagos')
+    contrato = db.relationship('Contrato', back_populates='pagos')
     liberaciones = db.relationship('Liberacion', back_populates='pago', cascade='all, delete-orphan')
     recibos = db.relationship('Recibo', back_populates='pago', cascade='all, delete-orphan')
 
@@ -32,7 +32,7 @@ class Liberacion(db.Model):
     fecha_hora = db.Column(db.DateTime, default=datetime.utcnow)
 
     pago = db.relationship('Pago', back_populates='liberaciones')
-    usuario = db.relationship('Usuario', backref='liberaciones')
+    usuario = db.relationship('Usuario', back_populates='liberaciones')
 
     def __repr__(self):
         return f'<Liberacion Pago{self.id_pago} ${self.monto_liberado}>'
@@ -68,9 +68,10 @@ class Disputa(db.Model):
     fecha_hora_resolucion = db.Column(db.DateTime)
     resolucion = db.Column(db.Text)
 
-    contrato = db.relationship('Contrato', backref='disputas')
-    admin = db.relationship('Usuario', foreign_keys=[id_admin], backref='disputas_resueltas')
-    reportante = db.relationship('Usuario', foreign_keys=[id_reportante], backref='disputas_reportadas')
+    contrato = db.relationship('Contrato', back_populates='disputas')
+    admin = db.relationship('Usuario', foreign_keys=[id_admin], back_populates='disputas_resueltas')
+    reportante = db.relationship('Usuario', foreign_keys=[id_reportante], back_populates='disputas_reportadas')
+    arbitrajes = db.relationship('Arbitraje', back_populates='disputa', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Disputa Contrato{self.id_contrato} - {self.estado}>'
@@ -87,8 +88,8 @@ class Arbitraje(db.Model):
     notas = db.Column(db.Text)
     fecha_hora = db.Column(db.DateTime, default=datetime.utcnow)
 
-    disputa = db.relationship('Disputa', backref='arbitrajes')
-    arbitro = db.relationship('Usuario', backref='arbitrajes')
+    disputa = db.relationship('Disputa', back_populates='arbitrajes')
+    arbitro = db.relationship('Usuario', back_populates='arbitrajes')
 
     def __repr__(self):
         return f'<Arbitraje Disputa{self.id_disputa} - {self.decision}>'

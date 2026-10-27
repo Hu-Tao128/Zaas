@@ -9,7 +9,7 @@ class Conversacion(db.Model):
     id_contrato = db.Column(db.Integer, db.ForeignKey('contrato.id'))
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
 
-    contrato = db.relationship('Contrato', backref='conversaciones')
+    contrato = db.relationship('Contrato', back_populates='conversaciones')
     mensajes = db.relationship('Mensaje', back_populates='conversacion', cascade='all, delete-orphan')
 
     def __repr__(self):
@@ -28,8 +28,8 @@ class Mensaje(db.Model):
     leido = db.Column(db.Boolean, default=False)
 
     conversacion = db.relationship('Conversacion', back_populates='mensajes')
-    emisor = db.relationship('Usuario', foreign_keys=[id_emisor], backref='mensajes_enviados')
-    receptor = db.relationship('Usuario', foreign_keys=[id_receptor], backref='mensajes_recibidos')
+    emisor = db.relationship('Usuario', foreign_keys=[id_emisor], back_populates='mensajes_enviados')
+    receptor = db.relationship('Usuario', foreign_keys=[id_receptor], back_populates='mensajes_recibidos')
 
     def __repr__(self):
         return f'<Mensaje {self.id} de {self.id_emisor} a {self.id_receptor}>'
@@ -46,7 +46,7 @@ class Notificacion(db.Model):
     fecha_hora_creacion = db.Column(db.DateTime, default=datetime.utcnow)
     link = db.Column(db.String(500))
 
-    usuario = db.relationship('Usuario', backref='notificaciones')
+    usuario = db.relationship('Usuario', back_populates='notificaciones')
 
     def __repr__(self):
         return f'<Notificacion Usuario{self.id_usuario} - {self.asunto}>'
@@ -63,9 +63,9 @@ class Calificacion(db.Model):
     comentarios = db.Column(db.Text)
     fecha_hora = db.Column(db.DateTime, default=datetime.utcnow)
 
-    contrato = db.relationship('Contrato', backref='calificaciones')
-    evaluador = db.relationship('Usuario', foreign_keys=[id_evaluador], backref='calificaciones_dadas')
-    evaluado = db.relationship('Usuario', foreign_keys=[id_evaluado], backref='calificaciones_recibidas')
+    contrato = db.relationship('Contrato', back_populates='calificaciones')
+    evaluador = db.relationship('Usuario', foreign_keys=[id_evaluador], back_populates='calificaciones_dadas')
+    evaluado = db.relationship('Usuario', foreign_keys=[id_evaluado], back_populates='calificaciones_recibidas')
 
     def __repr__(self):
         return f'<Calificacion {self.puntaje}/5 a Usuario{self.id_evaluado}>'
@@ -84,8 +84,8 @@ class Incidencia(db.Model):
     resolucion = db.Column(db.Text)
     fecha_resolucion = db.Column(db.DateTime)
 
-    usuario = db.relationship('Usuario', foreign_keys=[id_usuario], backref='incidencias')
-    admin = db.relationship('Usuario', foreign_keys=[id_admin], backref='incidencias_resueltas')
+    usuario = db.relationship('Usuario', foreign_keys=[id_usuario], back_populates='incidencias')
+    admin = db.relationship('Usuario', foreign_keys=[id_admin], back_populates='incidencias_resueltas')
 
     def __repr__(self):
         return f'<Incidencia Usuario{self.id_usuario} - {self.estado}>'

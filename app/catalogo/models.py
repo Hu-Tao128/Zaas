@@ -19,8 +19,9 @@ class Proyecto(db.Model):
     categorias = db.relationship('CategoriaProyecto', back_populates='proyecto', cascade='all, delete-orphan')
     tecnologias = db.relationship('TecnologiaProyecto', back_populates='proyecto', cascade='all, delete-orphan')
     solicitudes_demo = db.relationship('SolicitudDemo', back_populates='producto', cascade='all, delete-orphan')
+    contratos = db.relationship('Contrato', back_populates='producto')
 
-    autor = db.relationship('Usuario', backref='proyectos')
+    autor = db.relationship('Usuario', back_populates='proyectos')
 
     def __repr__(self):
         return f'<Proyecto {self.titulo}>'
@@ -77,8 +78,9 @@ class OfertaTrabajo(db.Model):
     fecha_publicacion = db.Column(db.DateTime, default=datetime.utcnow)
     fecha_entrega = db.Column(db.DateTime)
 
-    cliente = db.relationship('Usuario', backref='ofertas')
+    cliente = db.relationship('Usuario', back_populates='ofertas')
     postulaciones = db.relationship('Postulacion', back_populates='oferta', cascade='all, delete-orphan')
+    contratos = db.relationship('Contrato', back_populates='encargo')
 
     def __repr__(self):
         return f'<OfertaTrabajo {self.titulo}>'
