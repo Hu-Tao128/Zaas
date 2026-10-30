@@ -1,8 +1,9 @@
-from flask import render_template, redirect, url_for, request, flash
+from flask import render_template, redirect, url_for, request, flash, jsonify, session
 from flask_login import login_user, logout_user, login_required, current_user
 from app.auth import auth_bp
 from app.auth.models import Usuario, Perfil
-from app.auth.forms import RegistroForm, LoginForm, PerfilForm
+from app.auth.forms import RegistroForm, PerfilForm
+from app.auth.firebase_service import verify_firebase_token, is_firebase_ready, revoke_firebase_sessions
 from app.extensions import db
 
 
@@ -25,53 +26,142 @@ def rol_requerido(roles):
     return decorator
 
 
-@auth_bp.route('/registro', methods=['GET', 'POST'])
-def registro():
-    if current_user.is_authenticated:
-        return redirect(url_for('catalogo.index'))
-    form = RegistroForm()
-    if form.validate_on_submit():
+def find_or_create_user(firebase_data: dict) -> Usuario:
+    """
+    Busca un usuario por firebase_uid o email. Si no existe, lo crea.
+    Retorna el usuario de la base de datos local (SQLite).
+    """
+    # Buscar por firebase_uid primero
+    usuario = db.session.execute(
+        db.select(Usuario).filter_by(firebase_uid=firebase_data['uid'])
+    ).scalar_one_or_none()
+
+    # Si no encuentra, buscar por email
+    if not usuario and firebase_data.get('email'):
+        usuario = db.session.execute(
+            db.select(Usuario).filter_by(email=firebase_data['email'])
+        ).scalar_one_or_none()
+
+    # Si sigue sin existir, crearlo
+    if not usuario:
         usuario = Usuario(
-            nombres=form.nombres.data,
-            apellido_paterno=form.apellido_paterno.data,
-            apellido_materno=form.apellido_materno.data,
-            email=form.email.data,
-            tipo_usuario=form.tipo_usuario.data
+            firebase_uid=firebase_data['uid'],
+            nombres=firebase_data.get('name', '').split()[0] if firebase_data.get('name') else 'Usuario',
+            apellido_paterno=firebase_data.get('name', '').split()[-1] if firebase_data.get('name') else '',
+            email=firebase_data['email'],
+            tipo_usuario='cliente',
         )
-        usuario.set_password(form.password.data)
         db.session.add(usuario)
-        db.session.flush()  # obtener el id
+        db.session.flush()
 
         perfil = Perfil(id_usuario=usuario.id)
         db.session.add(perfil)
         db.session.commit()
 
-        flash('¡Registro exitoso! Ahora inicia sesión.', 'success')
-        return redirect(url_for('auth.login'))
-    return render_template('auth/registro.html', form=form)
+    # Actualizar firebase_uid si no lo tenía
+    if not usuario.firebase_uid:
+        usuario.firebase_uid = firebase_data['uid']
+        db.session.commit()
+
+    return usuario
 
 
-@auth_bp.route('/login', methods=['GET', 'POST'])
+@auth_bp.route('/login', methods=['GET'])
 def login():
+    """Muestra la página de login con Firebase."""
     if current_user.is_authenticated:
         return redirect(url_for('catalogo.index'))
-    form = LoginForm()
-    if form.validate_on_submit():
-        usuario = db.session.execute(
-            db.select(Usuario).filter_by(email=form.email.data)
-        ).scalar_one_or_none()
-        if usuario and usuario.check_password(form.password.data):
-            login_user(usuario, remember=form.remember.data)
-            next_page = request.args.get('next')
-            return redirect(next_page or url_for('catalogo.index'))
-        flash('Email o contraseña incorrectos.', 'danger')
-    return render_template('auth/login.html', form=form)
+    return render_template('auth/login.html', firebase_ready=is_firebase_ready())
+
+
+@auth_bp.route('/auth/callback', methods=['POST'])
+def auth_callback():
+    """
+    Endpoint que recibe el token de Firebase tras login exitoso.
+    Verifica el token, busca/crea el usuario local y establece la sesión.
+    """
+    data = request.get_json()
+    id_token = data.get('id_token')
+
+    if not id_token:
+        return jsonify({'error': 'Token no proporcionado'}), 400
+
+    firebase_data = verify_firebase_token(id_token)
+    if not firebase_data:
+        return jsonify({'error': 'Token inválido o expirado'}), 401
+
+    usuario = find_or_create_user(firebase_data)
+    login_user(usuario, remember=True)
+
+    return jsonify({
+        'redirect': url_for('catalogo.index'),
+        'user': {
+            'id': usuario.id,
+            'email': usuario.email,
+            'nombre': usuario.nombres,
+        }
+    })
+
+
+@auth_bp.route('/registro', methods=['GET'])
+def registro():
+    """Muestra la página de registro con Firebase."""
+    if current_user.is_authenticated:
+        return redirect(url_for('catalogo.index'))
+    return render_template('auth/registro.html', firebase_ready=is_firebase_ready())
+
+
+@auth_bp.route('/registro/callback', methods=['POST'])
+def registro_callback():
+    """
+    Endpoint que recibe el token de Firebase tras registro exitoso.
+    Crea el usuario local vinculado al UID de Firebase.
+    """
+    data = request.get_json()
+    id_token = data.get('id_token')
+    tipo_usuario = data.get('tipo_usuario', 'cliente')
+
+    if not id_token:
+        return jsonify({'error': 'Token no proporcionado'}), 400
+
+    firebase_data = verify_firebase_token(id_token)
+    if not firebase_data:
+        return jsonify({'error': 'Token inválido o expirado'}), 401
+
+    # Verificar que no exista ya
+    existente = db.session.execute(
+        db.select(Usuario).filter_by(firebase_uid=firebase_data['uid'])
+    ).scalar_one_or_none()
+
+    if existente:
+        return jsonify({'error': 'Este usuario ya está registrado'}), 409
+
+    usuario = find_or_create_user(firebase_data)
+    usuario.tipo_usuario = tipo_usuario
+    db.session.commit()
+
+    login_user(usuario, remember=True)
+
+    return jsonify({
+        'redirect': url_for('catalogo.index'),
+        'user': {
+            'id': usuario.id,
+            'email': usuario.email,
+            'nombre': usuario.nombres,
+        }
+    })
 
 
 @auth_bp.route('/logout')
 @login_required
 def logout():
     logout_user()
+    session.clear()
+
+    # Revocar sesiones de Firebase también
+    if current_user.firebase_uid:
+        revoke_firebase_sessions(current_user.firebase_uid)
+
     flash('Sesión cerrada correctamente.', 'info')
     return redirect(url_for('auth.login'))
 

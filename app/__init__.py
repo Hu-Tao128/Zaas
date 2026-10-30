@@ -2,6 +2,7 @@ from flask import Flask
 from flask_migrate import Migrate
 from app.extensions import db, login_manager, init_supabase
 from app.auth import auth_bp
+from app.auth.firebase_service import init_firebase_app
 from app.catalogo import catalogo_bp
 from app.contratos import contratos_bp
 from app.pagos import pagos_bp
@@ -25,6 +26,9 @@ def create_app(config_class=None):
 
     # Inicializar Supabase
     init_supabase(app)
+
+    # Inicializar Firebase Auth
+    init_firebase_app(app.config.get('FIREBASE_KEY_PATH', ''))
 
     # Blueprints
     app.register_blueprint(auth_bp)

@@ -36,3 +36,7 @@ uploads/
 
 # Secrets
 secret_key.py
+
+# Firebase keys (never commit real keys)
+keys/*.json
+!keys/placeholder

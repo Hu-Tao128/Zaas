@@ -1,6 +1,5 @@
 from datetime import datetime
 from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
 from app.extensions import db
 
 
@@ -8,11 +7,11 @@ class Usuario(UserMixin, db.Model):
     __tablename__ = 'usuario'
 
     id = db.Column(db.Integer, primary_key=True)
+    firebase_uid = db.Column(db.String(128), unique=True, nullable=True, index=True)
     nombres = db.Column(db.String(100), nullable=False)
     apellido_paterno = db.Column(db.String(100), nullable=False)
     apellido_materno = db.Column(db.String(100))
     email = db.Column(db.String(150), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
     fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
     tipo_usuario = db.Column(db.String(20), nullable=False)  # 'cliente', 'desarrollador', 'admin'
 
@@ -34,12 +33,6 @@ class Usuario(UserMixin, db.Model):
     disputas_resueltas = db.relationship('Disputa', foreign_keys='Disputa.id_admin', back_populates='admin')
     mensajes_enviados = db.relationship('Mensaje', foreign_keys='Mensaje.id_emisor', back_populates='emisor')
     mensajes_recibidos = db.relationship('Mensaje', foreign_keys='Mensaje.id_receptor', back_populates='receptor')
-
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
         return f'<Usuario {self.email}>'

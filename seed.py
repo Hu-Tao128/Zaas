@@ -1,6 +1,9 @@
 """
 Script para poblar la base de datos con datos de prueba.
 Ejecutar: python seed.py
+
+Nota: Con Firebase Auth, los usuarios se crean desde Firebase Console
+o desde el frontend. Este script solo crea datos de prueba locales.
 """
 import sys
 import os
@@ -20,30 +23,23 @@ def seed():
         db.drop_all()
         db.create_all()
 
-        # ── Usuarios ──
+        # ── Usuarios (sin password — Firebase maneja auth) ──
         admin = Usuario(
             nombres='Admin', apellido_paterno='Zaas', email='admin@zaas.com',
-            tipo_usuario='admin'
+            tipo_usuario='admin', firebase_uid='firebase_admin_uid'
         )
-        admin.set_password('admin123')
-
         cliente1 = Usuario(
             nombres='Carlos', apellido_paterno='Lopez', email='carlos@mail.com',
-            tipo_usuario='cliente'
+            tipo_usuario='cliente', firebase_uid='firebase_cliente1_uid'
         )
-        cliente1.set_password('cliente123')
-
         dev1 = Usuario(
             nombres='Ana', apellido_paterno='Garcia', email='ana@mail.com',
-            tipo_usuario='desarrollador'
+            tipo_usuario='desarrollador', firebase_uid='firebase_dev1_uid'
         )
-        dev1.set_password('dev123')
-
         dev2 = Usuario(
             nombres='Luis', apellido_paterno='Martinez', email='luis@mail.com',
-            tipo_usuario='desarrollador'
+            tipo_usuario='desarrollador', firebase_uid='firebase_dev2_uid'
         )
-        dev2.set_password('dev123')
 
         db.session.add_all([admin, cliente1, dev1, dev2])
         db.session.flush()
@@ -95,11 +91,11 @@ def seed():
         db.session.commit()
 
         print("✅ Base de datos poblada con datos de prueba.")
-        print(f"\nUsuarios de prueba:")
-        print(f"  Admin:     admin@zaas.com / admin123")
-        print(f"  Cliente:   carlos@mail.com / cliente123")
-        print(f"  Dev 1:     ana@mail.com / dev123")
-        print(f"  Dev 2:     luis@mail.com / dev123")
+        print(f"\nUsuarios de prueba (crear en Firebase Auth con estos emails):")
+        print(f"  Admin:     admin@zaas.com")
+        print(f"  Cliente:   carlos@mail.com")
+        print(f"  Dev 1:     ana@mail.com")
+        print(f"  Dev 2:     luis@mail.com")
 
 
 if __name__ == '__main__':
