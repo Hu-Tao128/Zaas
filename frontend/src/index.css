@@ -84,9 +84,120 @@ body {
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-.home main {
-  max-width: 800px;
+.home header nav {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.home header nav a {
+  color: #333;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.home header nav a:hover {
+  color: #007bff;
+}
+
+.hero {
+  text-align: center;
+  padding: 60px 32px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.hero h2 {
+  font-size: 2rem;
+  margin-bottom: 16px;
+}
+
+.hero p {
+  font-size: 1.2rem;
+  opacity: 0.9;
+}
+
+.section {
+  max-width: 1200px;
   margin: 40px auto;
   padding: 0 32px;
-  text-align: center;
+}
+
+.section h3 {
+  font-size: 1.5rem;
+  margin-bottom: 24px;
+  color: #333;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.card {
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.card h4 {
+  font-size: 1.2rem;
+  margin-bottom: 12px;
+  color: #007bff;
+}
+
+.card p {
+  color: #666;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+
+.precio, .presupuesto {
+  font-weight: bold;
+  color: #28a745;
+  font-size: 1.1rem;
+}
+
+.autor {
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.estado {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.estado.abierto {
+  background: #d4edda;
+  color: #155724;
+}
+
+.estado.en_progreso {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.estado.cerrado {
+  background: #f8d7da;
+  color: #721c24;
 }
