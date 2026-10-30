@@ -15,7 +15,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const { idToken } = await registerWithEmail(email, password);
-      await fetch('http://localhost:5000/registro/callback', {
+      await fetch('/auth/registro/callback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id_token: idToken, tipo_usuario: 'cliente' })
@@ -33,7 +33,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const { idToken } = await loginWithGoogle();
-      await fetch('http://localhost:5000/registro/callback', {
+      await fetch('/auth/registro/callback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id_token: idToken, tipo_usuario: 'cliente' })

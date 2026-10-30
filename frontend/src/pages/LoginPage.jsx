@@ -15,12 +15,21 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { idToken } = await loginWithEmail(email, password);
-      await fetch('http://localhost:5000/auth/callback', {
+      const response = await fetch('/auth/callback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_token: idToken })
+        body: JSON.stringify({ id_token: idToken }),
+        credentials: 'include'
       });
-      navigate('/');
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error de autenticación');
+      }
+      
+      const data = await response.json();
+      console.log('Login exitoso:', data);
+      navigate(data.redirect || '/');
     } catch (err) {
       setError(err.message || 'Error al iniciar sesión');
     } finally {
@@ -33,12 +42,21 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { idToken } = await loginWithGoogle();
-      await fetch('http://localhost:5000/auth/callback', {
+      const response = await fetch('/auth/callback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_token: idToken })
+        body: JSON.stringify({ id_token: idToken }),
+        credentials: 'include'
       });
-      navigate('/');
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error con Google');
+      }
+      
+      const data = await response.json();
+      console.log('Login con Google exitoso:', data);
+      navigate(data.redirect || '/');
     } catch (err) {
       setError(err.message || 'Error con Google');
     } finally {

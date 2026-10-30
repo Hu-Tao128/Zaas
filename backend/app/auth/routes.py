@@ -1,10 +1,21 @@
-from flask import render_template, redirect, url_for, request, flash, jsonify, session
+from flask import render_template, redirect, url_for, request, flash, jsonify, session, make_response
 from flask_login import login_user, logout_user, login_required, current_user
 from app.auth import auth_bp
 from app.auth.models import Usuario, Perfil
 from app.auth.forms import RegistroForm, PerfilForm
 from app.auth.firebase_service import verify_firebase_token, is_firebase_ready, revoke_firebase_sessions
 from app.extensions import db
+
+
+# Manejar OPTIONS preflight para CORS
+@auth_bp.route('/callback', methods=['OPTIONS'])
+def handle_options():
+    response = make_response()
+    response.headers.add('Access-Control-Allow-Origin', 'http://localhost:3000')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'POST,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response, 200
 
 
 def rol_requerido(roles):
@@ -74,7 +85,7 @@ def login():
     return render_template('auth/login.html', firebase_ready=is_firebase_ready())
 
 
-@auth_bp.route('/auth/callback', methods=['POST'])
+@auth_bp.route('/callback', methods=['POST'])
 def auth_callback():
     """
     Endpoint que recibe el token de Firebase tras login exitoso.
@@ -87,6 +98,20 @@ def auth_callback():
         return jsonify({'error': 'Token no proporcionado'}), 400
 
     firebase_data = verify_firebase_token(id_token)
+    
+    # Modo desarrollo: si Firebase no está configurado, decodificar sin verificar
+    if not firebase_data and not is_firebase_ready():
+        import jwt
+        try:
+            payload = jwt.decode(id_token, options={"verify_signature": False})
+            firebase_data = {
+                'uid': payload.get('sub', 'dev_user'),
+                'email': payload.get('email', 'dev@test.com'),
+                'name': payload.get('name', 'Dev User'),
+            }
+        except Exception:
+            return jsonify({'error': 'Token inválido'}), 400
+    
     if not firebase_data:
         return jsonify({'error': 'Token inválido o expirado'}), 401
 
@@ -111,6 +136,7 @@ def registro():
     return render_template('auth/registro.html', firebase_ready=is_firebase_ready())
 
 
+@auth_bp.route('/registro/callback', methods=['OPTIONS'])
 @auth_bp.route('/registro/callback', methods=['POST'])
 def registro_callback():
     """

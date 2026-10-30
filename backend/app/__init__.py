@@ -1,5 +1,6 @@
 from flask import Flask
 from flask_migrate import Migrate
+from flask_cors import CORS
 from app.extensions import db, login_manager, init_supabase
 from app.auth import auth_bp
 from app.auth.firebase_service import init_firebase_app
@@ -16,6 +17,9 @@ def create_app(config_class=None):
         from config import Config
         config_class = Config
     app.config.from_object(config_class)
+
+    # CORS abierto para desarrollo
+    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
     # Extensiones
     db.init_app(app)

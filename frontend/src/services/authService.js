@@ -1,7 +1,6 @@
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
-import { auth } from './firebase';
+import { auth, analytics } from '../firebase';
 import { logEvent } from 'firebase/analytics';
-import { analytics } from './firebase';
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -64,7 +63,7 @@ export function onAuthChange(callback) {
  * Enviar token al backend para crear sesión
  */
 export async function syncWithBackend(idToken) {
-  const response = await fetch('http://localhost:5000/auth/callback', {
+  const response = await fetch('/auth/callback', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id_token: idToken })
