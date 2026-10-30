@@ -2,44 +2,62 @@
 
 Plataforma de servicios de desarrollo de software con escrow, contratos y mensajería.
 
-## Estructura del proyecto
+## Estructura del Proyecto
 
 ```
-app/
-  __init__.py          # create_app()
-  extensions.py        # db, login_manager
-  auth/                # Aya — usuarios, perfiles, login
-  catalogo/            # Jean — proyectos, ofertas, postulaciones
-  contratos/           # Sidrac — contratos, entregables, aceptaciones
-  pagos/               # Daniel — pagos escrow, disputas, recibos
-  comunicacion/        # Gael — mensajes, notificaciones, calificaciones, admin
-  templates/
-    base.html          # plantilla base con navbar
-    auth/
-    catalogo/
-    contratos/
-    pagos/
-    comunicacion/
-config.py
-run.py
-requirements.txt
+Zaas/
+├── backend/              # Flask + Firebase Admin + Supabase
+│   ├── app/              # Blueprints y lógica de negocio
+│   │   ├── auth/         # Aya — usuarios, perfiles, Firebase Auth
+│   │   ├── catalogo/     # Jean — proyectos, ofertas, postulaciones
+│   │   ├── contratos/    # Sidrac — contratos, entregables, aceptaciones
+│   │   ├── pagos/        # Daniel — pagos escrow, disputas, recibos
+│   │   └── comunicacion/ # Gael — mensajes, notificaciones, calificaciones
+│   ├── config.py         # Configuración por entorno
+│   ├── run.py            # Entry point del servidor Flask
+│   ├── seed.py           # Datos de prueba
+│   ├── requirements.txt
+│   └── keys/             # Firebase Service Account Key (NO commitear)
+│
+├── frontend/             # React + Vite + Firebase Auth + Analytics
+│   ├── src/
+│   │   ├── components/   # Componentes reutilizables
+│   │   ├── pages/        # Páginas (Login, Registro, Home, etc.)
+│   │   ├── services/     # Firebase Auth + API calls
+│   │   ├── context/      # Auth context (estado global)
+│   │   └── firebase.js   # Firebase config + Analytics
+│   ├── package.json
+│   ├── vite.config.js
+│   └── .env.example
+│
+└── README.md
 ```
 
-## Instalación
+## Arquitectura
+
+- **Firebase Auth** → Autenticación (email/password + Google Sign-In)
+- **SQLite local** → Datos de usuario (perfil, proyectos, ofertas, contratos)
+- **Supabase** → Datos compartidos (notificaciones, métricas, config global)
+- **Firebase Analytics** → Tracking de eventos en el frontend
+
+## Backend (Flask)
 
 ```bash
-# Crear entorno virtual
+cd backend
 python -m venv venv
 source venv/bin/activate  # En Windows: venv\Scripts\activate
-
-# Instalar dependencias
 pip install -r requirements.txt
+python seed.py            # Crear DB y datos de prueba
+python run.py             # Servidor en http://localhost:5000
+```
 
-# Crear la base de datos y tablas
-python seed.py
+## Frontend (React)
 
-# Ejecutar
-python run.py
+```bash
+cd frontend
+pnpm install              # Instalar dependencias
+pnpm dev                  # Dev server en http://localhost:3000
+pnpm build                # Build para producción
 ```
 
 ## Ramas
