@@ -3,22 +3,29 @@
 {% block content %}
 <div class="card" style="max-width:600px;margin:2rem auto;">
     <h2 class="mb-2">{{ 'Editar' if edit else 'Nuevo' }} Proyecto</h2>
-    <form method="POST">
+    <form method="POST" novalidate>
         {{ form.hidden_tag() }}
+        {% for field in [form.titulo, form.descripcion, form.precio] %}
         <div class="form-group">
-            {{ form.titulo.label }} {{ form.titulo() }}
+            {{ field.label }} {{ field() }}
+            {% for e in field.errors %}<small style="color:#c0392b;">{{ e }}</small>{% endfor %}
+        </div>
+        {% endfor %}
+        <div class="form-group">
+            {{ form.categorias_ids.label }} {{ form.categorias_ids(size=5) }}
+            {% if not form.categorias_ids.choices %}<small>No hay categorías registradas.</small>{% else %}<small>Mantén Ctrl (o Cmd) para elegir varias.</small>{% endif %}
+            {% for e in form.categorias_ids.errors %}<small style="color:#c0392b;">{{ e }}</small>{% endfor %}
         </div>
         <div class="form-group">
-            {{ form.descripcion.label }} {{ form.descripcion() }}
+            {{ form.tecnologias_ids.label }} {{ form.tecnologias_ids(size=5) }}
+            {% if not form.tecnologias_ids.choices %}<small>No hay tecnologías registradas.</small>{% endif %}
+            {% for e in form.tecnologias_ids.errors %}<small style="color:#c0392b;">{{ e }}</small>{% endfor %}
         </div>
         <div class="form-group">
-            {{ form.precio.label }} {{ form.precio() }}
-        </div>
-        <div class="form-group">
-            {{ form.demo_habilitada() }} {{ form.demo_habilitada.label }}
+            {{ form.demo_habilitada(style="width:auto;") }} {{ form.demo_habilitada.label(style="display:inline;") }}
         </div>
         <button type="submit" class="btn btn-primary">Guardar</button>
-        <a href="{{ url_for('catalogo.index') }}" class="btn btn-secondary">Cancelar</a>
+        <a href="{{ url_for('catalogo.mis_productos') }}" class="btn btn-secondary">Cancelar</a>
     </form>
 </div>
 {% endblock %}

@@ -16,16 +16,24 @@
     <button type="submit" class="btn btn-primary">Buscar</button>
 </form>
 
-{% if current_user.is_authenticated %}
+{% if current_user.is_authenticated and current_user.tipo_usuario == 'desarrollador' %}
     <a href="{{ url_for('catalogo.nuevo_proyecto') }}" class="btn btn-primary mb-2">+ Nuevo Proyecto</a>
+        <a href="{{ url_for('catalogo.mis_productos') }}" class="btn btn-secondary mb-2">Mis productos</a>
+            <a href="{{ url_for('catalogo.mis_postulaciones') }}" class="btn btn-secondary mb-2">Mis postulaciones</a>
+{% elif current_user.is_authenticated and current_user.tipo_usuario == 'cliente' %}
     <a href="{{ url_for('catalogo.nueva_oferta') }}" class="btn btn-secondary mb-2">+ Nueva Oferta</a>
+        <a href="{{ url_for('catalogo.mis_ofertas') }}" class="btn btn-secondary mb-2">Mis ofertas</a>
 {% endif %}
 
 <div class="grid grid-3">
     {% for proyecto in proyectos.items %}
     <div class="card">
         <h4><a href="{{ url_for('catalogo.detalle_proyecto', id=proyecto.id) }}">{{ proyecto.titulo }}</a></h4>
-        <p>{{ proyecto.descripcion[:120] }}{% if proyecto.descripcion|length > 120 %}...{% endif %}</p>
+        <p>{{ (proyecto.descripcion or '')[:120] }}{% if (proyecto.descripcion or '')|length > 120 %}...{% endif %}</p>
+        <p class="mb-1">
+            {% for c in proyecto.categorias %}<span class="badge badge-info">{{ c.categoria.nombre }}</span> {% endfor %}
+            {% for t in proyecto.tecnologias %}<span class="badge badge-secondary">{{ t.tecnologia.nombre }}</span> {% endfor %}
+        </p>
         <div class="flex" style="justify-content:space-between;align-items:center;">
             <strong>${{ proyecto.precio }}</strong>
             {% if proyecto.demo_habilitada %}<span class="badge badge-success">Demo</span>{% endif %}
@@ -40,11 +48,11 @@
 {% if proyectos.pages > 1 %}
 <div class="flex mt-2" style="justify-content:center;">
     {% if proyectos.has_prev %}
-        <a href="{{ url_for('catalogo.index', page=proyectos.prev, q=search) }}" class="btn btn-secondary btn-sm">← Anterior</a>
+        <a href="{{ url_for('catalogo.index', page=proyectos.prev_num, q=search) }}" class="btn btn-secondary btn-sm">← Anterior</a>
     {% endif %}
     <span class="btn-sm" style="padding:0.5rem;">Página {{ proyectos.page }} de {{ proyectos.pages }}</span>
     {% if proyectos.has_next %}
-        <a href="{{ url_for('catalogo.index', page=proyectos.next, q=search) }}" class="btn btn-secondary btn-sm">Siguiente →</a>
+        <a href="{{ url_for('catalogo.index', page=proyectos.next_num, q=search) }}" class="btn btn-secondary btn-sm">Siguiente →</a>
     {% endif %}
 </div>
 {% endif %}

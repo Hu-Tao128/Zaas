@@ -2,24 +2,45 @@
 {% block title %}{{ proyecto.titulo }} - Zaas{% endblock %}
 {% block content %}
 <div class="card">
-    <h1>{{ proyecto.titulo }}</h1>
+    <h1>{{ proyecto.titulo }}
+        {% if proyecto.estado != 'activo' %}<span class="badge badge-danger">CERRADO</span>{% endif %}
+    </h1>
     <p><strong>Autor:</strong> <a href="{{ url_for('auth.ver_perfil', id=proyecto.autor.id) }}">{{ proyecto.autor.nombres }} {{ proyecto.autor.apellido_paterno }}</a></p>
     <p><strong>Fecha:</strong> {{ proyecto.fecha_publicacion.strftime('%d/%m/%Y') }}</p>
     <p><strong>Precio:</strong> ${{ proyecto.precio }}</p>
+    {% if proyecto.categorias %}
+    <p><strong>Categorías:</strong> {% for c in proyecto.categorias %}<span class="badge badge-info">{{ c.categoria.nombre }}</span> {% endfor %}</p>
+    {% endif %}
+    {% if proyecto.tecnologias %}
+    <p><strong>Tecnologías:</strong> {% for t in proyecto.tecnologias %}<span class="badge badge-secondary">{{ t.tecnologia.nombre }}</span> {% endfor %}</p>
+    {% endif %}
     {% if proyecto.demo_habilitada %}<span class="badge badge-success">Demo habilitada</span>{% endif %}
 
     <h3 class="mt-2">Descripción</h3>
     <p>{{ proyecto.descripcion or 'Sin descripción.' }}</p>
 
-    <div class="mt-2 flex">
-        {% if current_user.is_authenticated %}
+    <div class="mt-2 flex flex-wrap">
+        {% if proyecto.estado != 'activo' %}
+            <div class="alert alert-warning" style="margin:0;">Este proyecto está cerrado y no está disponible.</div>
+        {% elif not current_user.is_authenticated %}
+            <a href="{{ url_for('auth.login') }}" class="btn btn-primary">Inicia sesión para contratar</a>
+        {% elif current_user.id != proyecto.id_usuario %}
             {% if proyecto.demo_habilitada %}
                 <a href="{{ url_for('catalogo.solicitar_demo', id=proyecto.id) }}" class="btn btn-primary">Solicitar Demo</a>
             {% endif %}
-            <a href="{{ url_for('catalogo.postular_oferta', id=proyecto.id) }}" class="btn btn-secondary">Contratar</a>
+            {% if current_user.tipo_usuario == 'cliente' %}
+                <a href="{{ url_for('contratos.nuevo_contrato', id_producto=proyecto.id, id_desarrollador=proyecto.id_usuario) }}" class="btn btn-secondary">Contratar</a>
+            {% endif %}
         {% endif %}
         {% if current_user.is_authenticated and current_user.id == proyecto.id_usuario %}
             <a href="{{ url_for('catalogo.editar_proyecto', id=proyecto.id) }}" class="btn btn-secondary btn-sm">Editar</a>
+                        {% if proyecto.estado == 'activo' %}
+                        <form method="POST" action="{{ url_for('catalogo.cerrar_proyecto', id=proyecto.id) }}" onsubmit="return confirm('¿Cerrar este proyecto? Dejará de aparecer en el catálogo público.');">
+                            {{ csrf_form.hidden_tag() }}
+                            <button type="submit" class="btn btn-danger btn-sm">Cerrar proyecto</button>
+                        </form>
+                        {% endif %}
+                        <a href="{{ url_for('catalogo.mis_productos') }}" class="btn btn-secondary btn-sm">Mis productos</a>
         {% endif %}
     </div>
 </div>

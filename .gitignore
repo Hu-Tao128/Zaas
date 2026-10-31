@@ -40,3 +40,4 @@ secret_key.py
 # Firebase keys (never commit real keys)
 keys/*.json
 !keys/placeholder
+backend/keys/

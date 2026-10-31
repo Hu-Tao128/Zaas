@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Mis postulaciones - Zaas{% endblock %}
+{% block content %}
+<h1 class="mb-2">Mis postulaciones</h1>
+
+<div class="flex flex-wrap mb-2">
+    <a href="{{ url_for('catalogo.ver_ofertas') }}" class="btn btn-primary">Buscar ofertas</a>
+</div>
+
+{% if postulaciones %}
+<div class="card" style="overflow-x:auto;">
+<table>
+    <thead>
+        <tr><th>Oferta</th><th>Costo propuesto</th><th>Estado</th><th>Oferta</th><th>Enviada</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for p in postulaciones %}
+        <tr>
+            <td><a href="{{ url_for('catalogo.detalle_oferta', id=p.oferta.id) }}">{{ p.oferta.titulo }}</a></td>
+            <td>${{ p.costo_propuesto }}</td>
+            <td><span class="badge badge-{{ 'success' if p.estado == 'aceptada' else ('danger' if p.estado == 'rechazada' else 'warning') }}">{{ p.estado }}</span></td>
+            <td><span class="badge badge-{{ 'success' if p.oferta.estado == 'abierto' else ('info' if p.oferta.estado == 'en_progreso' else 'danger') }}">{{ p.oferta.estado }}</span></td>
+            <td>{{ p.fecha_hora.strftime('%d/%m/%Y') }}</td>
+            <td><a href="{{ url_for('catalogo.ver_postulacion', id=p.id) }}" class="btn btn-secondary btn-sm">Ver</a></td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<div class="card"><p>Aún no te has postulado a ninguna oferta.</p></div>
+{% endif %}
+{% endblock %}

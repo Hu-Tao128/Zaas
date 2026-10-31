@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Mis ofertas - Zaas{% endblock %}
+{% block content %}
+<h1 class="mb-2">Mis ofertas</h1>
+
+<div class="flex flex-wrap mb-2">
+    <a href="{{ url_for('catalogo.nueva_oferta') }}" class="btn btn-primary">+ Nueva Oferta</a>
+    <a href="{{ url_for('catalogo.ver_ofertas') }}" class="btn btn-secondary">Ver ofertas públicas</a>
+</div>
+
+{% for o in ofertas %}
+<div class="card">
+    <div class="flex" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;">
+        <h3></h3><a href="{{ url_for('catalogo.detalle_oferta', id=o.id) }}">{{ o.titulo }}</a></h3>
+        <span class="badge badge-{{ 'success' if o.estado == 'abierto' else ('info' if o.estado == 'en_progreso' else 'danger') }}">{{ o.estado }}</span>
+    </div>
+    <p>{{ (o.descripcion_requerimientos or 'Sin descripción')[:200] }}{% if o.descripcion_requerimientos and o.descripcion_requerimientos|length > 200 %}...{% endif %}</p>
+    <p><strong>Presupuesto:</strong> {% if o.presupuesto %}${{ o.presupuesto }}{% else %}No especificado{% endif %}
+       &nbsp;|&nbsp; <strong>Entrega:</strong> {% if o.fecha_entrega %}{{ o.fecha_entrega.strftime('%d/%m/%Y') }}{% else %}Sin fecha{% endif %}
+       &nbsp;|&nbsp; <strong>Publicada:</strong> {{ o.fecha_publicacion.strftime('%d/%m/%Y') }}</p>
+    <p><strong>Postulaciones:</strong> {{ o.postulaciones|length }}</p>
+    <div class="flex flex-wrap">
+        <a href="{{ url_for('catalogo.detalle_oferta', id=o.id) }}" class="btn btn-secondary btn-sm">Ver detalle y postulaciones</a>
+        {% if o.estado in ('abierto', 'en_progreso') %}
+        <form method="POST" action="{{ url_for('catalogo.cerrar_oferta', id=o.id) }}" onsubmit="return confirm('{{ '¿Cerrar esta oferta en progreso? Solo es posible si no tiene un contrato activo.' if o.estado == 'en_progreso' else '¿Cerrar esta oferta? Dejará de aparecer en el listado público y no recibirá más postulaciones.' }}');">
+            {{ csrf_form.hidden_tag() }}
+            <button type="submit" class="btn btn-danger btn-sm">Cerrar</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="card"><p>Aún no has publicado ofertas.</p></div>
+{% endfor %}
+{% endblock %}

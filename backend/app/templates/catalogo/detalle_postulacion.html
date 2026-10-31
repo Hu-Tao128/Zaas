@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Postulación - Zaas{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Postulación a: <a href="{{ url_for('catalogo.detalle_oferta', id=postulacion.oferta.id) }}">{{ postulacion.oferta.titulo }}</a></h2>
+    <p><strong>Desarrollador:</strong> <a href="{{ url_for('auth.ver_perfil', id=postulacion.desarrollador.id) }}">{{ postulacion.desarrollador.nombres }} {{ postulacion.desarrollador.apellido_paterno }}</a></p>
+    <p><strong>Estado:</strong> <span class="badge badge-{{ 'success' if postulacion.estado == 'aceptada' else ('danger' if postulacion.estado == 'rechazada' else 'warning') }}">{{ postulacion.estado }}</span>
+        {% if postulacion.oferta.estado == 'cerrado' %}<span class="badge badge-danger">Oferta cerrada</span>
+        {% elif postulacion.oferta.estado == 'en_progreso' %}<span class="badge badge-info">Oferta en progreso</span>{% endif %}</p>
+    <p><strong>Costo propuesto:</strong> ${{ postulacion.costo_propuesto }}</p>
+    <p><strong>Enviada:</strong> {{ postulacion.fecha_hora.strftime('%d/%m/%Y %H:%M') }}</p>
+    <h3 class="mt-2">Detalles de la propuesta</h3>
+    <p>{{ postulacion.detalles }}</p>
+
+    <div class="mt-2 flex flex-wrap">
+        {% if es_cliente and postulacion.estado == 'pendiente' %}
+            <form method="POST" action="{{ url_for('catalogo.aceptar_postulacion', id=postulacion.id) }}" onsubmit="return confirm('¿Aceptar esta postulación? La oferta pasará a en progreso y las demás postulaciones pendientes se rechazarán.');">
+                {{ csrf_form.hidden_tag() }}
+                <button type="submit" class="btn btn-success">Aceptar</button>
+            </form>
+            <form method="POST" action="{{ url_for('catalogo.rechazar_postulacion', id=postulacion.id) }}" onsubmit="return confirm('¿Rechazar esta postulación?');">
+                {{ csrf_form.hidden_tag() }}
+                <button type="submit" class="btn btn-danger">Rechazar</button>
+            </form>
+        {% endif %}
+        {% if es_cliente and postulacion.estado == 'aceptada' %}
+            <a href="{{ url_for('contratos.nuevo_contrato', id_cliente=postulacion.oferta.id_cliente, id_desarrollador=postulacion.id_desarrollador, id_encargo=postulacion.oferta.id, costo_acordado=postulacion.costo_propuesto) }}" class="btn btn-primary">Contratar a este desarrollador</a>
+        {% endif %}
+        {% if es_cliente %}
+            <a href="{{ url_for('catalogo.detalle_oferta', id=postulacion.oferta.id) }}" class="btn btn-secondary btn-sm">Volver a la oferta</a>
+            <a href="{{ url_for('catalogo.mis_ofertas') }}" class="btn btn-secondary btn-sm">Mis ofertas</a>
+        {% else %}
+            <a href="{{ url_for('catalogo.mis_postulaciones') }}" class="btn btn-secondary btn-sm">Mis postulaciones</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
