@@ -86,6 +86,8 @@ def index():
     query = db.select(Proyecto).filter_by(estado='activo')
     if search:
         query = query.filter(Proyecto.titulo.ilike(f'%{search}%'))
+    if cat_filter:
+        query = query.filter(Proyecto.categorias.any(CategoriaProyecto.id_categoria == cat_filter))
     proyectos = db.paginate(query, page=page, per_page=12)
 
     categorias = db.session.execute(db.select(Categoria)).scalars().all()
@@ -238,25 +240,15 @@ def mis_ofertas():
     return render_template('catalogo/mis_ofertas.html', ofertas=ofertas, csrf_form=ActionForm())
 
 
-@catalogo_bp.route('/oferta/<int:id>/cerrar', methods=['POST'])
-@rol_requerido('cliente')
-def cerrar_oferta(id):
-    oferta = db.session.get(OfertaTrabajo, id)
-    if not oferta:
-        abort(404)
-    if oferta.id_cliente != current_user.id:
-        flash('No tienes permiso para cerrar esta oferta.', 'danger')
-        return redirect(url_for('catalogo.detalle_oferta', id=id))
-    if not ActionForm().validate_on_submit():
-        flash('Solicitud inválida. Inténtalo de nuevo.', 'danger')
-        return redirect(url_for('catalogo.mis_ofertas'))
-    # Cierre atómico: una sola sentencia comprueba estado y contratos activos.
+def _cerrar_oferta_atomico(id, id_cliente):
+    """Cierre atómico: una sola sentencia comprueba estado y contratos activos.
+    Devuelve (ok, nivel_flash, mensaje). Compartido por la vista HTML y la API."""
     try:
         resultado = db.session.execute(
             update(OfertaTrabajo)
             .where(
                 OfertaTrabajo.id == id,
-                OfertaTrabajo.id_cliente == current_user.id,
+                OfertaTrabajo.id_cliente == id_cliente,
                 or_(
                     OfertaTrabajo.estado == 'abierto',
                     (OfertaTrabajo.estado == 'en_progreso') & ~_contrato_activo_expr(),
@@ -270,18 +262,67 @@ def cerrar_oferta(id):
         db.session.rollback()
         raise
     if resultado.rowcount == 1:
-        flash('Oferta cerrada. Ya no aparece en el listado público.', 'success')
-    else:
-        db.session.expire_all()
-        actual = db.session.get(OfertaTrabajo, id).estado
-        if actual == 'cerrado':
-            flash('La oferta ya estaba cerrada.', 'warning')
-        elif actual == 'en_progreso' and _tiene_contrato_activo(id):
-            flash('No se puede cerrar: la oferta tiene un contrato activo. '
-                  'Cancela o finaliza el contrato primero.', 'warning')
-        else:
-            flash('No se pudo cerrar la oferta en su estado actual.', 'warning')
+        return True, 'success', 'Oferta cerrada. Ya no aparece en el listado público.'
+    db.session.expire_all()
+    actual = db.session.get(OfertaTrabajo, id).estado
+    if actual == 'cerrado':
+        return False, 'warning', 'La oferta ya estaba cerrada.'
+    if actual == 'en_progreso' and _tiene_contrato_activo(id):
+        return False, 'warning', ('No se puede cerrar: la oferta tiene un contrato activo. '
+                                  'Cancela o finaliza el contrato primero.')
+    return False, 'warning', 'No se pudo cerrar la oferta en su estado actual.'
+
+
+@catalogo_bp.route('/oferta/<int:id>/cerrar', methods=['POST'])
+@rol_requerido('cliente')
+def cerrar_oferta(id):
+    oferta = db.session.get(OfertaTrabajo, id)
+    if not oferta:
+        abort(404)
+    if oferta.id_cliente != current_user.id:
+        flash('No tienes permiso para cerrar esta oferta.', 'danger')
+        return redirect(url_for('catalogo.detalle_oferta', id=id))
+    if not ActionForm().validate_on_submit():
+        flash('Solicitud inválida. Inténtalo de nuevo.', 'danger')
+        return redirect(url_for('catalogo.mis_ofertas'))
+    _ok, nivel, mensaje = _cerrar_oferta_atomico(id, current_user.id)
+    flash(mensaje, nivel)
     return redirect(url_for('catalogo.mis_ofertas'))
+
+
+def _enviar_postulacion(id_dev, id, detalles, costo):
+    """Crea una postulación con el "cerrojo" sobre la oferta.
+    Devuelve (ok, nivel_flash, mensaje, destino) donde destino es 'oferta' o 'postulaciones'.
+    Compartido por la vista HTML y la API."""
+    try:
+        # "Cerrojo" sobre la fila de la oferta: toma el bloqueo de escritura y,
+        # a la vez, confirma que sigue abierta. Quien llegue después espera aquí
+        # y vuelve a comprobar con los datos ya confirmados por el primero.
+        bloqueo = db.session.execute(
+            update(OfertaTrabajo)
+            .where(OfertaTrabajo.id == id, OfertaTrabajo.estado == 'abierto')
+            .values(estado=OfertaTrabajo.estado)
+            .execution_options(synchronize_session=False)
+        )
+        if bloqueo.rowcount != 1:
+            db.session.rollback()
+            actual = db.session.get(OfertaTrabajo, id).estado
+            return False, 'warning', _motivo_oferta_no_abierta(actual), 'oferta'
+        if _postulacion_de(id_dev, id) or _hay_aceptada(id):
+            db.session.rollback()
+            return False, 'warning', 'Ya te postulaste a esta oferta o ya no admite postulaciones.', 'postulaciones'
+        db.session.add(Postulacion(
+            id_desarrollador=id_dev,
+            id_oferta=id,
+            detalles=detalles,
+            costo_propuesto=costo,
+            estado='pendiente',
+        ))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+    return True, 'success', 'Postulación enviada.', 'postulaciones'
 
 
 @catalogo_bp.route('/oferta/<int:id>/postular', methods=['GET', 'POST'])
@@ -300,38 +341,11 @@ def postular_oferta(id):
         return redirect(url_for('catalogo.detalle_oferta', id=id))
     form = PostulacionForm()
     if form.validate_on_submit():
-        id_dev = current_user.id
-        try:
-            # "Cerrojo" sobre la fila de la oferta: toma el bloqueo de escritura y,
-            # a la vez, confirma que sigue abierta. Quien llegue después espera aquí
-            # y vuelve a comprobar con los datos ya confirmados por el primero.
-            bloqueo = db.session.execute(
-                update(OfertaTrabajo)
-                .where(OfertaTrabajo.id == id, OfertaTrabajo.estado == 'abierto')
-                .values(estado=OfertaTrabajo.estado)
-                .execution_options(synchronize_session=False)
-            )
-            if bloqueo.rowcount != 1:
-                db.session.rollback()
-                actual = db.session.get(OfertaTrabajo, id).estado
-                flash(_motivo_oferta_no_abierta(actual), 'warning')
-                return redirect(url_for('catalogo.detalle_oferta', id=id))
-            if _postulacion_de(id_dev, id) or _hay_aceptada(id):
-                db.session.rollback()
-                flash('Ya te postulaste a esta oferta o ya no admite postulaciones.', 'warning')
-                return redirect(url_for('catalogo.mis_postulaciones'))
-            db.session.add(Postulacion(
-                id_desarrollador=id_dev,
-                id_oferta=id,
-                detalles=form.detalles.data.strip(),
-                costo_propuesto=form.costo_propuesto.data,
-                estado='pendiente',
-            ))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            raise
-        flash('Postulación enviada.', 'success')
+        ok, nivel, mensaje, destino = _enviar_postulacion(
+            current_user.id, id, form.detalles.data.strip(), form.costo_propuesto.data)
+        flash(mensaje, nivel)
+        if destino == 'oferta':
+            return redirect(url_for('catalogo.detalle_oferta', id=id))
         return redirect(url_for('catalogo.mis_postulaciones'))
     return render_template('catalogo/postular.html', form=form, oferta=oferta)
 
