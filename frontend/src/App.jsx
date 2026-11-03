@@ -65,6 +65,7 @@ export default function App() {
             <Route path="ofertas" element={<OfertasPage />} />
             <Route path="oferta/nueva" element={soCliente(<OfertaFormPage />)} />
             <Route path="oferta/:id" element={<DetalleOfertaPage />} />
+            <Route path="oferta/:id/editar" element={soCliente(<OfertaFormPage />)} />
             <Route path="oferta/:id/postular" element={soDesarrollador(<PostularPage />)} />
             <Route path="mis-ofertas" element={soCliente(<MisOfertasPage />)} />
             <Route path="mis-postulaciones" element={soDesarrollador(<MisPostulacionesPage />)} />

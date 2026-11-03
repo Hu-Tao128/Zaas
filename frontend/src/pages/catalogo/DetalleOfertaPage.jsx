@@ -70,6 +70,9 @@ export default function DetalleOfertaPage() {
           )}
           {esDueno && (
             <>
+              {oferta.estado === 'abierto' && (
+                <Link to={`/catalogo/oferta/${oferta.id}/editar`} className="btn btn-secondary btn-sm">Editar</Link>
+              )}
               {['abierto', 'en_progreso'].includes(oferta.estado) && (
                 <button type="button" className="btn btn-danger btn-sm" onClick={handleCerrar}>Cerrar oferta</button>
               )}

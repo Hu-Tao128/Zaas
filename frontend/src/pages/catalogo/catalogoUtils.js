@@ -27,6 +27,11 @@ export function recortar(texto, limite) {
   return contenido.length > limite ? `${contenido.slice(0, limite)}...` : contenido;
 }
 
+// El backend devuelve "2032-01-15T09:30:00"; datetime-local solo admite hasta los minutos.
+export function aValorDatetimeLocal(valor) {
+  return valor ? valor.slice(0, 16) : '';
+}
+
 export function fechaMinimaLocal() {
   const ahora = new Date();
   ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset() + 1);

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useCatalogo } from '../../context/CatalogoContext';
 import { useApi } from '../../hooks/useApi';
@@ -8,13 +9,49 @@ import { formatDinero, formatFecha, recortar } from './catalogoUtils';
 export default function OfertasPage() {
   const { usuario } = useCatalogo();
   const [searchParams, setSearchParams] = useSearchParams();
+  const busquedaParam = searchParams.get('q') || '';
   const paginaParam = Number(searchParams.get('page')) || 1;
-  const { data, loading, error } = useApi(() => catalogoApi.ofertas({ page: paginaParam }), [paginaParam]);
+  const [busqueda, setBusqueda] = useState(busquedaParam);
+
+  useEffect(() => {
+    setBusqueda(busquedaParam);
+  }, [busquedaParam]);
+
+  const { data, loading, error } = useApi(
+    () => catalogoApi.ofertas({ q: busquedaParam, page: paginaParam }),
+    [busquedaParam, paginaParam],
+  );
   const visibles = data?.items || [];
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    const params = new URLSearchParams();
+    if (busqueda.trim()) params.set('q', busqueda.trim());
+    setSearchParams(params);
+  }
+
+  function cambiarPagina(nuevaPagina) {
+    const params = new URLSearchParams(searchParams);
+    params.set('page', String(nuevaPagina));
+    setSearchParams(params);
+  }
 
   return (
     <>
       <h1>Ofertas de Trabajo</h1>
+
+      <form className="card catalogo-search" onSubmit={handleSubmit}>
+        <input
+          type="search"
+          value={busqueda}
+          onChange={(event) => setBusqueda(event.target.value)}
+          placeholder="Buscar por título o requerimientos..."
+          aria-label="Buscar ofertas"
+        />
+        <button type="submit" className="btn btn-primary">Buscar</button>
+        {busquedaParam && <Link to="/catalogo/ofertas" className="btn btn-secondary">Limpiar</Link>}
+      </form>
+
       <div className="catalogo-actions">
         {usuario.tipo_usuario === 'cliente' ? (
           <>
@@ -48,16 +85,14 @@ export default function OfertasPage() {
           ))}
         </div>
       ) : (
-        <EmptyCard>No hay ofertas abiertas por el momento.</EmptyCard>
+        <EmptyCard>
+          {busquedaParam
+            ? `No se encontraron ofertas abiertas para "${busquedaParam}".`
+            : 'No hay ofertas abiertas por el momento.'}
+        </EmptyCard>
       ))}
 
-      {data && (
-        <Pagination
-          pagina={data.page}
-          totalPaginas={data.pages}
-          onCambiarPagina={(nuevaPagina) => setSearchParams({ page: String(nuevaPagina) })}
-        />
-      )}
+      {data && <Pagination pagina={data.page} totalPaginas={data.pages} onCambiarPagina={cambiarPagina} />}
     </>
   );
 }

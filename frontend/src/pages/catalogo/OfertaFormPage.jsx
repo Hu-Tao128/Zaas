@@ -1,17 +1,41 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useApi } from '../../hooks/useApi';
 import { catalogoApi } from '../../services/catalogoApi';
-import { AlertaError, FormField } from '../../components/catalogo/CatalogoUI';
-import { fechaMinimaLocal } from './catalogoUtils';
+import { AlertaError, Cargando, ErrorCard, FormField } from '../../components/catalogo/CatalogoUI';
+import { aValorDatetimeLocal, fechaMinimaLocal } from './catalogoUtils';
 
 export default function OfertaFormPage() {
+  const { id } = useParams();
+  const editar = Boolean(id);
+  const { data, loading, error } = useApi(editar ? () => catalogoApi.oferta(id) : null, [id]);
+
+  if (editar && loading) return <Cargando />;
+  if (editar && error) return <ErrorCard error={error} volverA="/catalogo/mis-ofertas" volverTexto="Volver a mis ofertas" />;
+  if (editar && !data.es_dueno) {
+    return <ErrorCard error={new Error('No tienes permiso para editar esta oferta.')} volverA={`/catalogo/oferta/${id}`} volverTexto="Volver a la oferta" />;
+  }
+  if (editar && data.oferta.estado !== 'abierto') {
+    return (
+      <ErrorCard
+        error={new Error('Solo se pueden editar ofertas abiertas: esta ya está en progreso o cerrada.')}
+        volverA={`/catalogo/oferta/${id}`}
+        volverTexto="Volver a la oferta"
+      />
+    );
+  }
+  return <OfertaForm oferta={data?.oferta || null} />;
+}
+
+function OfertaForm({ oferta }) {
+  const editar = Boolean(oferta);
   const navigate = useNavigate();
-  const [datos, setDatos] = useState({
-    titulo: '',
-    descripcion: '',
-    presupuesto: '',
-    fecha_entrega: '',
-  });
+  const [datos, setDatos] = useState(() => ({
+    titulo: oferta?.titulo || '',
+    descripcion: oferta?.descripcion_requerimientos || '',
+    presupuesto: oferta?.presupuesto?.toString() || '',
+    fecha_entrega: aValorDatetimeLocal(oferta?.fecha_entrega),
+  }));
   const [errores, setErrores] = useState({});
   const [errorGeneral, setErrorGeneral] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -36,18 +60,22 @@ export default function OfertaFormPage() {
 
     setEnviando(true);
     try {
-      const respuesta = await catalogoApi.crearOferta(datos);
+      const respuesta = editar
+        ? await catalogoApi.editarOferta(oferta.id, datos)
+        : await catalogoApi.crearOferta(datos);
       navigate(`/catalogo/oferta/${respuesta.oferta.id}`, { state: { mensaje: respuesta.mensaje } });
     } catch (err) {
-      setErrores(err.errores || {});
+      setErrores(err.status === 422 ? err.errores : {});
       setErrorGeneral(err.message);
       setEnviando(false);
     }
   }
 
+  const cancelarA = editar ? `/catalogo/oferta/${oferta.id}` : '/catalogo/ofertas';
+
   return (
     <div className="card catalogo-form-card">
-      <h2>Nueva Oferta de Trabajo</h2>
+      <h2>{editar ? 'Editar Oferta de Trabajo' : 'Nueva Oferta de Trabajo'}</h2>
       <AlertaError>{errorGeneral}</AlertaError>
       <form onSubmit={handleSubmit} noValidate>
         <FormField label="Título" name="titulo" error={errores.titulo}>
@@ -63,8 +91,10 @@ export default function OfertaFormPage() {
           <input id="fecha_entrega" name="fecha_entrega" type="datetime-local" min={fechaMinimaLocal()} value={datos.fecha_entrega} onChange={actualizarCampo} />
         </FormField>
         <div className="catalogo-actions">
-          <button type="submit" className="btn btn-primary" disabled={enviando}>{enviando ? 'Publicando...' : 'Publicar Oferta'}</button>
-          <Link to="/catalogo/ofertas" className="btn btn-secondary">Cancelar</Link>
+          <button type="submit" className="btn btn-primary" disabled={enviando}>
+            {enviando ? 'Guardando...' : editar ? 'Guardar cambios' : 'Publicar Oferta'}
+          </button>
+          <Link to={cancelarA} className="btn btn-secondary">Cancelar</Link>
         </div>
       </form>
     </div>

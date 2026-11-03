@@ -58,6 +58,9 @@ export default function MisOfertasPage() {
           <p><strong>Postulaciones:</strong> {oferta.num_postulaciones}</p>
           <div className="catalogo-actions">
             <Link to={`/catalogo/oferta/${oferta.id}`} className="btn btn-secondary btn-sm">Ver detalle y postulaciones</Link>
+            {oferta.estado === 'abierto' && (
+              <Link to={`/catalogo/oferta/${oferta.id}/editar`} className="btn btn-secondary btn-sm">Editar</Link>
+            )}
             {['abierto', 'en_progreso'].includes(oferta.estado) && (
               <button type="button" className="btn btn-danger btn-sm" onClick={() => handleCerrar(oferta)}>Cerrar</button>
             )}

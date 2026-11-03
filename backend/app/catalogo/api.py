@@ -15,6 +15,7 @@ from functools import wraps
 from flask import Blueprint, jsonify, request
 from flask_login import current_user
 from flask_wtf.csrf import generate_csrf
+from sqlalchemy import or_, update
 from werkzeug.datastructures import MultiDict
 
 from app.catalogo.forms import ProyectoForm, OfertaForm, PostulacionForm, DemoForm
@@ -307,7 +308,14 @@ def solicitar_demo(id):
 @catalogo_api_bp.get('/ofertas')
 def listar_ofertas():
     page = request.args.get('page', 1, type=int)
+    q = request.args.get('q', '', type=str).strip()
     query = db.select(OfertaTrabajo).filter_by(estado='abierto').order_by(OfertaTrabajo.fecha_publicacion.desc())
+    if q:
+        patron = f'%{q}%'
+        query = query.filter(or_(
+            OfertaTrabajo.titulo.ilike(patron),
+            OfertaTrabajo.descripcion_requerimientos.ilike(patron),
+        ))
     return jsonify(_pagina(db.paginate(query, page=page, per_page=POR_PAGINA, error_out=False), _oferta))
 
 
@@ -356,6 +364,57 @@ def crear_oferta():
     db.session.add(oferta)
     db.session.commit()
     return _ok('Oferta publicada.', 201, oferta=_oferta(oferta))
+
+
+def _motivo_oferta_no_editable(estado):
+    if estado == 'en_progreso':
+        return 'No se puede editar: la solicitud está en progreso porque ya tiene una propuesta aceptada.'
+    if estado == 'cerrado':
+        return 'No se puede editar una solicitud cerrada.'
+    return 'La solicitud no se puede editar en su estado actual.'
+
+
+@catalogo_api_bp.put('/ofertas/<int:id>')
+@_requiere('cliente')
+def editar_oferta(id):
+    """Edita una solicitud propia. Solo mientras esté abierta: el UPDATE es condicional
+    (estado='abierto'), igual que el cierre y la aceptación, para que una edición no se
+    cuele justo después de que otra petición acepte una propuesta."""
+    oferta = db.session.get(OfertaTrabajo, id)
+    if not oferta:
+        return _error('Oferta no encontrada.', 404)
+    if oferta.id_cliente != current_user.id:
+        return _error('No tienes permiso para editar esta oferta.', 403)
+    if oferta.estado != 'abierto':
+        return _error(_motivo_oferta_no_editable(oferta.estado), 409)
+    form = OfertaForm(formdata=_formdata(_datos_json()), meta={'csrf': False})
+    if not form.validate():
+        return _form_invalido(form)
+    try:
+        resultado = db.session.execute(
+            update(OfertaTrabajo)
+            .where(
+                OfertaTrabajo.id == id,
+                OfertaTrabajo.id_cliente == current_user.id,
+                OfertaTrabajo.estado == 'abierto',
+            )
+            .values(
+                titulo=form.titulo.data.strip(),
+                descripcion_requerimientos=form.descripcion.data.strip(),
+                presupuesto=form.presupuesto.data,
+                fecha_entrega=form.fecha_entrega.data,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+    db.session.expire_all()
+    actual = db.session.get(OfertaTrabajo, id)
+    if resultado.rowcount != 1:
+        return _error(_motivo_oferta_no_editable(actual.estado), 409)
+    return _ok('Oferta actualizada.', oferta=_oferta(actual))
 
 
 @catalogo_api_bp.post('/ofertas/<int:id>/cerrar')

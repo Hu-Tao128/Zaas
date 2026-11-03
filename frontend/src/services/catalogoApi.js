@@ -73,10 +73,11 @@ export const catalogoApi = {
   cerrarProyecto: (id) => post(`/proyectos/${id}/cerrar`),
   solicitarDemo: (id, datos) => post(`/proyectos/${id}/demo`, datos),
 
-  ofertas: ({ page } = {}) => get(`/ofertas${consulta({ page })}`),
+  ofertas: ({ page, q } = {}) => get(`/ofertas${consulta({ page, q })}`),
   oferta: (id) => get(`/ofertas/${id}`),
   misOfertas: () => get('/mis-ofertas'),
   crearOferta: (datos) => post('/ofertas', datos),
+  editarOferta: (id, datos) => put(`/ofertas/${id}`, datos),
   cerrarOferta: (id) => post(`/ofertas/${id}/cerrar`),
 
   postular: (idOferta, datos) => post(`/ofertas/${idOferta}/postular`, datos),
