@@ -34,8 +34,8 @@ export default function MisProductosPage() {
       {mensaje && <div className="alert alert-success">{mensaje}</div>}
       <AlertaError>{errorAccion}</AlertaError>
       <div className="catalogo-actions">
-        <Link to="/catalogo/proyecto/nuevo" className="btn btn-primary">+ Nuevo Proyecto</Link>
-        <Link to="/catalogo" className="btn btn-secondary">Ver catálogo</Link>
+        <Link to="/proyecto/nuevo" className="btn btn-primary">+ Nuevo Proyecto</Link>
+        <Link to="/" className="btn btn-secondary">Ver catálogo</Link>
       </div>
 
       {misProyectos.length > 0 ? (
@@ -54,7 +54,7 @@ export default function MisProductosPage() {
             <tbody>
               {misProyectos.map((proyecto) => (
                 <tr key={proyecto.id}>
-                  <td><Link to={`/catalogo/proyecto/${proyecto.id}`}>{proyecto.titulo}</Link></td>
+                  <td><Link to={`/proyecto/${proyecto.id}`}>{proyecto.titulo}</Link></td>
                   <td>
                     {proyecto.categorias.map((item) => <Badge key={`c-${item.id}`} variant="info">{item.nombre}</Badge>)}
                     {proyecto.tecnologias.map((item) => <Badge key={`t-${item.id}`}>{item.nombre}</Badge>)}
@@ -64,7 +64,7 @@ export default function MisProductosPage() {
                   <td>{formatFecha(proyecto.fecha_publicacion)}</td>
                   <td>
                     <div className="catalogo-table-actions">
-                      <Link to={`/catalogo/proyecto/${proyecto.id}/editar`} className="btn btn-secondary btn-sm">Editar</Link>
+                      <Link to={`/proyecto/${proyecto.id}/editar`} className="btn btn-secondary btn-sm">Editar</Link>
                       {proyecto.estado === 'activo' && (
                         <button type="button" className="btn btn-danger btn-sm" onClick={() => handleCerrar(proyecto.id)}>Cerrar</button>
                       )}

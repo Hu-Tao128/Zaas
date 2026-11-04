@@ -11,15 +11,15 @@ export default function OfertaFormPage() {
   const { data, loading, error } = useApi(editar ? () => catalogoApi.oferta(id) : null, [id]);
 
   if (editar && loading) return <Cargando />;
-  if (editar && error) return <ErrorCard error={error} volverA="/catalogo/mis-ofertas" volverTexto="Volver a mis ofertas" />;
+  if (editar && error) return <ErrorCard error={error} volverA="/mis-ofertas" volverTexto="Volver a mis ofertas" />;
   if (editar && !data.es_dueno) {
-    return <ErrorCard error={new Error('No tienes permiso para editar esta oferta.')} volverA={`/catalogo/oferta/${id}`} volverTexto="Volver a la oferta" />;
+    return <ErrorCard error={new Error('No tienes permiso para editar esta oferta.')} volverA={`/oferta/${id}`} volverTexto="Volver a la oferta" />;
   }
   if (editar && data.oferta.estado !== 'abierto') {
     return (
       <ErrorCard
         error={new Error('Solo se pueden editar ofertas abiertas: esta ya está en progreso o cerrada.')}
-        volverA={`/catalogo/oferta/${id}`}
+        volverA={`/oferta/${id}`}
         volverTexto="Volver a la oferta"
       />
     );
@@ -63,7 +63,7 @@ function OfertaForm({ oferta }) {
       const respuesta = editar
         ? await catalogoApi.editarOferta(oferta.id, datos)
         : await catalogoApi.crearOferta(datos);
-      navigate(`/catalogo/oferta/${respuesta.oferta.id}`, { state: { mensaje: respuesta.mensaje } });
+      navigate(`/oferta/${respuesta.oferta.id}`, { state: { mensaje: respuesta.mensaje } });
     } catch (err) {
       setErrores(err.status === 422 ? err.errores : {});
       setErrorGeneral(err.message);
@@ -71,7 +71,7 @@ function OfertaForm({ oferta }) {
     }
   }
 
-  const cancelarA = editar ? `/catalogo/oferta/${oferta.id}` : '/catalogo/ofertas';
+  const cancelarA = editar ? `/oferta/${oferta.id}` : '/ofertas';
 
   return (
     <div className="card catalogo-form-card">

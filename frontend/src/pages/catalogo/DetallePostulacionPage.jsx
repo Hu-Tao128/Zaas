@@ -13,7 +13,7 @@ export default function DetallePostulacionPage() {
   const [procesando, setProcesando] = useState(false);
 
   if (loading && !data) return <Cargando />;
-  if (error) return <ErrorCard error={error} volverA="/catalogo/mis-postulaciones" volverTexto="Volver a mis postulaciones" />;
+  if (error) return <ErrorCard error={error} volverA="/mis-postulaciones" volverTexto="Volver a mis postulaciones" />;
 
   const { postulacion, es_cliente: esCliente } = data;
 
@@ -44,7 +44,7 @@ export default function DetallePostulacionPage() {
       {mensaje && <div className="alert alert-success">{mensaje}</div>}
       <AlertaError>{errorAccion}</AlertaError>
       <article className="card">
-        <h2>Postulación a: <Link to={`/catalogo/oferta/${postulacion.oferta.id}`}>{postulacion.oferta.titulo}</Link></h2>
+        <h2>Postulación a: <Link to={`/oferta/${postulacion.oferta.id}`}>{postulacion.oferta.titulo}</Link></h2>
         <p><strong>Desarrollador:</strong> {postulacion.desarrollador.nombres} {postulacion.desarrollador.apellido_paterno}</p>
         <p>
           <strong>Estado:</strong> <BadgeEstado estado={postulacion.estado} />{' '}
@@ -69,11 +69,11 @@ export default function DetallePostulacionPage() {
           )}
           {esCliente ? (
             <>
-              <Link to={`/catalogo/oferta/${postulacion.oferta.id}`} className="btn btn-secondary btn-sm">Volver a la oferta</Link>
-              <Link to="/catalogo/mis-ofertas" className="btn btn-secondary btn-sm">Mis ofertas</Link>
+              <Link to={`/oferta/${postulacion.oferta.id}`} className="btn btn-secondary btn-sm">Volver a la oferta</Link>
+              <Link to="/mis-ofertas" className="btn btn-secondary btn-sm">Mis ofertas</Link>
             </>
           ) : (
-            <Link to="/catalogo/mis-postulaciones" className="btn btn-secondary btn-sm">Mis postulaciones</Link>
+            <Link to="/mis-postulaciones" className="btn btn-secondary btn-sm">Mis postulaciones</Link>
           )}
         </div>
       </article>

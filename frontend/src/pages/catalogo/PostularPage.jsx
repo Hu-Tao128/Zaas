@@ -14,14 +14,14 @@ export default function PostularPage() {
   const [enviando, setEnviando] = useState(false);
 
   if (loading) return <Cargando />;
-  if (error) return <ErrorCard error={error} volverA="/catalogo/ofertas" volverTexto="Volver a las ofertas" />;
+  if (error) return <ErrorCard error={error} volverA="/ofertas" volverTexto="Volver a las ofertas" />;
 
   const { oferta, mi_postulacion: existente } = data;
 
   if (existente) {
     return (
       <EmptyCard>
-        Ya te postulaste a esta oferta. <Link to={`/catalogo/postulacion/${existente.id}`}>Ver mi postulación</Link>.
+        Ya te postulaste a esta oferta. <Link to={`/postulacion/${existente.id}`}>Ver mi postulación</Link>.
       </EmptyCard>
     );
   }
@@ -30,7 +30,7 @@ export default function PostularPage() {
     return (
       <div className="card">
         <div className="alert alert-warning">Esta oferta ya no acepta postulaciones.</div>
-        <Link to={`/catalogo/oferta/${oferta.id}`} className="btn btn-secondary">Volver a la oferta</Link>
+        <Link to={`/oferta/${oferta.id}`} className="btn btn-secondary">Volver a la oferta</Link>
       </div>
     );
   }
@@ -49,7 +49,7 @@ export default function PostularPage() {
     setEnviando(true);
     try {
       const respuesta = await catalogoApi.postular(oferta.id, datos);
-      navigate('/catalogo/mis-postulaciones', { state: { mensaje: respuesta.mensaje } });
+      navigate('/mis-postulaciones', { state: { mensaje: respuesta.mensaje } });
     } catch (err) {
       setErrores(err.status === 422 ? err.errores : {});
       setErrorGeneral(err.message);
@@ -85,7 +85,7 @@ export default function PostularPage() {
         </FormField>
         <div className="catalogo-actions">
           <button type="submit" className="btn btn-primary" disabled={enviando}>{enviando ? 'Enviando...' : 'Enviar Postulación'}</button>
-          <Link to={`/catalogo/oferta/${oferta.id}`} className="btn btn-secondary">Cancelar</Link>
+          <Link to={`/oferta/${oferta.id}`} className="btn btn-secondary">Cancelar</Link>
         </div>
       </form>
     </div>

@@ -37,14 +37,14 @@ export default function MisOfertasPage() {
       {mensaje && <div className="alert alert-success">{mensaje}</div>}
       <AlertaError>{errorAccion}</AlertaError>
       <div className="catalogo-actions">
-        <Link to="/catalogo/oferta/nueva" className="btn btn-primary">+ Nueva Oferta</Link>
-        <Link to="/catalogo/ofertas" className="btn btn-secondary">Ver ofertas públicas</Link>
+        <Link to="/oferta/nueva" className="btn btn-primary">+ Nueva Oferta</Link>
+        <Link to="/ofertas" className="btn btn-secondary">Ver ofertas públicas</Link>
       </div>
 
       {misOfertas.length > 0 ? misOfertas.map((oferta) => (
         <article key={oferta.id} className="card">
           <div className="catalogo-title-row">
-            <h3><Link to={`/catalogo/oferta/${oferta.id}`}>{oferta.titulo}</Link></h3>
+            <h3><Link to={`/oferta/${oferta.id}`}>{oferta.titulo}</Link></h3>
             <BadgeEstado estado={oferta.estado} />
           </div>
           <p>{recortar(oferta.descripcion_requerimientos || 'Sin descripción', 200)}</p>
@@ -57,9 +57,9 @@ export default function MisOfertasPage() {
           </p>
           <p><strong>Postulaciones:</strong> {oferta.num_postulaciones}</p>
           <div className="catalogo-actions">
-            <Link to={`/catalogo/oferta/${oferta.id}`} className="btn btn-secondary btn-sm">Ver detalle y postulaciones</Link>
+            <Link to={`/oferta/${oferta.id}`} className="btn btn-secondary btn-sm">Ver detalle y postulaciones</Link>
             {oferta.estado === 'abierto' && (
-              <Link to={`/catalogo/oferta/${oferta.id}/editar`} className="btn btn-secondary btn-sm">Editar</Link>
+              <Link to={`/oferta/${oferta.id}/editar`} className="btn btn-secondary btn-sm">Editar</Link>
             )}
             {['abierto', 'en_progreso'].includes(oferta.estado) && (
               <button type="button" className="btn btn-danger btn-sm" onClick={() => handleCerrar(oferta)}>Cerrar</button>

@@ -17,7 +17,7 @@ export default function MisPostulacionesPage() {
       <h1>Mis postulaciones</h1>
       {location.state?.mensaje && <div className="alert alert-success">{location.state.mensaje}</div>}
       <div className="catalogo-actions">
-        <Link to="/catalogo/ofertas" className="btn btn-primary">Buscar ofertas</Link>
+        <Link to="/ofertas" className="btn btn-primary">Buscar ofertas</Link>
       </div>
 
       {misPostulaciones.length > 0 ? (
@@ -36,12 +36,12 @@ export default function MisPostulacionesPage() {
             <tbody>
               {misPostulaciones.map((postulacion) => (
                 <tr key={postulacion.id}>
-                  <td><Link to={`/catalogo/oferta/${postulacion.oferta.id}`}>{postulacion.oferta.titulo}</Link></td>
+                  <td><Link to={`/oferta/${postulacion.oferta.id}`}>{postulacion.oferta.titulo}</Link></td>
                   <td>{formatDinero(postulacion.costo_propuesto)}</td>
                   <td><BadgeEstado estado={postulacion.estado} /></td>
                   <td><BadgeEstado estado={postulacion.oferta.estado} /></td>
                   <td>{formatFecha(postulacion.fecha_hora)}</td>
-                  <td><Link to={`/catalogo/postulacion/${postulacion.id}`} className="btn btn-secondary btn-sm">Ver</Link></td>
+                  <td><Link to={`/postulacion/${postulacion.id}`} className="btn btn-secondary btn-sm">Ver</Link></td>
                 </tr>
               ))}
             </tbody>

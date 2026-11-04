@@ -63,14 +63,14 @@ export default function CatalogoIndexPage() {
       <div className="catalogo-actions">
         {usuario.tipo_usuario === 'desarrollador' ? (
           <>
-            <Link to="/catalogo/proyecto/nuevo" className="btn btn-primary">+ Nuevo Proyecto</Link>
-            <Link to="/catalogo/mis-productos" className="btn btn-secondary">Mis productos</Link>
-            <Link to="/catalogo/mis-postulaciones" className="btn btn-secondary">Mis postulaciones</Link>
+            <Link to="/proyecto/nuevo" className="btn btn-primary">+ Nuevo Proyecto</Link>
+            <Link to="/mis-productos" className="btn btn-secondary">Mis productos</Link>
+            <Link to="/mis-postulaciones" className="btn btn-secondary">Mis postulaciones</Link>
           </>
         ) : (
           <>
-            <Link to="/catalogo/oferta/nueva" className="btn btn-secondary">+ Nueva Oferta</Link>
-            <Link to="/catalogo/mis-ofertas" className="btn btn-secondary">Mis ofertas</Link>
+            <Link to="/oferta/nueva" className="btn btn-secondary">+ Nueva Oferta</Link>
+            <Link to="/mis-ofertas" className="btn btn-secondary">Mis ofertas</Link>
           </>
         )}
       </div>
@@ -82,7 +82,7 @@ export default function CatalogoIndexPage() {
         <div className="catalogo-grid catalogo-grid-3">
           {visibles.map((proyecto) => (
             <article key={proyecto.id} className="card">
-              <h4><Link to={`/catalogo/proyecto/${proyecto.id}`}>{proyecto.titulo}</Link></h4>
+              <h4><Link to={`/proyecto/${proyecto.id}`}>{proyecto.titulo}</Link></h4>
               <p>{recortar(proyecto.descripcion, 120) || 'Sin descripción.'}</p>
               <p>
                 {proyecto.categorias.map((item) => <Badge key={`c-${item.id}`} variant="info">{item.nombre}</Badge>)}

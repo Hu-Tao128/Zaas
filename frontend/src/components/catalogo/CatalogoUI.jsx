@@ -57,7 +57,7 @@ export function Cargando() {
 }
 
 /** Error de la API (404, 403, red caída...) con un enlace para volver. */
-export function ErrorCard({ error, volverA = '/catalogo', volverTexto = 'Volver al catálogo' }) {
+export function ErrorCard({ error, volverA = '/', volverTexto = 'Volver al catálogo' }) {
   return (
     <div className="card">
       <div className="alert alert-danger">{error?.message || 'Ocurrió un error inesperado.'}</div>

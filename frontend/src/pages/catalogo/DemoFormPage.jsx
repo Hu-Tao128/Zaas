@@ -45,7 +45,7 @@ export default function DemoFormPage() {
         nombre_contacto: datos.nombre_contacto.trim(),
         correo_contacto: datos.correo_contacto.trim(),
       });
-      navigate(`/catalogo/proyecto/${proyecto.id}`, { state: { mensaje: respuesta.mensaje } });
+      navigate(`/proyecto/${proyecto.id}`, { state: { mensaje: respuesta.mensaje } });
     } catch (err) {
       setErrores(err.errores || {});
       setErrorGeneral(err.message);
@@ -66,7 +66,7 @@ export default function DemoFormPage() {
         </FormField>
         <div className="catalogo-actions">
           <button type="submit" className="btn btn-primary" disabled={enviando}>{enviando ? 'Enviando...' : 'Enviar Solicitud'}</button>
-          <Link to={`/catalogo/proyecto/${proyecto.id}`} className="btn btn-secondary">Cancelar</Link>
+          <Link to={`/proyecto/${proyecto.id}`} className="btn btn-secondary">Cancelar</Link>
         </div>
       </form>
     </div>

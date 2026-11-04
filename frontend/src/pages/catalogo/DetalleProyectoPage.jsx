@@ -24,7 +24,7 @@ export default function DetalleProyectoPage() {
     setErrorAccion('');
     try {
       const respuesta = await catalogoApi.cerrarProyecto(proyecto.id);
-      navigate('/catalogo/mis-productos', { state: { mensaje: respuesta.mensaje } });
+      navigate('/mis-productos', { state: { mensaje: respuesta.mensaje } });
     } catch (err) {
       setErrorAccion(err.message);
     }
@@ -59,7 +59,7 @@ export default function DetalleProyectoPage() {
           ) : !esDueno && (
             <>
               {proyecto.demo_habilitada && (
-                <Link to={`/catalogo/proyecto/${proyecto.id}/demo`} className="btn btn-primary">Solicitar Demo</Link>
+                <Link to={`/proyecto/${proyecto.id}/demo`} className="btn btn-primary">Solicitar Demo</Link>
               )}
               {usuario.tipo_usuario === 'cliente' && (
                 <a href={urlContratarProyecto(proyecto)} className="btn btn-secondary">Contratar</a>
@@ -68,14 +68,14 @@ export default function DetalleProyectoPage() {
           )}
           {esDueno && (
             <>
-              <Link to={`/catalogo/proyecto/${proyecto.id}/editar`} className="btn btn-secondary btn-sm">Editar</Link>
+              <Link to={`/proyecto/${proyecto.id}/editar`} className="btn btn-secondary btn-sm">Editar</Link>
               {proyecto.estado === 'activo' && (
                 <button type="button" className="btn btn-danger btn-sm" onClick={handleCerrar}>Cerrar proyecto</button>
               )}
-              <Link to="/catalogo/mis-productos" className="btn btn-secondary btn-sm">Mis productos</Link>
+              <Link to="/mis-productos" className="btn btn-secondary btn-sm">Mis productos</Link>
             </>
           )}
-          <Link to="/catalogo" className="btn btn-secondary btn-sm">Ver catálogo</Link>
+          <Link to="/" className="btn btn-secondary btn-sm">Ver catálogo</Link>
         </div>
       </article>
     </>

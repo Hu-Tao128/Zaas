@@ -15,7 +15,7 @@ export default function DetalleOfertaPage() {
   const [errorAccion, setErrorAccion] = useState('');
 
   if (loading) return <Cargando />;
-  if (error) return <ErrorCard error={error} volverA="/catalogo/ofertas" volverTexto="Volver a las ofertas" />;
+  if (error) return <ErrorCard error={error} volverA="/ofertas" volverTexto="Volver a las ofertas" />;
 
   const { oferta, es_dueno: esDueno, mi_postulacion: miPostulacion } = data;
   const recibidas = data.postulaciones || [];
@@ -28,7 +28,7 @@ export default function DetalleOfertaPage() {
     setErrorAccion('');
     try {
       const respuesta = await catalogoApi.cerrarOferta(oferta.id);
-      navigate('/catalogo/mis-ofertas', { state: { mensaje: respuesta.mensaje } });
+      navigate('/mis-ofertas', { state: { mensaje: respuesta.mensaje } });
     } catch (err) {
       setErrorAccion(err.message);
     }
@@ -55,31 +55,31 @@ export default function DetalleOfertaPage() {
           {usuario.tipo_usuario === 'desarrollador' && (
             <>
               {miPostulacion ? (
-                <Link to={`/catalogo/postulacion/${miPostulacion.id}`} className="btn btn-secondary">
+                <Link to={`/postulacion/${miPostulacion.id}`} className="btn btn-secondary">
                   Ya te postulaste ({miPostulacion.estado})
                 </Link>
               ) : oferta.estado === 'abierto' ? (
-                <Link to={`/catalogo/oferta/${oferta.id}/postular`} className="btn btn-primary">Postularme</Link>
+                <Link to={`/oferta/${oferta.id}/postular`} className="btn btn-primary">Postularme</Link>
               ) : oferta.estado === 'en_progreso' ? (
                 <div className="alert alert-info">Esta oferta está en progreso: ya tiene un desarrollador aceptado.</div>
               ) : (
                 <div className="alert alert-warning">Esta oferta está cerrada y no acepta postulaciones.</div>
               )}
-              <Link to="/catalogo/mis-postulaciones" className="btn btn-secondary btn-sm">Mis postulaciones</Link>
+              <Link to="/mis-postulaciones" className="btn btn-secondary btn-sm">Mis postulaciones</Link>
             </>
           )}
           {esDueno && (
             <>
               {oferta.estado === 'abierto' && (
-                <Link to={`/catalogo/oferta/${oferta.id}/editar`} className="btn btn-secondary btn-sm">Editar</Link>
+                <Link to={`/oferta/${oferta.id}/editar`} className="btn btn-secondary btn-sm">Editar</Link>
               )}
               {['abierto', 'en_progreso'].includes(oferta.estado) && (
                 <button type="button" className="btn btn-danger btn-sm" onClick={handleCerrar}>Cerrar oferta</button>
               )}
-              <Link to="/catalogo/mis-ofertas" className="btn btn-secondary btn-sm">Mis ofertas</Link>
+              <Link to="/mis-ofertas" className="btn btn-secondary btn-sm">Mis ofertas</Link>
             </>
           )}
-          <Link to="/catalogo/ofertas" className="btn btn-secondary btn-sm">Ver ofertas</Link>
+          <Link to="/ofertas" className="btn btn-secondary btn-sm">Ver ofertas</Link>
         </div>
       </article>
 
@@ -96,7 +96,7 @@ export default function DetalleOfertaPage() {
               <p><strong>Costo propuesto:</strong> {formatDinero(postulacion.costo_propuesto)}</p>
               <small>{formatFechaHora(postulacion.fecha_hora)}</small>
               <div className="catalogo-actions catalogo-section-title">
-                <Link to={`/catalogo/postulacion/${postulacion.id}`} className="btn btn-secondary btn-sm">Ver propuesta / gestionar</Link>
+                <Link to={`/postulacion/${postulacion.id}`} className="btn btn-secondary btn-sm">Ver propuesta / gestionar</Link>
               </div>
             </article>
           )) : <EmptyCard>Aún no has recibido postulaciones.</EmptyCard>}

@@ -11,9 +11,9 @@ export default function ProyectoFormPage() {
   const { data, loading, error } = useApi(editar ? () => catalogoApi.proyecto(id) : null, [id]);
 
   if (editar && loading) return <Cargando />;
-  if (editar && error) return <ErrorCard error={error} volverA="/catalogo/mis-productos" volverTexto="Volver a mis productos" />;
+  if (editar && error) return <ErrorCard error={error} volverA="/mis-productos" volverTexto="Volver a mis productos" />;
   if (editar && !data.es_dueno) {
-    return <ErrorCard error={new Error('No tienes permiso para editar este proyecto.')} volverA={`/catalogo/proyecto/${id}`} volverTexto="Volver al proyecto" />;
+    return <ErrorCard error={new Error('No tienes permiso para editar este proyecto.')} volverA={`/proyecto/${id}`} volverTexto="Volver al proyecto" />;
   }
   return <ProyectoForm proyecto={data?.proyecto || null} />;
 }
@@ -63,7 +63,7 @@ function ProyectoForm({ proyecto }) {
       const respuesta = editar
         ? await catalogoApi.editarProyecto(proyecto.id, datos)
         : await catalogoApi.crearProyecto(datos);
-      navigate(`/catalogo/proyecto/${respuesta.proyecto.id}`, { state: { mensaje: respuesta.mensaje } });
+      navigate(`/proyecto/${respuesta.proyecto.id}`, { state: { mensaje: respuesta.mensaje } });
     } catch (err) {
       setErrores(err.errores || {});
       setErrorGeneral(err.message);
@@ -111,7 +111,7 @@ function ProyectoForm({ proyecto }) {
         </div>
         <div className="catalogo-actions">
           <button type="submit" className="btn btn-primary" disabled={enviando}>{enviando ? 'Guardando...' : 'Guardar'}</button>
-          <Link to="/catalogo/mis-productos" className="btn btn-secondary">Cancelar</Link>
+          <Link to="/mis-productos" className="btn btn-secondary">Cancelar</Link>
         </div>
       </form>
     </div>

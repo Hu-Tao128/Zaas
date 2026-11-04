@@ -49,17 +49,17 @@ export default function OfertasPage() {
           aria-label="Buscar ofertas"
         />
         <button type="submit" className="btn btn-primary">Buscar</button>
-        {busquedaParam && <Link to="/catalogo/ofertas" className="btn btn-secondary">Limpiar</Link>}
+        {busquedaParam && <Link to="/ofertas" className="btn btn-secondary">Limpiar</Link>}
       </form>
 
       <div className="catalogo-actions">
         {usuario.tipo_usuario === 'cliente' ? (
           <>
-            <Link to="/catalogo/oferta/nueva" className="btn btn-primary">+ Nueva Oferta</Link>
-            <Link to="/catalogo/mis-ofertas" className="btn btn-secondary">Mis ofertas</Link>
+            <Link to="/oferta/nueva" className="btn btn-primary">+ Nueva Oferta</Link>
+            <Link to="/mis-ofertas" className="btn btn-secondary">Mis ofertas</Link>
           </>
         ) : (
-          <Link to="/catalogo/mis-postulaciones" className="btn btn-secondary">Mis postulaciones</Link>
+          <Link to="/mis-postulaciones" className="btn btn-secondary">Mis postulaciones</Link>
         )}
       </div>
 
@@ -70,14 +70,14 @@ export default function OfertasPage() {
         <div className="catalogo-grid catalogo-grid-2">
           {visibles.map((oferta) => (
             <article key={oferta.id} className="card">
-              <h4><Link to={`/catalogo/oferta/${oferta.id}`}>{oferta.titulo}</Link></h4>
+              <h4><Link to={`/oferta/${oferta.id}`}>{oferta.titulo}</Link></h4>
               <p>{recortar(oferta.descripcion_requerimientos, 120) || 'Sin descripción'}</p>
               {oferta.presupuesto && <p><strong>Presupuesto:</strong> {formatDinero(oferta.presupuesto)}</p>}
               {oferta.fecha_entrega && <p><strong>Entrega:</strong> {formatFecha(oferta.fecha_entrega)}</p>}
               <div className="catalogo-actions">
                 <BadgeEstado estado={oferta.estado} />
                 {usuario.tipo_usuario === 'desarrollador' && (
-                  <Link to={`/catalogo/oferta/${oferta.id}/postular`} className="btn btn-primary btn-sm">Postularme</Link>
+                  <Link to={`/oferta/${oferta.id}/postular`} className="btn btn-primary btn-sm">Postularme</Link>
                 )}
               </div>
               <small>{formatFecha(oferta.fecha_publicacion)}</small>

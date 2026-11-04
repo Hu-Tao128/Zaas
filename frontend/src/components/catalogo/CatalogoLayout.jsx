@@ -15,9 +15,9 @@ export default function CatalogoLayout() {
     <div className="catalogo-app">
       <nav className="catalogo-navbar" aria-label="Navegación principal">
         <div className="catalogo-nav-group">
-          <Link to="/catalogo" className="catalogo-brand">Zaas</Link>
-          <Link to="/catalogo">Catálogo</Link>
-          <Link to="/catalogo/ofertas">Ofertas</Link>
+          <Link to="/" className="catalogo-brand">Zaas</Link>
+          <Link to="/">Catálogo</Link>
+          <Link to="/ofertas">Ofertas</Link>
         </div>
         <div className="catalogo-nav-group catalogo-nav-user">
           <span>{user?.displayName || user?.email}</span>
