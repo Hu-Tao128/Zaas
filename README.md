@@ -40,6 +40,31 @@ Zaas/
 - **Supabase** → Datos compartidos (notificaciones, métricas, config global)
 - **Firebase Analytics** → Tracking de eventos en el frontend
 
+## Contratos (v1.0)
+
+Al crear un contrato el cliente elige al desarrollador, el producto/oferta
+relacionados, el costo y la plantilla. El sistema genera una copia de los
+términos con los nombres de ambas partes y la guarda en
+`contrato.terminos_condiciones`; si la plantilla cambia después, los contratos
+ya creados conservan su versión original.
+
+Para formalizar el contrato, cada parte entra a **Revisar y aceptar contrato**,
+marca la casilla de aceptación y confirma. Se registra la fecha, la IP y un
+folio de firma (hash). El contrato pasa a `aceptado` cuando ambas partes firman.
+
+Flujo de estados:
+
+```
+borrador → pendiente → aceptado → en_progreso → entregado → finalizado
+```
+
+La plantilla base se crea automáticamente al arrancar el backend
+(`backend/app/contratos/plantillas.py`) y también se incluye en `python seed.py`
+para bases de datos nuevas.
+
+Guía detallada de cambios y pruebas:
+[`backend/docs/CONTRATOS_V1.md`](backend/docs/CONTRATOS_V1.md).
+
 ## Backend (Flask)
 
 ```bash

@@ -50,6 +50,20 @@
         th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd; }
         th { background: #16213e; color: #fff; }
         .notif-unread { background: #fff3cd; }
+        /* Documento de contrato */
+        .contrato-documento { line-height: 1.7; }
+        .contrato-documento h2 { margin-bottom: 1rem; color: #16213e; }
+        .contrato-documento h3 { margin-top: 1.2rem; margin-bottom: 0.4rem; color: #16213e; }
+        .contrato-documento p { margin-bottom: 0.8rem; }
+        .contrato-documento .firmas { display: flex; gap: 3rem; flex-wrap: wrap; margin-top: 2.5rem; }
+        .contrato-documento .firma { min-width: 220px; }
+        .form-group small { display: block; color: #666; margin-top: 0.25rem; }
+        @media print {
+            .navbar, .no-print, .alert { display: none !important; }
+            body { background: #fff; }
+            .container { max-width: 100%; margin: 0; padding: 0; }
+            .card { box-shadow: none; border: none; padding: 0; }
+        }
     </style>
 </head>
 <body>
