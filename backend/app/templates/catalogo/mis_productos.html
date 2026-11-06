@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Mis productos - Zaas{% endblock %}
+{% block content %}
+<h1 class="mb-2">Mis productos</h1>
+
+<div class="flex flex-wrap mb-2">
+    <a href="{{ url_for('catalogo.nuevo_proyecto') }}" class="btn btn-primary">+ Nuevo Proyecto</a>
+    <a href="{{ url_for('catalogo.index') }}" class="btn btn-secondary">Ver catálogo</a>
+</div>
+
+{% if proyectos %}
+<div class="card" style="overflow-x:auto;">
+<table>
+    <thead>
+        <tr><th>Título</th><th>Categorías / Tecnologías</th><th>Precio</th><th>Estado</th><th>Publicado</th><th>Acciones</th></tr>
+    </thead>
+    <tbody>
+    {% for p in proyectos %}
+        <tr>
+            <td><a href="{{ url_for('catalogo.detalle_proyecto', id=p.id) }}">{{ p.titulo }}</a></td>
+            <td>
+                {% for c in p.categorias %}<span class="badge badge-info">{{ c.categoria.nombre }}</span> {% endfor %}
+                {% for t in p.tecnologias %}<span class="badge badge-secondary">{{ t.tecnologia.nombre }}</span> {% endfor %}
+            </td>
+            <td>${{ p.precio }}</td>
+            <td>
+                {% if p.estado == 'activo' %}<span class="badge badge-success">Activo</span>
+                {% else %}<span class="badge badge-danger">Cerrado</span>{% endif %}
+            </td>
+            <td>{{ p.fecha_publicacion.strftime('%d/%m/%Y') }}</td>
+            <td>
+                <div class="flex flex-wrap">
+                    <a href="{{ url_for('catalogo.editar_proyecto', id=p.id) }}" class="btn btn-secondary btn-sm">Editar</a>
+                    {% if p.estado == 'activo' %}
+                    <form method="POST" action="{{ url_for('catalogo.cerrar_proyecto', id=p.id) }}" onsubmit="return confirm('¿Cerrar este proyecto? Dejará de aparecer en el catálogo público.');">
+                        {{ csrf_form.hidden_tag() }}
+                        <button type="submit" class="btn btn-danger btn-sm">Cerrar</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<div class="card">
+    <p>Aún no has publicado proyectos.</p>
+</div>
+{% endif %}
+{% endblock %}

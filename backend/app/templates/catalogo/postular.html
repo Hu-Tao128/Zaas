@@ -3,14 +3,14 @@
 {% block content %}
 <div class="card" style="max-width:600px;margin:2rem auto;">
     <h2 class="mb-2">Postularse a: {{ oferta.titulo }}</h2>
-    <form method="POST">
+    <form method="POST" novalidate>
         {{ form.hidden_tag() }}
+        {% for field in [form.detalles, form.costo_propuesto] %}
         <div class="form-group">
-            {{ form.detalles.label }} {{ form.detalles() }}
+            {{ field.label }} {{ field() }}
+            {% for e in field.errors %}<small style="color:#c0392b;">{{ e }}</small>{% endfor %}
         </div>
-        <div class="form-group">
-            {{ form.costo_propuesto.label }} {{ form.costo_propuesto() }}
-        </div>
+        {% endfor %}
         <button type="submit" class="btn btn-primary">Enviar Postulación</button>
         <a href="{{ url_for('catalogo.detalle_oferta', id=oferta.id) }}" class="btn btn-secondary">Cancelar</a>
     </form>

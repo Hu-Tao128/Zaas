@@ -2,30 +2,59 @@
 {% block title %}{{ oferta.titulo }} - Zaas{% endblock %}
 {% block content %}
 <div class="card">
-    <h1>{{ oferta.titulo }}</h1>
+    <h1>{{ oferta.titulo }}
+        {% if oferta.estado == 'cerrado' %}<span class="badge badge-danger">CERRADO</span>{% endif %}
+    </h1>
     <p><strong>Cliente:</strong> <a href="{{ url_for('auth.ver_perfil', id=oferta.cliente.id) }}">{{ oferta.cliente.nombres }} {{ oferta.cliente.apellido_paterno }}</a></p>
-    <p><strong>Estado:</strong> <span class="badge badge-{{ 'success' if oferta.estado == 'abierto' else 'secondary' }}">{{ oferta.estado }}</span></p>
+    <p><strong>Estado:</strong> <span class="badge badge-{{ 'success' if oferta.estado == 'abierto' else ('info' if oferta.estado == 'en_progreso' else 'danger') }}">{{ oferta.estado }}</span></p>
     <p><strong>Presupuesto:</strong> {% if oferta.presupuesto %}${{ oferta.presupuesto }}{% else %}No especificado{% endif %}</p>
     {% if oferta.fecha_entrega %}<p><strong>Fecha de entrega:</strong> {{ oferta.fecha_entrega.strftime('%d/%m/%Y') }}</p>{% endif %}
 
     <h3 class="mt-2">Requerimientos</h3>
     <p>{{ oferta.descripcion_requerimientos or 'Sin descripción.' }}</p>
 
-    {% if current_user.is_authenticated and current_user.tipo_usuario == 'desarrollador' and oferta.estado == 'abierto' %}
-        <a href="{{ url_for('catalogo.postular_oferta', id=oferta.id) }}" class="btn btn-primary mt-2">Postularme</a>
-    {% endif %}
+    <div class="mt-2 flex flex-wrap">
+        {% if current_user.is_authenticated and current_user.tipo_usuario == 'desarrollador' %}
+            {% if mi_postulacion %}
+                <a href="{{ url_for('catalogo.ver_postulacion', id=mi_postulacion.id) }}" class="btn btn-secondary">Ya te postulaste ({{ mi_postulacion.estado }})</a>
+            {% elif oferta.estado == 'abierto' %}
+                <a href="{{ url_for('catalogo.postular_oferta', id=oferta.id) }}" class="btn btn-primary">Postularme</a>
+            {% elif oferta.estado == 'en_progreso' %}
+                <div class="alert alert-info" style="margin:0;">Esta oferta está en progreso: ya tiene un desarrollador aceptado.</div>
+            {% else %}
+                <div class="alert alert-warning" style="margin:0;">Esta oferta está cerrada y no acepta postulaciones.</div>
+            {% endif %}
+            <a href="{{ url_for('catalogo.mis_postulaciones') }}" class="btn btn-secondary btn-sm">Mis postulaciones</a>
+        {% elif not current_user.is_authenticated %}
+            <a href="{{ url_for('auth.login') }}" class="btn btn-primary">Inicia sesión para postularte</a>
+        {% endif %}
+
+        {% if es_dueno %}
+            {% if oferta.estado in ('abierto', 'en_progreso') %}
+            <form method="POST" action="{{ url_for('catalogo.cerrar_oferta', id=oferta.id) }}" onsubmit="return confirm('{{ '¿Cerrar esta oferta en progreso? Solo es posible si no tiene un contrato activo.' if oferta.estado == 'en_progreso' else '¿Cerrar esta oferta? Dejará de aparecer en el listado público y no recibirá más postulaciones.' }}');">
+                {{ csrf_form.hidden_tag() }}
+                <button type="submit" class="btn btn-danger btn-sm">Cerrar oferta</button>
+            </form>
+            {% endif %}
+            <a href="{{ url_for('catalogo.mis_ofertas') }}" class="btn btn-secondary btn-sm">Mis ofertas</a>
+        {% endif %}
+        <a href="{{ url_for('catalogo.ver_ofertas') }}" class="btn btn-secondary btn-sm">Ver ofertas</a>
+    </div>
 </div>
 
-{% if oferta.postulaciones %}
-<h3 class="mt-2">Postulaciones ({{ oferta.postulaciones|length }})</h3>
-{% for post in oferta.postulaciones %}
+{% if es_dueno %}
+<h3 class="mt-2">Postulaciones recibidas ({{ oferta.postulaciones|length }})</h3>
+{% for post in oferta.postulaciones|sort(attribute='fecha_hora', reverse=True) %}
 <div class="card">
-    <p><strong>{{ post.desarrollador.nombres }} {{ post.desarrollador.apellido_paterno }}</strong></p>
+    <p><strong>{{ post.desarrollador.nombres }} {{ post.desarrollador.apellido_paterno }}</strong>
+       <span class="badge badge-{{ 'success' if post.estado == 'aceptada' else ('danger' if post.estado == 'rechazada' else 'warning') }}">{{ post.estado }}</span></p>
     <p>{{ post.detalles }}</p>
     <p><strong>Costo propuesto:</strong> ${{ post.costo_propuesto }}</p>
-    <span class="badge badge-info">{{ post.estado }}</span>
-    <small>{{ post.fecha_hora.strftime('%d/%m/%Y') }}</small>
+    <small>{{ post.fecha_hora.strftime('%d/%m/%Y %H:%M') }}</small>
+    <div class="mt-1"><a href="{{ url_for('catalogo.ver_postulacion', id=post.id) }}" class="btn btn-secondary btn-sm">Ver propuesta / gestionar</a></div>
 </div>
+{% else %}
+<div class="card"><p>Aún no has recibido postulaciones.</p></div>
 {% endfor %}
 {% endif %}
 {% endblock %}
