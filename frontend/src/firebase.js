@@ -1,6 +1,5 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getAnalytics } from 'firebase/analytics';
 
 // Configuración de Firebase — reemplazar con valores reales del proyecto
 const firebaseConfig = {
@@ -18,12 +17,5 @@ const app = initializeApp(firebaseConfig);
 
 // Inicializar Auth
 export const auth = getAuth(app);
-
-// Inicializar Analytics (solo en producción)
-let analytics = null;
-if (typeof window !== 'undefined' && import.meta.env.PROD) {
-  analytics = getAnalytics(app);
-}
-export { analytics };
 
 export default app;

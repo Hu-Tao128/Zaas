@@ -1,6 +1,5 @@
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
-import { auth, analytics } from '../firebase';
-import { logEvent } from 'firebase/analytics';
+import { auth } from '../firebase';
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -10,12 +9,6 @@ const googleProvider = new GoogleAuthProvider();
 export async function loginWithEmail(email, password) {
   const result = await signInWithEmailAndPassword(auth, email, password);
   const idToken = await result.user.getIdToken();
-  
-  // Log Analytics
-  if (analytics) {
-    logEvent(analytics, 'login', { method: 'email' });
-  }
-  
   return { user: result.user, idToken };
 }
 
@@ -25,12 +18,6 @@ export async function loginWithEmail(email, password) {
 export async function loginWithGoogle() {
   const result = await signInWithPopup(auth, googleProvider);
   const idToken = await result.user.getIdToken();
-  
-  // Log Analytics
-  if (analytics) {
-    logEvent(analytics, 'login', { method: 'google' });
-  }
-  
   return { user: result.user, idToken };
 }
 
@@ -46,9 +33,6 @@ export async function registerWithEmail(email, password) {
  * Logout
  */
 export async function logout() {
-  if (analytics) {
-    logEvent(analytics, 'logout');
-  }
   await signOut(auth);
 }
 
@@ -65,14 +49,15 @@ export function onAuthChange(callback) {
 export async function syncWithBackend(idToken) {
   const response = await fetch('/auth/callback', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id_token: idToken })
   });
-  
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Error de autenticación');
   }
-  
+
   return await response.json();
 }
