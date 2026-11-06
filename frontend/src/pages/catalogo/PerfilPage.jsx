@@ -412,10 +412,13 @@ export default function PerfilPage() {
 }
 
 /**
- * Formulario controlado para la edición de perfil con validaciones,
- * estados de error en rojo (#991B1B) y prevención de errores (Nielsen Heuristics #5 & #9).
+ * Formulario controlado para la edición de perfil con renderizado condicional por rol
+ * (Cliente vs Desarrollador), sugerencias interactivas de autocompletado,
+ * validaciones y prevención de errores (WCAG y Heurísticas de Nielsen #5 & #9).
  */
 function FormularioEditarPerfil({ usuario, perfil, onGuardadoExitoso }) {
+  const esDesarrollador = usuario.tipo_usuario === 'desarrollador';
+
   const [datos, setDatos] = useState({
     nombres: usuario.nombres || '',
     apellido_paterno: usuario.apellido_paterno || '',
@@ -430,6 +433,31 @@ function FormularioEditarPerfil({ usuario, perfil, onGuardadoExitoso }) {
   const [errores, setErrores] = useState({});
   const [errorGeneral, setErrorGeneral] = useState('');
   const [guardando, setGuardando] = useState(false);
+
+  // Sugerencias de autocompletado para desarrolladores
+  const sugerenciasHabilidades = [
+    'React', 'Python', 'FastAPI', 'Node.js', 'Next.js', 'TypeScript',
+    'PostgreSQL', 'Docker', 'AWS', 'Tailwind CSS', 'GraphQL', 'Flask', 'Redis'
+  ];
+
+  function agregarSugerenciaHabilidad(sugerencia) {
+    const actuales = datos.habilidades
+      ? datos.habilidades.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+
+    if (!actuales.includes(sugerencia)) {
+      const nuevo = [...actuales, sugerencia].join(', ');
+      setDatos((prev) => ({ ...prev, habilidades: nuevo }));
+    }
+  }
+
+  function agregarSugerenciaStack(sugerencia) {
+    const actual = datos.stack_tecnologico.trim();
+    if (!actual.includes(sugerencia)) {
+      const nuevo = actual ? `${actual}, ${sugerencia}` : sugerencia;
+      setDatos((prev) => ({ ...prev, stack_tecnologico: nuevo }));
+    }
+  }
 
   function handleChange(e) {
     const { name, value } = e.target;
@@ -472,7 +500,17 @@ function FormularioEditarPerfil({ usuario, perfil, onGuardadoExitoso }) {
 
     setGuardando(true);
     try {
-      const resp = await catalogoApi.actualizarPerfil(datos);
+      // Si el usuario es cliente, nos aseguramos de no enviar datos técnicos
+      const datosAEnviar = esDesarrollador
+        ? datos
+        : {
+            ...datos,
+            habilidades: '',
+            stack_tecnologico: '',
+            enlaces: '',
+          };
+
+      const resp = await catalogoApi.actualizarPerfil(datosAEnviar);
       onGuardadoExitoso?.(resp.perfil_data);
     } catch (err) {
       setErrores(err.errores || {});
@@ -485,9 +523,16 @@ function FormularioEditarPerfil({ usuario, perfil, onGuardadoExitoso }) {
   return (
     <div className="card zaas-profile-edit-card">
       <div className="profile-edit-header">
-        <h2 className="zaas-section-heading">Editar Datos de Perfil</h2>
+        <div className="profile-edit-badge-row">
+          <h2 className="zaas-section-heading">Configuración de Perfil</h2>
+          <span className={`navbar-role-badge navbar-role-badge--${usuario.tipo_usuario}`}>
+            Cuenta {esDesarrollador ? 'Desarrollador' : 'Cliente'}
+          </span>
+        </div>
         <p className="catalogo-muted">
-          Actualiza tu información profesional y personal. Los datos públicos serán visibles en tus proyectos y ofertas.
+          {esDesarrollador
+            ? 'Personaliza tu perfil profesional, habilidades técnicas y stack para destacar ante clientes que buscan adquirir SaaS o contratar servicios con garantía Escrow.'
+            : 'Actualiza tus datos personales y los de tu empresa para tus contratos de adquisición de SaaS y encargos de desarrollo con protección Escrow.'}
         </p>
       </div>
 
@@ -498,7 +543,7 @@ function FormularioEditarPerfil({ usuario, perfil, onGuardadoExitoso }) {
       )}
 
       <form onSubmit={handleSubmit} noValidate aria-label="Formulario de edición de perfil">
-        {/* Sección: Datos Personales */}
+        {/* Sección: Datos Personales (Común para ambos roles) */}
         <fieldset className="zaas-form-fieldset">
           <legend className="zaas-form-legend">Datos Personales</legend>
 
@@ -515,6 +560,7 @@ function FormularioEditarPerfil({ usuario, perfil, onGuardadoExitoso }) {
                 onChange={handleChange}
                 maxLength={100}
                 required
+                className={errores.nombres ? 'input-error' : ''}
                 aria-invalid={Boolean(errores.nombres)}
                 aria-describedby={errores.nombres ? 'error-nombres' : undefined}
               />
@@ -537,6 +583,7 @@ function FormularioEditarPerfil({ usuario, perfil, onGuardadoExitoso }) {
                 onChange={handleChange}
                 maxLength={100}
                 required
+                className={errores.apellido_paterno ? 'input-error' : ''}
                 aria-invalid={Boolean(errores.apellido_paterno)}
                 aria-describedby={errores.apellido_paterno ? 'error-apellido-paterno' : undefined}
               />
@@ -562,15 +609,20 @@ function FormularioEditarPerfil({ usuario, perfil, onGuardadoExitoso }) {
 
           <div className="zaas-form-grid-2">
             <div className="form-group">
-              <label htmlFor="perfil-email">Correo Electrónico (No modificable)</label>
+              <label htmlFor="perfil-email">
+                Correo Electrónico (No modificable)
+              </label>
               <input
                 id="perfil-email"
                 type="email"
                 value={usuario.email || ''}
                 disabled
                 className="input-disabled"
-                title="El correo está vinculado a tu cuenta de autenticación"
+                title="El correo electrónico está vinculado a tu cuenta de autenticación y no es modificable"
               />
+              <small className="form-hint">
+                El correo electrónico no puede ser alterado por motivos de seguridad en los contratos Escrow.
+              </small>
             </div>
 
             <div className="form-group">
@@ -578,7 +630,7 @@ function FormularioEditarPerfil({ usuario, perfil, onGuardadoExitoso }) {
               <input
                 id="perfil-tipo-cuenta"
                 type="text"
-                value={usuario.tipo_usuario === 'desarrollador' ? 'Desarrollador' : 'Cliente'}
+                value={esDesarrollador ? 'Desarrollador' : 'Cliente'}
                 disabled
                 className="input-disabled"
               />
@@ -586,20 +638,25 @@ function FormularioEditarPerfil({ usuario, perfil, onGuardadoExitoso }) {
           </div>
         </fieldset>
 
-        {/* Sección: Datos Profesionales y Empresa */}
+        {/* Sección de Datos de Empresa / Biografía */}
         <fieldset className="zaas-form-fieldset">
-          <legend className="zaas-form-legend">Perfil Profesional y Empresa</legend>
+          <legend className="zaas-form-legend">
+            {esDesarrollador ? 'Perfil Profesional y Biografía' : 'Datos de Empresa y Contacto'}
+          </legend>
 
           <div className="form-group">
-            <label htmlFor="perfil-empresa">Empresa / Startup / Organización</label>
+            <label htmlFor="perfil-empresa">
+              {esDesarrollador ? 'Empresa / Agencia o Independiente' : 'Empresa / Startup / Razón Social'}
+            </label>
             <input
               id="perfil-empresa"
               name="empresa"
               type="text"
               value={datos.empresa}
               onChange={handleChange}
-              placeholder="Ej. Acme Tech, Studio Labs, Independiente..."
+              placeholder={esDesarrollador ? 'Ej. DevStudio, Independiente, Freelancer' : 'Ej. Acme Corp, Growth Labs'}
               maxLength={150}
+              className={errores.empresa ? 'input-error' : ''}
             />
             {errores.empresa && (
               <small className="field-error" role="alert">{errores.empresa}</small>
@@ -607,66 +664,118 @@ function FormularioEditarPerfil({ usuario, perfil, onGuardadoExitoso }) {
           </div>
 
           <div className="form-group">
-            <label htmlFor="perfil-descripcion">Biografía / Acerca de mí</label>
+            <label htmlFor="perfil-descripcion">
+              {esDesarrollador ? 'Biografía y Trayectoria' : 'Acerca de tu Empresa / Necesidades'}
+            </label>
             <textarea
               id="perfil-descripcion"
               name="descripcion"
               value={datos.descripcion}
               onChange={handleChange}
-              placeholder="Describe tu experiencia, tipos de proyectos SaaS que construyes o servicios que requieres..."
+              placeholder={
+                esDesarrollador
+                  ? 'Describe tu experiencia construyendo micro-SaaS, arquitecturas con las que trabajas y tipos de proyectos en los que te especializas...'
+                  : 'Describe el giro de tu empresa y el tipo de plataformas SaaS o talento tecnológico que buscas contratar...'
+              }
               rows={4}
             />
             <small className="form-hint">
-              Una biografía clara aumenta la confianza de contrapartes en contratos con custodia Escrow.
-            </small>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="perfil-habilidades">
-              Habilidades Técnicas (separadas por comas)
-            </label>
-            <input
-              id="perfil-habilidades"
-              name="habilidades"
-              type="text"
-              value={datos.habilidades}
-              onChange={handleChange}
-              placeholder="Ej. React, Python, FastAPI, Docker, UI/UX, Escrow"
-            />
-            <small className="form-hint">
-              Ingresa tus habilidades separadas por comas. Se mostrarán como etiquetas públicas.
-            </small>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="perfil-stack">Stack Tecnológico y Herramientas</label>
-            <textarea
-              id="perfil-stack"
-              name="stack_tecnologico"
-              value={datos.stack_tecnologico}
-              onChange={handleChange}
-              placeholder="Ej. Frontend en React/Next.js, Backend en Python Flask/FastAPI, PostgreSQL, AWS, Tailwind..."
-              rows={3}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="perfil-enlaces">
-              Enlaces Externos (separados por comas)
-            </label>
-            <input
-              id="perfil-enlaces"
-              name="enlaces"
-              type="text"
-              value={datos.enlaces}
-              onChange={handleChange}
-              placeholder="https://github.com/mi-usuario, https://linkedin.com/in/mi-perfil, https://miweb.dev"
-            />
-            <small className="form-hint">
-              Ingresa URLs de tus perfiles de GitHub, LinkedIn o sitio web separadas por comas.
+              Una descripción detallada aumenta la confianza de contrapartes en contratos con custodia Escrow.
             </small>
           </div>
         </fieldset>
+
+        {/* RENDERIZADO CONDICIONAL: Solo para DESARROLLADOR */}
+        {esDesarrollador && (
+          <fieldset className="zaas-form-fieldset">
+            <legend className="zaas-form-legend">
+              Habilidades Técnicas y Stack (Solo Desarrolladores)
+            </legend>
+
+            {/* Habilidades con Autocompletado / Sugerencias interactivas */}
+            <div className="form-group">
+              <label htmlFor="perfil-habilidades">
+                Habilidades Técnicas (separadas por comas)
+              </label>
+              <input
+                id="perfil-habilidades"
+                name="habilidades"
+                type="text"
+                value={datos.habilidades}
+                onChange={handleChange}
+                placeholder="Ej. React, Python, FastAPI, Docker, UI/UX, Escrow"
+              />
+              <small className="form-hint">
+                Ingresa tus habilidades separadas por comas. Se mostrarán como etiquetas públicas.
+              </small>
+
+              {/* Chips de sugerencias interactivas */}
+              <div className="zaas-suggestions-box">
+                <span className="zaas-suggestions-label">Sugerencias rápidas:</span>
+                <div className="zaas-suggestions-chips">
+                  {sugerenciasHabilidades.map((sug) => (
+                    <button
+                      key={sug}
+                      type="button"
+                      className="zaas-chip-btn"
+                      onClick={() => agregarSugerenciaHabilidad(sug)}
+                      aria-label={`Añadir habilidad ${sug}`}
+                    >
+                      + {sug}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Stack Tecnológico */}
+            <div className="form-group">
+              <label htmlFor="perfil-stack">Stack Tecnológico Detallado</label>
+              <textarea
+                id="perfil-stack"
+                name="stack_tecnologico"
+                value={datos.stack_tecnologico}
+                onChange={handleChange}
+                placeholder="Ej. Frontend en React/Next.js, Backend en Python Flask/FastAPI, PostgreSQL, AWS, Tailwind CSS..."
+                rows={3}
+              />
+              <div className="zaas-suggestions-box">
+                <span className="zaas-suggestions-label">Sugerencias de tecnologías:</span>
+                <div className="zaas-suggestions-chips">
+                  {['React', 'Next.js', 'FastAPI', 'PostgreSQL', 'Docker', 'AWS'].map((sug) => (
+                    <button
+                      key={`st-${sug}`}
+                      type="button"
+                      className="zaas-chip-btn"
+                      onClick={() => agregarSugerenciaStack(sug)}
+                      aria-label={`Añadir tecnología ${sug} al stack`}
+                    >
+                      + {sug}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Enlaces Externos */}
+            <div className="form-group">
+              <label htmlFor="perfil-enlaces">
+                Enlaces Externos (GitHub, LinkedIn, Portafolio)
+              </label>
+              <input
+                id="perfil-enlaces"
+                name="enlaces"
+                type="text"
+                value={datos.enlaces}
+                onChange={handleChange}
+                placeholder="https://github.com/tu-usuario, https://linkedin.com/in/tu-perfil, https://tuportafolio.dev"
+              />
+              <small className="form-hint">
+                Ingresa URLs separadas por comas. Los clientes podrán ver tu trabajo verificado.
+              </small>
+            </div>
+          </fieldset>
+        )}
 
         {/* Botones de acción del formulario */}
         <div className="zaas-form-actions">

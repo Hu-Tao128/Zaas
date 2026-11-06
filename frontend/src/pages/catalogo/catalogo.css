@@ -2267,3 +2267,295 @@
   }
 }
 
+/* ==========================================================================
+   SELECTOR DE ROL (PASO INTERMEDIO DE REGISTRO) & ESTILOS AUTH
+   ========================================================================== */
+
+.auth-wrapper {
+  min-height: calc(100vh - 80px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+}
+
+.zaas-auth-card {
+  max-width: 520px !important;
+  width: 100%;
+}
+
+.auth-header-brand {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.auth-brand-logo {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--zaas-navbar);
+  display: inline-block;
+  margin-bottom: 0.5rem;
+}
+
+.auth-subtitle {
+  font-size: 0.95rem;
+  color: var(--zaas-text);
+  line-height: 1.5;
+  margin-top: 0.25rem;
+}
+
+.auth-footer-text {
+  text-align: center;
+  margin-top: 1.5rem;
+  font-size: 0.95rem;
+  color: var(--zaas-text);
+}
+
+.auth-footer-text a {
+  color: var(--zaas-primary);
+  font-weight: 700;
+}
+
+.auth-footer-text a:hover {
+  color: var(--zaas-brand-dark);
+  text-decoration: underline;
+}
+
+.input-error {
+  border-color: var(--zaas-primary) !important;
+  outline: 2px solid rgba(220, 38, 38, 0.2) !important;
+}
+
+.btn-auth-submit {
+  width: 100%;
+  padding: 0.85rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+/* Contenedor del Selector de Roles */
+.zaas-role-modal-container {
+  max-width: 760px !important;
+  width: 100%;
+  padding: 2.5rem !important;
+  border-radius: var(--zaas-radius-lg);
+}
+
+.zaas-role-selector-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.zaas-role-header {
+  text-align: center;
+}
+
+.zaas-role-title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: var(--zaas-text-heading);
+  margin-bottom: 0.5rem;
+}
+
+.zaas-role-subtitle {
+  font-size: 1rem;
+  color: var(--zaas-text);
+  max-width: 580px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+/* Grid de Tarjetas de Roles con Flex/Grid */
+.zaas-role-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.zaas-role-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  background-color: #ffffff;
+  border: 2px solid #e5e5e5;
+  border-radius: 12px;
+  padding: 2rem 1.5rem;
+  cursor: pointer;
+  transition: var(--zaas-transition);
+  position: relative;
+  outline: none;
+}
+
+.zaas-role-card:hover {
+  border-color: var(--zaas-brand-dark);
+  background-color: #fef2f2;
+  transform: translateY(-2px);
+  box-shadow: var(--zaas-shadow-sm);
+}
+
+.zaas-role-card:focus-visible {
+  outline: 2px solid var(--zaas-brand-dark);
+  outline-offset: 3px;
+}
+
+/* Borde resaltado en Rojo Oscuro (#991B1B) al seleccionar */
+.zaas-role-card--selected {
+  border: 2.5px solid var(--zaas-brand-dark) !important;
+  background-color: #fef2f2 !important;
+  box-shadow: 0 4px 16px rgba(153, 27, 27, 0.12);
+}
+
+.zaas-role-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 1.25rem;
+}
+
+.zaas-role-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 12px;
+  transition: var(--zaas-transition);
+}
+
+.zaas-role-icon--cliente {
+  background-color: #f3f4f6;
+  color: var(--zaas-text-heading);
+}
+
+.zaas-role-icon--dev {
+  background-color: #fef2f2;
+  color: var(--zaas-brand-dark);
+}
+
+.zaas-role-card--selected .zaas-role-icon-wrapper {
+  background-color: #ffffff;
+  box-shadow: var(--zaas-shadow-sm);
+}
+
+.zaas-role-checked-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: var(--zaas-brand-dark);
+  color: #ffffff;
+}
+
+.zaas-role-card-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--zaas-text-heading);
+  margin: 0 0 0.35rem 0;
+}
+
+.zaas-role-card-tagline {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--zaas-brand-dark);
+  margin: 0 0 0.75rem 0;
+}
+
+.zaas-role-card-description {
+  font-size: 0.875rem;
+  color: var(--zaas-text);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.zaas-role-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--zaas-border);
+}
+
+.btn-confirm-role {
+  padding: 0.85rem 1.75rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-left: auto;
+}
+
+/* Sugerencias de autocompletado en perfil de desarrollador */
+.profile-edit-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.zaas-suggestions-box {
+  margin-top: 0.65rem;
+  padding: 0.65rem 0.85rem;
+  background-color: #ffffff;
+  border: 1px solid var(--zaas-border);
+  border-radius: 6px;
+}
+
+.zaas-suggestions-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+  margin-bottom: 0.4rem;
+}
+
+.zaas-suggestions-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.zaas-chip-btn {
+  background-color: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-radius: 9999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--zaas-text);
+  cursor: pointer;
+  transition: var(--zaas-transition);
+}
+
+.zaas-chip-btn:hover {
+  background-color: #fef2f2;
+  border-color: var(--zaas-accent);
+  color: var(--zaas-brand-dark);
+  transform: translateY(-1px);
+}
+
+.zaas-chip-btn:focus-visible {
+  outline: 2px solid var(--zaas-primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .zaas-role-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .zaas-role-actions {
+    flex-direction: column-reverse;
+  }
+
+  .zaas-role-actions .btn {
+    width: 100%;
+  }
+}
+
+

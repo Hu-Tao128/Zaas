@@ -151,21 +151,64 @@ def registro_callback():
         return jsonify({'error': 'Token no proporcionado'}), 400
 
     firebase_data = verify_firebase_token(id_token)
+
+    # Modo desarrollo: si Firebase no está configurado, decodificar sin verificar
+    if not firebase_data and not is_firebase_ready():
+        import jwt
+        try:
+            payload = jwt.decode(id_token, options={"verify_signature": False})
+            firebase_data = {
+                'uid': payload.get('sub', data.get('firebase_uid', 'dev_user')),
+                'email': payload.get('email', data.get('email', 'dev@test.com')),
+                'name': payload.get('name', 'Dev User'),
+            }
+        except Exception:
+            return jsonify({'error': 'Token inválido'}), 400
+
     if not firebase_data:
         return jsonify({'error': 'Token inválido o expirado'}), 401
 
-    # Verificar que no exista ya
-    existente = db.session.execute(
+    # Buscar usuario existente por firebase_uid o por email
+    usuario = db.session.execute(
         db.select(Usuario).filter_by(firebase_uid=firebase_data['uid'])
     ).scalar_one_or_none()
 
-    if existente:
-        return jsonify({'error': 'Este usuario ya está registrado'}), 409
+    if not usuario and firebase_data.get('email'):
+        usuario = db.session.execute(
+            db.select(Usuario).filter_by(email=firebase_data['email'])
+        ).scalar_one_or_none()
 
-    usuario = find_or_create_user(firebase_data)
-    usuario.tipo_usuario = tipo_usuario
+    if not usuario:
+        nombre_default = firebase_data.get('name', '').split()[0] if firebase_data.get('name') else 'Usuario'
+        apellido_default = firebase_data.get('name', '').split()[-1] if firebase_data.get('name') else 'Zaas'
+        usuario = Usuario(
+            firebase_uid=firebase_data['uid'],
+            nombres=data.get('nombres') or nombre_default,
+            apellido_paterno=data.get('apellido_paterno') or apellido_default,
+            apellido_materno=data.get('apellido_materno') or '',
+            email=firebase_data.get('email') or data.get('email', ''),
+            tipo_usuario=tipo_usuario,
+        )
+        db.session.add(usuario)
+        db.session.flush()
+
+        perfil = Perfil(id_usuario=usuario.id)
+        db.session.add(perfil)
+    else:
+        usuario.tipo_usuario = tipo_usuario
+        if not usuario.firebase_uid:
+            usuario.firebase_uid = firebase_data['uid']
+        if data.get('nombres'):
+            usuario.nombres = data.get('nombres')
+        if data.get('apellido_paterno'):
+            usuario.apellido_paterno = data.get('apellido_paterno')
+        if data.get('apellido_materno'):
+            usuario.apellido_materno = data.get('apellido_materno')
+        if not usuario.perfil:
+            perfil = Perfil(id_usuario=usuario.id)
+            db.session.add(perfil)
+
     db.session.commit()
-
     login_user(usuario, remember=True)
 
     return jsonify({
@@ -174,6 +217,7 @@ def registro_callback():
             'id': usuario.id,
             'email': usuario.email,
             'nombre': usuario.nombres,
+            'tipo_usuario': usuario.tipo_usuario,
         }
     })
 
