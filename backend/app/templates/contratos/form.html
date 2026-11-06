@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Nuevo Contrato - Zaas{% endblock %}
+{% block content %}
+<div class="card" style="max-width:600px;margin:2rem auto;">
+    <h2 class="mb-2">Nuevo Contrato</h2>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+            {{ form.id_cliente.label }} {{ form.id_cliente() }}
+        </div>
+        <div class="form-group">
+            {{ form.id_desarrollador.label }} {{ form.id_desarrollador() }}
+        </div>
+        <div class="form-group">
+            {{ form.id_producto.label }} {{ form.id_producto() }}
+        </div>
+        <div class="form-group">
+            {{ form.id_encargo.label }} {{ form.id_encargo() }}
+        </div>
+        <div class="form-group">
+            {{ form.costo_acordado.label }} {{ form.costo_acordado() }}
+        </div>
+        <div class="form-group">
+            {{ form.terminos_condiciones.label }} {{ form.terminos_condiciones() }}
+        </div>
+        <button type="submit" class="btn btn-primary">Crear Contrato</button>
+    </form>
+</div>
+{% endblock %}

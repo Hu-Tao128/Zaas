@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Conversaciones - Zaas{% endblock %}
+{% block content %}
+<h1 class="mb-2">Mensajes</h1>
+<div class="grid">
+    {% for conv in conversaciones %}
+    <div class="card">
+        <h4>
+            <a href="{{ url_for('comunicacion.chat_contrato', id=conv.id_contrato) }}">
+                Contrato #{{ conv.id_contrato }}
+            </a>
+        </h4>
+        {% set ultimo = conv.mensajes[-1] if conv.mensajes else None %}
+        {% if ultimo %}
+            <p><small>{{ ultimo.contenido[:100] }}...</small></p>
+            <small>{{ ultimo.fecha_hora.strftime('%d/%m/%Y %H:%M') }}</small>
+        {% else %}
+            <p><small>Sin mensajes aún.</small></p>
+        {% endif %}
+    </div>
+    {% else %}
+    <p>No hay conversaciones. Comienza una desde un contrato.</p>
+    {% endfor %}
+</div>
+{% endblock %}

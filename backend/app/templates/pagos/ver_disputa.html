@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Disputa #{{ disputa.id }} - Zaas{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Disputa #{{ disputa.id }} <span class="badge badge-{{ 'success' if disputa.estado == 'resuelta' else 'warning' }}">{{ disputa.estado }}</span></h2>
+    <p><strong>Contrato:</strong> <a href="{{ url_for('contratos.ver_contrato', id=disputa.id_contrato) }}">#{{ disputa.id_contrato }}</a></p>
+    <p><strong>Tipo:</strong> {{ disputa.tipo }}</p>
+    <p><strong>Reportante:</strong> {{ disputa.reportante.nombres if disputa.reportante else 'N/A' }}</p>
+    <p><strong>Descripción:</strong> {{ disputa.descripcion }}</p>
+    <p><strong>Fecha:</strong> {{ disputa.fecha_hora_publicacion.strftime('%d/%m/%Y') }}</p>
+    {% if disputa.resolucion %}
+        <h3 class="mt-2">Resolución</h3>
+        <p>{{ disputa.resolucion }}</p>
+    {% endif %}
+    {% if disputa.arbitrajes %}
+        {% for arb in disputa.arbitrajes %}
+            <p><strong>Decisión:</strong> {{ arb.decision }} {% if arb.porcentaje_desarrollador %}({{ arb.porcentaje_desarrollador }}% al desarrollador){% endif %}</p>
+            {% if arb.notas %}<p>{{ arb.notas }}</p>{% endif %}
+        {% endfor %}
+    {% endif %}
+    {% if current_user.tipo_usuario == 'admin' and disputa.estado != 'resuelta' %}
+        <a href="{{ url_for('pagos.resolver_disputa', id=disputa.id) }}" class="btn btn-primary mt-2">Resolver</a>
+    {% endif %}
+</div>
+{% endblock %}

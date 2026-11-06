@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Postularse - Zaas{% endblock %}
+{% block content %}
+<div class="card" style="max-width:600px;margin:2rem auto;">
+    <h2 class="mb-2">Postularse a: {{ oferta.titulo }}</h2>
+    <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+        {% for field in [form.detalles, form.costo_propuesto] %}
+        <div class="form-group">
+            {{ field.label }} {{ field() }}
+            {% for e in field.errors %}<small style="color:#c0392b;">{{ e }}</small>{% endfor %}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary">Enviar Postulación</button>
+        <a href="{{ url_for('catalogo.detalle_oferta', id=oferta.id) }}" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,2015 @@
+{
+  "version": "32.5.2",
+  "pages": [
+    {
+      "id": "rd0_YWHCyNrN-T8wCwKh",
+      "name": "DER",
+      "cells": [
+        {
+          "id": "1",
+          "type": "layer"
+        },
+        {
+          "id": "eZbnYeeF03dnV3IKbwAW-1",
+          "type": "node",
+          "parent": "1",
+          "label": "Usuario"
+        },
+        {
+          "id": "eZbnYeeF03dnV3IKbwAW-2",
+          "type": "node",
+          "parent": "1",
+          "label": "Perfil"
+        },
+        {
+          "id": "eZbnYeeF03dnV3IKbwAW-3",
+          "type": "node",
+          "parent": "1",
+          "label": "Encargos"
+        },
+        {
+          "id": "eZbnYeeF03dnV3IKbwAW-4",
+          "type": "node",
+          "parent": "1",
+          "label": "Productos"
+        },
+        {
+          "id": "eZbnYeeF03dnV3IKbwAW-5",
+          "type": "node",
+          "parent": "1",
+          "label": "Pagos Escrow"
+        },
+        {
+          "id": "eZbnYeeF03dnV3IKbwAW-6",
+          "type": "node",
+          "parent": "1",
+          "label": "Contratos"
+        },
+        {
+          "id": "eZbnYeeF03dnV3IKbwAW-8",
+          "type": "node",
+          "parent": "1",
+          "label": "Clientes"
+        },
+        {
+          "id": "eZbnYeeF03dnV3IKbwAW-9",
+          "type": "node",
+          "parent": "1",
+          "label": "Desarrolladores"
+        },
+        {
+          "id": "eZbnYeeF03dnV3IKbwAW-10",
+          "type": "node",
+          "parent": "1",
+          "label": "Calificaciones"
+        },
+        {
+          "id": "eZbnYeeF03dnV3IKbwAW-13",
+          "type": "node",
+          "parent": "1",
+          "label": "Solicitudes / Postulaciones"
+        },
+        {
+          "id": "eZbnYeeF03dnV3IKbwAW-14",
+          "type": "node",
+          "parent": "1",
+          "label": "Mensajes"
+        },
+        {
+          "id": "eZbnYeeF03dnV3IKbwAW-15",
+          "type": "node",
+          "parent": "1",
+          "label": "Reportes/disputas"
+        },
+        {
+          "id": "eZbnYeeF03dnV3IKbwAW-16",
+          "type": "node",
+          "parent": "1",
+          "label": "Notificaciones"
+        },
+        {
+          "id": "pIoou3BhqCL3VNIh-N3D-1",
+          "type": "node",
+          "parent": "1",
+          "label": "Recibos"
+        }
+      ]
+    },
+    {
+      "id": "LRksTv1akLuA7G1xBQJN",
+      "name": "MR",
+      "cells": [
+        {
+          "id": "1",
+          "type": "layer"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-32",
+          "type": "node",
+          "parent": "1",
+          "label": "Perfil"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-33",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-32"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-34",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-33",
+          "label": "PK"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-35",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-33",
+          "label": "ID"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-29",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-32"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-30",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-29",
+          "label": "FK"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-31",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-29",
+          "label": "id_usuario"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-39",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-32"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-40",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-39"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-41",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-39",
+          "label": "Descripción"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-29",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-32"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-30",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-29"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-31",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-29",
+          "label": "Habilidades"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-97",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-32"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-98",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-97"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-99",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-97",
+          "label": "empresa"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-100",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-32"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-101",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-100"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-102",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-100",
+          "label": "stack_tecnologico"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-42",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-32"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-43",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-42"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-44",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-42",
+          "label": "Enlaces"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-172",
+          "type": "edge",
+          "parent": "1",
+          "source": "lIr6_-2NFoEPBviWfbUw-45"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-45",
+          "type": "node",
+          "parent": "1",
+          "label": "Productos"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-46",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-45"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-47",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-46",
+          "label": "PK"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-48",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-46",
+          "label": "ID"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-49",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-45"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-50",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-49",
+          "label": "FK"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-51",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-49",
+          "label": "id_usuario"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-52",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-45"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-53",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-52"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-54",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-52",
+          "label": "titulo"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-55",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-45"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-56",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-55"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-57",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-55",
+          "label": "descripción"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-58",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-45"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-59",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-58"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-60",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-58",
+          "label": "precio"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-61",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-45"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-62",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-61"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-63",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-61",
+          "label": "demo_habilitada"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-64",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-45"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-65",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-64"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-66",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-64",
+          "label": "fecha_publicación"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-4",
+          "type": "node",
+          "parent": "1",
+          "label": "Encargos"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-5",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-4"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-6",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-5",
+          "label": "PK"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-7",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-5",
+          "label": "ID"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-8",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-4"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-9",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-8",
+          "label": "FK"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-10",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-8",
+          "label": "id_cliente"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-11",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-4"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-12",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-11"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-13",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-11",
+          "label": "descripcion_requerimientos"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-14",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-4"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-15",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-14"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-16",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-14",
+          "label": "presupuesto"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-20",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-4"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-21",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-20"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-22",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-20",
+          "label": "estado"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-23",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-4"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-24",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-23"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-25",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-23",
+          "label": "fecha_publicacion"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-77",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-4"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-78",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-77"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-79",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-77",
+          "label": "fecha_entrega"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-41",
+          "type": "node",
+          "parent": "1",
+          "label": "Contratos"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-42",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-41"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-43",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-42",
+          "label": "PK"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-44",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-42",
+          "label": "ID"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-54",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-41"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-55",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-54",
+          "label": "FK"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-56",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-54",
+          "label": "id_desarrollador"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-57",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-41"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-58",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-57",
+          "label": "FK Nullable"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-59",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-57",
+          "label": "id_producto"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-60",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-41"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-61",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-60",
+          "label": "FK Nullable"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-62",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-60",
+          "label": "id_encargo"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-45",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-41"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-46",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-45",
+          "label": "FK"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-47",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-45",
+          "label": "id_cliente"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-48",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-41"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-49",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-48"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-50",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-48",
+          "label": "terminos_condiciones",
+          "html": "terminos_cond<span style=\"background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));\">iciones</span>"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-51",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-41"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-52",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-51"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-53",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-51",
+          "label": "Costo_acordado"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-63",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-41"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-64",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-63"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-65",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-63",
+          "label": "estado"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-66",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-41"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-67",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-66"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-68",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-66",
+          "label": "Firma cliente"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-69",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-41"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-70",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-69"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-71",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-69",
+          "label": "firma_desarrollador"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-72",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-41"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-73",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-72"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-74",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-72",
+          "label": "fecha_creación"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-78",
+          "type": "node",
+          "parent": "1",
+          "label": "Pagos_escrow"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-79",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-78"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-80",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-79",
+          "label": "PK"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-81",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-79",
+          "label": "id"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-82",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-78"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-83",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-82",
+          "label": "FK"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-84",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-82",
+          "label": "id_contrato"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-85",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-78"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-86",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-85"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-87",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-85",
+          "label": "monto"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-88",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-78"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-89",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-88"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-90",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-88",
+          "label": "estado_escrow"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-91",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-78"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-92",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-91"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-93",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-91",
+          "label": "fecha_pago"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-94",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-78"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-95",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-94"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-96",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-94",
+          "label": "fecha_liberación"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-103",
+          "type": "node",
+          "parent": "1",
+          "label": "Recibos"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-104",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-103"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-105",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-104",
+          "label": "PK"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-106",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-104",
+          "label": "id"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-107",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-103"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-108",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-107",
+          "label": "FK"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-109",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-107",
+          "label": "id_pago"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-110",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-103"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-111",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-110"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-112",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-110",
+          "label": "folio"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-113",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-103"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-114",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-113"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-115",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-113",
+          "label": "fecha_emisión"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-116",
+          "type": "node",
+          "parent": "1",
+          "label": "Mensajes"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-117",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-116"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-118",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-117",
+          "label": "PK"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-119",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-117",
+          "label": "id"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-129",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-116"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-130",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-129",
+          "label": "FK"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-131",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-129",
+          "label": "id_contrato"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-133",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-116"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-134",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-133",
+          "label": "FK"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-135",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-133",
+          "label": "id_emisor"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-120",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-116"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-121",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-120",
+          "label": "FK"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-122",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-120",
+          "label": "id_receptor"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-123",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-116"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-124",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-123"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-125",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-123",
+          "label": "contenido"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-126",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-116"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-127",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-126"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-128",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-126",
+          "label": "fecha_hora"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-1",
+          "type": "node",
+          "parent": "1",
+          "label": "Solicitudes_demo"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-2",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-1"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-3",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-2",
+          "label": "PK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-4",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-2",
+          "label": "id"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-14",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-1"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-15",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-14",
+          "label": "FK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-16",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-14",
+          "label": "id_producto"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-5",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-1"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-6",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-5",
+          "label": "FK/Nullable"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-7",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-5",
+          "label": "id_cliente"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-8",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-1"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-9",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-8"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-10",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-8",
+          "label": "nombre_contacto"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-11",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-1"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-12",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-11"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-13",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-11",
+          "label": "correo_contacto"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-17",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-1"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-18",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-17"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-19",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-17",
+          "label": "Fecha_solicitud"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-20",
+          "type": "node",
+          "parent": "1",
+          "label": "Postulaciones"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-21",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-20"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-22",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-21",
+          "label": "PK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-23",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-21",
+          "label": "ID"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-133",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-20"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-134",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-133",
+          "label": "FK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-135",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-133",
+          "label": "id_desarrollador"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-24",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-20"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-25",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-24",
+          "label": "FK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-26",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-24",
+          "label": "id_encargo"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-27",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-20"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-28",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-27"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-29",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-27",
+          "label": "Detalles"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-30",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-20"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-31",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-30"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-32",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-30",
+          "label": "Costo propuesto"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-36",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-20"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-37",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-36"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-38",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-36",
+          "label": "estado"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-39",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-20"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-40",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-39"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-41",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-39",
+          "label": "fecha_hora"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-42",
+          "type": "node",
+          "parent": "1",
+          "label": "Disputas"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-43",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-42"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-44",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-43",
+          "label": "PK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-45",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-43",
+          "label": "ID"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-55",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-42"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-56",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-55",
+          "label": "FK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-57",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-55",
+          "label": "id_contrato"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-70",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-42"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-71",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-70",
+          "label": "FK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-72",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-70",
+          "label": "id_admin"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-46",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-42"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-47",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-46",
+          "label": "FK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-48",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-46",
+          "label": "id_reportante"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-49",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-42"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-50",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-49"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-51",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-49",
+          "label": "tipo"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-58",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-42"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-59",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-58"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-60",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-58",
+          "label": "descripcion"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-61",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-42"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-62",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-61"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-63",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-61",
+          "label": "fecha_hora_publicación"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-52",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-42"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-53",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-52"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-54",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-52",
+          "label": "estado"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-64",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-42"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-65",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-64"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-66",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-64",
+          "label": "fecha_hora_resolución"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-67",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-42"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-68",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-67"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-69",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-67",
+          "label": "resolución"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-73",
+          "type": "node",
+          "parent": "1",
+          "label": "Calificaciones"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-74",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-73"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-75",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-74",
+          "label": "PK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-76",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-74",
+          "label": "id"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-86",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-73"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-87",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-86",
+          "label": "FK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-88",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-86",
+          "label": "id_contrato"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-89",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-73"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-90",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-89",
+          "label": "FK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-91",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-89",
+          "label": "id_evaluador"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-77",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-73"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-78",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-77",
+          "label": "FK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-79",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-77",
+          "label": "id_evaluado"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-80",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-73"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-81",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-80"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-82",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-80",
+          "label": "puntaje"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-83",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-73"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-84",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-83"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-85",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-83",
+          "label": "comentarios"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-92",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-73"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-93",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-92"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-94",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-92",
+          "label": "fecha_hora"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-95",
+          "type": "node",
+          "parent": "1",
+          "label": "Notificaciones"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-96",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-95"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-97",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-96",
+          "label": "PK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-98",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-96",
+          "label": "id"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-99",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-95"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-100",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-99",
+          "label": "FK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-101",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-99",
+          "label": "id_usuario"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-102",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-95"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-103",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-102"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-104",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-102",
+          "label": "asunto"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-105",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-95"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-106",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-105"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-107",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-105",
+          "label": "leido"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-111",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-95"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-112",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-111"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-113",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-111",
+          "label": "mensaje"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-108",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-95"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-109",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-108"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-110",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-108",
+          "label": "fecha_hora_creacion"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-114",
+          "type": "edge",
+          "parent": "1",
+          "source": "lIr6_-2NFoEPBviWfbUw-17",
+          "target": "yqug7ex9NNuWZ68ogK0F-29"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-115",
+          "type": "edge",
+          "parent": "1",
+          "source": "lIr6_-2NFoEPBviWfbUw-17",
+          "target": "lIr6_-2NFoEPBviWfbUw-49"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-116",
+          "type": "node",
+          "parent": "1",
+          "label": "Archivos_Producto"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-117",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-116"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-118",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-117",
+          "label": "PK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-119",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-117",
+          "label": "id"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-120",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-116"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-121",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-120",
+          "label": "FK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-122",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-120",
+          "label": "id_producto"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-123",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-116"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-124",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-123"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-125",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-123",
+          "label": "url_archivo"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-126",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-116"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-127",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-126"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-128",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-126",
+          "label": "tipo_archivo"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-129",
+          "type": "edge",
+          "parent": "1",
+          "source": "lIr6_-2NFoEPBviWfbUw-46",
+          "target": "MaguoFWwMIoqqk6BcAjf-120"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-130",
+          "type": "edge",
+          "parent": "1",
+          "source": "lIr6_-2NFoEPBviWfbUw-46",
+          "target": "MaguoFWwMIoqqk6BcAjf-14"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-131",
+          "type": "edge",
+          "parent": "1",
+          "source": "lIr6_-2NFoEPBviWfbUw-17",
+          "target": "yqug7ex9NNuWZ68ogK0F-8"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-132",
+          "type": "edge",
+          "parent": "1",
+          "source": "yqug7ex9NNuWZ68ogK0F-5",
+          "target": "MaguoFWwMIoqqk6BcAjf-24"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-136",
+          "type": "edge",
+          "parent": "1",
+          "source": "lIr6_-2NFoEPBviWfbUw-17",
+          "target": "MaguoFWwMIoqqk6BcAjf-133"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-137",
+          "type": "edge",
+          "parent": "1",
+          "source": "yqug7ex9NNuWZ68ogK0F-42",
+          "target": "yqug7ex9NNuWZ68ogK0F-82"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-138",
+          "type": "edge",
+          "parent": "1",
+          "source": "yqug7ex9NNuWZ68ogK0F-79",
+          "target": "yqug7ex9NNuWZ68ogK0F-107"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-139",
+          "type": "edge",
+          "parent": "1",
+          "source": "yqug7ex9NNuWZ68ogK0F-42",
+          "target": "yqug7ex9NNuWZ68ogK0F-129"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-142",
+          "type": "edge",
+          "parent": "1",
+          "source": "yqug7ex9NNuWZ68ogK0F-42",
+          "target": "MaguoFWwMIoqqk6BcAjf-55"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-143",
+          "type": "edge",
+          "parent": "1",
+          "source": "yqug7ex9NNuWZ68ogK0F-42",
+          "target": "MaguoFWwMIoqqk6BcAjf-86"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-145",
+          "type": "edge",
+          "parent": "1",
+          "source": "lIr6_-2NFoEPBviWfbUw-17",
+          "target": "MaguoFWwMIoqqk6BcAjf-99"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-146",
+          "type": "edge",
+          "parent": "1",
+          "source": "lIr6_-2NFoEPBviWfbUw-16",
+          "target": "yqug7ex9NNuWZ68ogK0F-57"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-149",
+          "type": "edge",
+          "parent": "1",
+          "source": "lIr6_-2NFoEPBviWfbUw-17",
+          "target": "yqug7ex9NNuWZ68ogK0F-54"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-150",
+          "type": "edge",
+          "parent": "1",
+          "source": "yqug7ex9NNuWZ68ogK0F-60",
+          "target": "yqug7ex9NNuWZ68ogK0F-5"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-152",
+          "type": "edge",
+          "parent": "1",
+          "source": "yqug7ex9NNuWZ68ogK0F-45",
+          "target": "lIr6_-2NFoEPBviWfbUw-17"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-153",
+          "type": "edge",
+          "parent": "1",
+          "source": "lIr6_-2NFoEPBviWfbUw-17",
+          "target": "MaguoFWwMIoqqk6BcAjf-5"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-154",
+          "type": "edge",
+          "parent": "1",
+          "source": "MaguoFWwMIoqqk6BcAjf-70",
+          "target": "lIr6_-2NFoEPBviWfbUw-17"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-155",
+          "type": "edge",
+          "parent": "1",
+          "source": "MaguoFWwMIoqqk6BcAjf-46",
+          "target": "lIr6_-2NFoEPBviWfbUw-17"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-156",
+          "type": "node",
+          "parent": "1",
+          "label": "metricas_analiticas"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-157",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-156"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-158",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-157",
+          "label": "PK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-159",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-157",
+          "label": "id_evento"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-160",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-156"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-161",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-160",
+          "label": "FK"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-162",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-160",
+          "label": "id_usuario"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-163",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-156"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-164",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-163"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-165",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-163",
+          "label": "datos_evento"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-166",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-156"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-167",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-166"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-168",
+          "type": "node",
+          "parent": "MaguoFWwMIoqqk6BcAjf-166",
+          "label": "Fecha_registro"
+        },
+        {
+          "id": "MaguoFWwMIoqqk6BcAjf-170",
+          "type": "edge",
+          "parent": "1",
+          "source": "lIr6_-2NFoEPBviWfbUw-17",
+          "target": "MaguoFWwMIoqqk6BcAjf-160"
+        },
+        {
+          "id": "hq6Fa04vuNr6Txu9dVLq-1",
+          "type": "edge",
+          "parent": "1",
+          "source": "lIr6_-2NFoEPBviWfbUw-46",
+          "target": "lIr6_-2NFoEPBviWfbUw-16"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-16",
+          "type": "node",
+          "parent": "1",
+          "label": "Usuario"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-17",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-16"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-18",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-17",
+          "label": "PK"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-19",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-17",
+          "label": "ID"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-20",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-16"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-21",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-20"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-22",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-20",
+          "label": "Nombres"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-23",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-16"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-24",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-23"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-25",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-23",
+          "label": "Apellido_paterno"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-26",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-16"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-27",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-26"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-28",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-26",
+          "label": "Apellido_materno"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-32",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-16"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-33",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-32"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-34",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-32",
+          "label": "email"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-35",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-16"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-36",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-35"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-37",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-35",
+          "label": "password"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-38",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-16"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-39",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-38"
+        },
+        {
+          "id": "yqug7ex9NNuWZ68ogK0F-40",
+          "type": "node",
+          "parent": "yqug7ex9NNuWZ68ogK0F-38",
+          "label": "fecha_registro"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-36",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-16"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-37",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-36"
+        },
+        {
+          "id": "lIr6_-2NFoEPBviWfbUw-38",
+          "type": "node",
+          "parent": "lIr6_-2NFoEPBviWfbUw-36",
+          "label": "tipo_usuario"
+        }
+      ]
+    },
+    {
+      "id": "OHwqDPcAegDFNpWpwwNV",
+      "name": "Página-3",
+      "cells": [
+        {
+          "id": "1",
+          "type": "layer"
+        },
+        {
+          "id": "_nneRrOnjAHiHj6CGhOI-1",
+          "type": "node",
+          "parent": "1"
+        }
+      ]
+    }
+  ]
+}

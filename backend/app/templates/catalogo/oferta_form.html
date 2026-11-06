@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Nueva Oferta - Zaas{% endblock %}
+{% block content %}
+<div class="card" style="max-width:600px;margin:2rem auto;">
+    <h2 class="mb-2">Nueva Oferta de Trabajo</h2>
+    <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+        {% for field in [form.titulo, form.descripcion, form.presupuesto, form.fecha_entrega] %}
+        <div class="form-group">
+            {{ field.label }} {{ field() }}
+            {% for e in field.errors %}<small style="color:#c0392b;">{{ e }}</small>{% endfor %}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary">Publicar Oferta</button>
+        <a href="{{ url_for('catalogo.ver_ofertas') }}" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

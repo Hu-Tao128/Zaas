@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Contrato #{{ contrato.id }} - Zaas{% endblock %}
+{% block content %}
+<div class="card">
+    <h1>Contrato #{{ contrato.id }} <span class="badge badge-{{ 'success' if contrato.estado in ('aceptado','en_progreso','finalizado') else 'warning' }}">{{ contrato.estado }}</span></h1>
+    <p><strong>Cliente:</strong> <a href="{{ url_for('auth.ver_perfil', id=contrato.id_cliente) }}">{{ contrato.cliente_contratos.nombres if contrato.cliente_contratos else 'N/A' }}</a></p>
+    <p><strong>Desarrollador:</strong> <a href="{{ url_for('auth.ver_perfil', id=contrato.id_desarrollador) }}">{{ contrato.desarrollador_contratos.nombres if contrato.desarrollador_contratos else 'N/A' }}</a></p>
+    <p><strong>Costo acordado:</strong> ${{ contrato.costo_acordado }}</p>
+    <p><strong>Fecha:</strong> {{ contrato.fecha_creacion.strftime('%d/%m/%Y') }}</p>
+
+    {% if contrato.terminos_condiciones %}
+    <h3 class="mt-2">Términos y Condiciones</h3>
+    <p>{{ contrato.terminos_condiciones }}</p>
+    {% endif %}
+
+    <div class="mt-2 flex">
+        {% if contrato.estado in ('borrador', 'pendiente') %}
+            {% if current_user.id in (contrato.id_cliente, contrato.id_desarrollador) %}
+                <form method="POST" action="{{ url_for('contratos.aceptar_contrato', id=contrato.id) }}">
+                    <button type="submit" class="btn btn-success">Aceptar Contrato</button>
+                </form>
+            {% endif %}
+        {% endif %}
+        {% if contrato.estado not in ('finalizado', 'cancelado') and current_user.id in (contrato.id_cliente, contrato.id_desarrollador) %}
+            <form method="POST" action="{{ url_for('contratos.cancelar_contrato', id=contrato.id) }}" style="margin-left:0.5rem;">
+                <button type="submit" class="btn btn-danger">Cancelar</button>
+            </form>
+        {% endif %}
+        {% if contrato.estado in ('aceptado', 'en_progreso') %}
+            <a href="{{ url_for('pagos.pagar_contrato', id=contrato.id) }}" class="btn btn-primary">Pagar (Escrow)</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if contrato.entregables %}
+<h2 class="mt-2">Entregables</h2>
+{% if current_user.id == contrato.id_desarrollador %}
+    <a href="{{ url_for('contratos.nuevo_entregable', id=contrato.id) }}" class="btn btn-primary mb-2">+ Subir Entregable</a>
+{% endif %}
+{% for e in contrato.entregables %}
+<div class="card">
+    <h4>{{ e.titulo }} <span class="badge badge-{{ 'success' if e.estado == 'aprobado' else 'danger' if e.estado == 'rechazado' else 'warning' }}">{{ e.estado }}</span></h4>
+    <p>{{ e.descripcion or '' }}</p>
+    {% if e.url_archivo %}<p><a href="{{ e.url_archivo }}" target="_blank">Ver archivo</a></p>{% endif %}
+    {% if e.comentario_revision %}<p><strong>Revisión:</strong> {{ e.comentario_revision }}</p>{% endif %}
+    {% if current_user.id == contrato.id_cliente and e.estado == 'pendiente' %}
+        <form method="POST" action="{{ url_for('contratos.revisar_entregable', id=e.id) }}" class="flex mt-1">
+            <input type="text" name="comentario" placeholder="Comentario (opcional)" style="flex:1;padding:0.3rem;">
+            <button type="submit" name="accion" value="aprobar" class="btn btn-success btn-sm">Aprobar</button>
+            <button type="submit" name="accion" value="rechazar" class="btn btn-danger btn-sm">Rechazar</button>
+        </form>
+    {% endif %}
+    <small>{{ e.fecha_subida.strftime('%d/%m/%Y') }}</small>
+</div>
+{% endfor %}
+{% endif %}
+
+{% if contrato.pagos %}
+<h2 class="mt-2">Pagos</h2>
+{% for pago in contrato.pagos %}
+<div class="card">
+    <p><strong>Monto:</strong> ${{ pago.monto }} — <span class="badge badge-info">{{ pago.estado_escrow }}</span></p>
+    {% if pago.recibos %}
+        <a href="{{ url_for('pagos.ver_recibo', id=pago.id) }}" class="btn btn-secondary btn-sm">Ver Recibo</a>
+    {% endif %}
+    {% if current_user.id == contrato.id_cliente and pago.estado_escrow == 'retenido' %}
+        <form method="POST" action="{{ url_for('pagos.liberar_fondos', id=contrato.id) }}" style="display:inline;">
+            <button type="submit" class="btn btn-success btn-sm">Liberar Fondos</button>
+        </form>
+    {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+{% if current_user.id in (contrato.id_cliente, contrato.id_desarrollador) and contrato.estado not in ('finalizado', 'cancelado') %}
+<div class="mt-2 flex">
+    <a href="{{ url_for('comunicacion.chat_contrato', id=contrato.id) }}" class="btn btn-secondary">💬 Chat</a>
+    <a href="{{ url_for('pagos.nueva_disputa', id=contrato.id) }}" class="btn btn-danger">⚠ Abrir Disputa</a>
+    {% if contrato.estado == 'finalizado' %}
+        <a href="{{ url_for('comunicacion.calificar_contrato', id=contrato.id) }}" class="btn btn-primary">⭐ Calificar</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

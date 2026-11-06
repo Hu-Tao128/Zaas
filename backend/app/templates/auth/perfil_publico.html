@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ usuario.nombres }} - Zaas{% endblock %}
+{% block content %}
+<div class="card" style="max-width:600px;margin:2rem auto;">
+    <h2>{{ usuario.nombres }} {{ usuario.apellido_paterno }} {{ usuario.apellido_materno }}</h2>
+    <p><strong>Tipo:</strong> {{ usuario.tipo_usuario }}</p>
+    <p><strong>Miembro desde:</strong> {{ usuario.fecha_registro.strftime('%d/%m/%Y') }}</p>
+    {% if usuario.perfil %}
+        {% if usuario.perfil.descripcion %}
+            <h3 class="mt-2">Descripción</h3>
+            <p>{{ usuario.perfil.descripcion }}</p>
+        {% endif %}
+        {% if usuario.perfil.habilidades %}
+            <h3 class="mt-2">Habilidades</h3>
+            <div class="flex flex-wrap">
+                {% for h in usuario.perfil.habilidades.split(',') %}
+                    <span class="badge badge-info">{{ h.strip() }}</span>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% if usuario.perfil.stack_tecnologico %}
+            <h3 class="mt-2">Stack Tecnológico</h3>
+            <p>{{ usuario.perfil.stack_tecnologico }}</p>
+        {% endif %}
+        {% if usuario.perfil.empresa %}
+            <p><strong>Empresa:</strong> {{ usuario.perfil.empresa }}</p>
+        {% endif %}
+        {% if usuario.perfil.enlaces %}
+            <h3 class="mt-2">Enlaces</h3>
+            {% for enlace in usuario.perfil.enlaces.split(',') %}
+                <a href="{{ enlace.strip() }}" target="_blank">{{ enlace.strip() }}</a><br>
+            {% endfor %}
+        {% endif %}
+    {% endif %}
+
+    <h3 class="mt-2">Proyectos</h3>
+    <div class="grid grid-2">
+        {% for proyecto in usuario.proyectos %}
+            <div class="card">
+                <h4><a href="{{ url_for('catalogo.detalle_proyecto', id=proyecto.id) }}">{{ proyecto.titulo }}</a></h4>
+                <p><strong>Precio:</strong> ${{ proyecto.precio }}</p>
+            </div>
+        {% else %}
+            <p>Sin proyectos publicados.</p>
+        {% endfor %}
+    </div>
+
+    <h3 class="mt-2">Calificaciones</h3>
+    {% if usuario.calificaciones_recibidas %}
+        {% for cal in usuario.calificaciones_recibidas %}
+            <div class="card">
+                <p><strong>{{ cal.puntaje }}/5</strong> - {{ cal.comentarios or 'Sin comentarios' }}</p>
+                <small>{{ cal.fecha_hora.strftime('%d/%m/%Y') }}</small>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>Sin calificaciones aún.</p>
+    {% endif %}
+</div>
+{% endblock %}

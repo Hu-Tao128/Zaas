@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Incidencia #{{ incidencia.id }} - Zaas{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Incidencia #{{ incidencia.id }} <span class="badge badge-{{ 'success' if incidencia.estado == 'resuelta' else 'warning' }}">{{ incidencia.estado }}</span></h2>
+    <p><strong>Tipo:</strong> {{ incidencia.tipo }}</p>
+    <p><strong>Usuario:</strong> <a href="{{ url_for('auth.ver_perfil', id=incidencia.id_usuario) }}">{{ incidencia.usuario.nombres if incidencia.usuario else 'N/A' }}</a></p>
+    <p><strong>Descripción:</strong> {{ incidencia.descripcion }}</p>
+    <p><strong>Fecha:</strong> {{ incidencia.fecha_hora.strftime('%d/%m/%Y') }}</p>
+    {% if incidencia.resolucion %}
+        <h3 class="mt-2">Resolución</h3>
+        <p>{{ incidencia.resolucion }}</p>
+        {% if incidencia.fecha_resolucion %}
+            <small>{{ incidencia.fecha_resolucion.strftime('%d/%m/%Y') }}</small>
+        {% endif %}
+    {% endif %}
+    <a href="{{ url_for('comunicacion.lista_incidencias') }}" class="btn btn-secondary mt-2">Volver</a>
+</div>
+{% endblock %}
