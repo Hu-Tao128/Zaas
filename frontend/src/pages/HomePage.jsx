@@ -1,6 +1,6 @@
 import { useAuth } from '../context/AuthContext';
 import { logout } from '../services/authService';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 export default function HomePage() {
   const { user, loading } = useAuth();
@@ -32,6 +32,7 @@ export default function HomePage() {
         <nav>
           <a href="#proyectos">Proyectos</a>
           <a href="#ofertas">Ofertas</a>
+          <Link to="/comunicacion">Comunicación</Link>
           {user ? (
             <>
               <span>{user.email}</span>

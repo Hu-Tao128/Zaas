@@ -29,7 +29,7 @@ export default function LoginPage() {
       
       const data = await response.json();
       console.log('Login exitoso:', data);
-      navigate(data.redirect || '/');
+      navigate('/');
     } catch (err) {
       setError(err.message || 'Error al iniciar sesión');
     } finally {
@@ -56,7 +56,7 @@ export default function LoginPage() {
       
       const data = await response.json();
       console.log('Login con Google exitoso:', data);
-      navigate(data.redirect || '/');
+      navigate('/');
     } catch (err) {
       setError(err.message || 'Error con Google');
     } finally {

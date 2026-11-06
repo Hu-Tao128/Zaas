@@ -4,22 +4,12 @@ from app.comunicacion import comunicacion_bp
 from app.comunicacion.models import Conversacion, Mensaje, Notificacion, Calificacion, Incidencia
 from app.comunicacion.forms import MensajeForm, CalificacionForm, IncidenciaForm
 from app.contratos.models import Contrato
-from app.auth.models import Usuario
 from app.extensions import db
-
-
-# ── Función central para crear notificaciones ──
-def crear_notificacion(usuario_id, texto, link=None):
-    """Crear una notificación para un usuario. Llamar desde cualquier módulo."""
-    notif = Notificacion(
-        id_usuario=usuario_id,
-        asunto=texto[:200],
-        mensaje=texto,
-        link=link
-    )
-    db.session.add(notif)
-    db.session.commit()
-    return notif
+from app.comunicacion.services import (
+    crear_notificacion, ErrorComunicacion, registrar_calificacion,
+    registrar_incidencia, resolver_incidencia as resolver_reporte,
+    obtener_conversacion, enviar_mensaje,
+)
 
 
 # ── Mensajería ──
@@ -49,13 +39,7 @@ def chat_contrato(id):
         abort(403)
 
     # Buscar o crear conversación
-    conversacion = db.session.execute(
-        db.select(Conversacion).filter_by(id_contrato=id)
-    ).scalar_one_or_none()
-    if not conversacion:
-        conversacion = Conversacion(id_contrato=id)
-        db.session.add(conversacion)
-        db.session.commit()
+    conversacion = obtener_conversacion(contrato, current_user)
 
     receptor_id = (
         contrato.id_desarrollador if current_user.id == contrato.id_cliente
@@ -64,16 +48,13 @@ def chat_contrato(id):
 
     form = MensajeForm()
     if form.validate_on_submit():
-        mensaje = Mensaje(
-            id_conversacion=conversacion.id,
-            id_emisor=current_user.id,
-            id_receptor=receptor_id,
-            contenido=form.contenido.data
-        )
-        db.session.add(mensaje)
-        crear_notificacion(receptor_id, f'Nuevo mensaje en contrato #{id}', link=url_for('comunicacion.chat_contrato', id=id))
-        db.session.commit()
-        return redirect(url_for('comunicacion.chat_contrato', id=id))
+        try:
+            enviar_mensaje(conversacion, current_user, form.contenido.data)
+            db.session.commit()
+            return redirect(url_for('comunicacion.chat_contrato', id=id))
+        except ErrorComunicacion as error:
+            db.session.rollback()
+            flash(str(error), 'danger')
 
     mensajes = db.session.execute(
         db.select(Mensaje).filter_by(id_conversacion=conversacion.id).order_by(Mensaje.fecha_hora)
@@ -115,14 +96,11 @@ def marcar_leidas():
 @login_required
 def calificar_contrato(id):
     contrato = db.session.get(Contrato, id)
+    if contrato and current_user.id not in (contrato.id_cliente, contrato.id_desarrollador):
+        abort(403)
     if not contrato or contrato.estado != 'finalizado':
         flash('Solo se pueden calificar contratos finalizados.', 'warning')
         return redirect(url_for('contratos.ver_contrato', id=id))
-
-    evaluado_id = (
-        contrato.id_desarrollador if current_user.id == contrato.id_cliente
-        else contrato.id_cliente
-    )
 
     # Verificar que ya no haya calificado
     ya_califico = db.session.execute(
@@ -137,18 +115,14 @@ def calificar_contrato(id):
 
     form = CalificacionForm()
     if form.validate_on_submit():
-        calificacion = Calificacion(
-            id_contrato=id,
-            id_evaluador=current_user.id,
-            id_evaluado=evaluado_id,
-            puntaje=form.puntaje.data,
-            comentarios=form.comentarios.data
-        )
-        db.session.add(calificacion)
-        crear_notificacion(evaluado_id, f'Recibiste una calificación de {form.puntaje.data}/5 en contrato #{id}', link=url_for('auth.ver_perfil', id=evaluado_id))
-        db.session.commit()
-        flash('Calificación enviada.', 'success')
-        return redirect(url_for('contratos.ver_contrato', id=id))
+        try:
+            registrar_calificacion(contrato, current_user, form.puntaje.data, form.comentarios.data or '')
+            db.session.commit()
+            flash('Calificación enviada.', 'success')
+            return redirect(url_for('contratos.ver_contrato', id=id))
+        except ErrorComunicacion as error:
+            db.session.rollback()
+            flash(str(error), 'danger')
     return render_template('comunicacion/calificar.html', form=form, contrato=contrato)
 
 
@@ -158,21 +132,14 @@ def calificar_contrato(id):
 def nueva_incidencia():
     form = IncidenciaForm()
     if form.validate_on_submit():
-        incidencia = Incidencia(
-            id_usuario=current_user.id,
-            tipo=form.tipo.data,
-            descripcion=form.descripcion.data
-        )
-        db.session.add(incidencia)
-        # Notificar a admins
-        admins = db.session.execute(
-            db.select(Usuario).filter_by(tipo_usuario='admin')
-        ).scalars().all()
-        for admin in admins:
-            crear_notificacion(admin.id, f'Nueva incidencia de {current_user.nombres}: {form.tipo.data}', link=url_for('comunicacion.ver_incidencia', id=incidencia.id))
-        db.session.commit()
-        flash('Incidencia reportada.', 'success')
-        return redirect(url_for('comunicacion.lista_incidencias'))
+        try:
+            registrar_incidencia(current_user, form.tipo.data, form.descripcion.data)
+            db.session.commit()
+            flash('Incidencia reportada.', 'success')
+            return redirect(url_for('comunicacion.lista_incidencias'))
+        except ErrorComunicacion as error:
+            db.session.rollback()
+            flash(str(error), 'danger')
     return render_template('comunicacion/incidencia_form.html', form=form)
 
 
@@ -198,14 +165,14 @@ def resolver_incidencia(id):
     incidencia = db.session.get(Incidencia, id)
     if not incidencia:
         abort(404)
-    resolucion = request.form.get('resolucion', '')
-    incidencia.resolucion = resolucion
-    incidencia.estado = 'resuelta'
-    incidencia.fecha_resolucion = db.func.now()
-    incidencia.id_admin = current_user.id
-    db.session.commit()
-    crear_notificacion(incidencia.id_usuario, f'Tu incidencia #{id} ha sido resuelta.', link=url_for('comunicacion.lista_incidencias'))
-    flash('Incidencia resuelta.', 'success')
+    if request.method == 'POST':
+        try:
+            resolver_reporte(incidencia, current_user, request.form.get('resolucion', ''))
+            db.session.commit()
+            flash('Incidencia resuelta.', 'success')
+        except ErrorComunicacion as error:
+            db.session.rollback()
+            flash(str(error), 'danger')
     return redirect(url_for('comunicacion.ver_incidencia', id=id))
 
 

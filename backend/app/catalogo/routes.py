@@ -4,6 +4,7 @@ from app.catalogo import catalogo_bp
 from app.catalogo.models import Proyecto, OfertaTrabajo, Postulacion, SolicitudDemo, Categoria, Tecnologia
 from app.catalogo.forms import ProyectoForm, OfertaForm, PostulacionForm, DemoForm
 from app.extensions import db
+from app.comunicacion.services import registrar_solicitud_demo, ErrorComunicacion
 
 
 @catalogo_bp.route('/')
@@ -134,14 +135,12 @@ def solicitar_demo(id):
         return redirect(url_for('catalogo.index'))
     form = DemoForm()
     if form.validate_on_submit():
-        solicitud = SolicitudDemo(
-            id_producto=id,
-            id_cliente=current_user.id,
-            nombre_contacto=form.nombre_contacto.data,
-            correo_contacto=form.correo_contacto.data
-        )
-        db.session.add(solicitud)
-        db.session.commit()
-        flash('Solicitud de demo enviada.', 'success')
-        return redirect(url_for('catalogo.detalle_proyecto', id=id))
+        try:
+            registrar_solicitud_demo(producto, current_user, form.nombre_contacto.data, form.correo_contacto.data)
+            db.session.commit()
+            flash('Solicitud de demo enviada.', 'success')
+            return redirect(url_for('catalogo.detalle_proyecto', id=id))
+        except ErrorComunicacion as error:
+            db.session.rollback()
+            flash(str(error), 'danger')
     return render_template('catalogo/demo_form.html', form=form, producto=producto)
