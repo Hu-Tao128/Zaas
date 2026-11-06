@@ -85,4 +85,8 @@ export const catalogoApi = {
   postulacion: (id) => get(`/postulaciones/${id}`),
   aceptarPostulacion: (id) => post(`/postulaciones/${id}/aceptar`),
   rechazarPostulacion: (id) => post(`/postulaciones/${id}/rechazar`),
+
+  miPerfil: () => get('/perfil'),
+  obtenerPerfil: (id) => get(`/perfil/${id}`),
+  actualizarPerfil: (datos) => put('/perfil', datos),
 };

@@ -16,6 +16,7 @@ import MisOfertasPage from './pages/catalogo/MisOfertasPage';
 import PostularPage from './pages/catalogo/PostularPage';
 import MisPostulacionesPage from './pages/catalogo/MisPostulacionesPage';
 import DetallePostulacionPage from './pages/catalogo/DetallePostulacionPage';
+import PerfilPage from './pages/catalogo/PerfilPage';
 import './pages/catalogo/catalogo.css';
 
 function ProtectedRoute({ children }) {
@@ -73,6 +74,8 @@ export default function App() {
             <Route path="mis-ofertas" element={soCliente(<MisOfertasPage />)} />
             <Route path="mis-postulaciones" element={soDesarrollador(<MisPostulacionesPage />)} />
             <Route path="postulacion/:id" element={<DetallePostulacionPage />} />
+            <Route path="perfil" element={<PerfilPage />} />
+            <Route path="perfil/:id" element={<PerfilPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

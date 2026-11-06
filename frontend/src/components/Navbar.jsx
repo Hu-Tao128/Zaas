@@ -145,21 +145,29 @@ export default function Navbar() {
           </ul>
 
           <div className="catalogo-nav-user">
-            {tipoUsuarioLabel && (
-              <span
-                className={`navbar-role-badge navbar-role-badge--${usuario?.tipo_usuario}`}
-                title={`Has iniciado sesión como ${tipoUsuarioLabel}`}
-                aria-label={`Tipo de cuenta: ${tipoUsuarioLabel}`}
-              >
-                {tipoUsuarioLabel}
-              </span>
-            )}
-            <span
-              className="catalogo-nav-username"
-              title={user?.email || 'Usuario autenticado'}
+            <Link
+              to="/perfil"
+              onClick={cerrarMenu}
+              className="catalogo-nav-profile-link"
+              title="Ver mi perfil y configuración"
+              aria-label="Ir a mi perfil"
             >
-              {user?.displayName || user?.email}
-            </span>
+              {tipoUsuarioLabel && (
+                <span
+                  className={`navbar-role-badge navbar-role-badge--${usuario?.tipo_usuario}`}
+                  title={`Has iniciado sesión como ${tipoUsuarioLabel}`}
+                  aria-label={`Tipo de cuenta: ${tipoUsuarioLabel}`}
+                >
+                  {tipoUsuarioLabel}
+                </span>
+              )}
+              <span
+                className="catalogo-nav-username"
+                title={user?.email || 'Usuario autenticado'}
+              >
+                {user?.displayName || user?.email}
+              </span>
+            </Link>
             <button
               type="button"
               onClick={handleLogout}
