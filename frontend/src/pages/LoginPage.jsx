@@ -68,31 +68,37 @@ export default function LoginPage() {
     <div className="auth-container">
       <h1>Iniciar Sesión</h1>
       
-      {error && <div className="error">{error}</div>}
+      {error && <div className="error" role="alert">{error}</div>}
       
-      <form onSubmit={handleEmailLogin}>
+      <form onSubmit={handleEmailLogin} aria-label="Formulario de inicio de sesión">
+        <label htmlFor="login-email" className="sr-only">Correo electrónico</label>
         <input
+          id="login-email"
           type="email"
           placeholder="Correo electrónico"
+          aria-label="Correo electrónico"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
         />
+        <label htmlFor="login-password" className="sr-only">Contraseña</label>
         <input
+          id="login-password"
           type="password"
           placeholder="Contraseña"
+          aria-label="Contraseña"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        <button type="submit" disabled={loading}>
+        <button type="submit" disabled={loading} aria-busy={loading}>
           {loading ? 'Cargando...' : 'Iniciar Sesión'}
         </button>
       </form>
 
-      <div className="divider">o</div>
+      <div className="divider" aria-hidden="true">o</div>
 
-      <button onClick={handleGoogleLogin} disabled={loading} className="google-btn">
+      <button onClick={handleGoogleLogin} disabled={loading} className="google-btn" aria-label="Continuar con Google">
         Continuar con Google
       </button>
 

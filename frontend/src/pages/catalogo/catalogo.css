@@ -1,500 +1,1196 @@
-.catalogo-app {
-  /* Paleta de marca */
-  --catalogo-brand-dark: #991b1b;   /* rojo oscuro: detalles de marca */
-  --catalogo-primary: #dc2626;      /* rojo principal: botones y acciones */
-  --catalogo-accent: #f87171;       /* rojo suave: acentos */
-  --catalogo-navbar: #171717;       /* negro: navegación */
-  --catalogo-text: #404040;         /* gris oscuro: textos */
-  --catalogo-bg: #f5f5f5;           /* gris claro: fondos */
+/* ==========================================================================
+   ZAAS - ESCROW & TALENT MARKETPLACE UI STYLES
+   Estrictamente apegado a la paleta de colores oficial, pautas WCAG 2.1 AA/AAA
+   y las 10 Heurísticas de Usabilidad de Jakob Nielsen.
+   ========================================================================== */
 
-  --catalogo-surface: #ffffff;
-  --catalogo-muted: color-mix(in srgb, var(--catalogo-text) 75%, var(--catalogo-bg));
-  --catalogo-secondary: var(--catalogo-text);
-  --catalogo-primary-hover: var(--catalogo-brand-dark);
-  --catalogo-success: #15803d;      /* solo para estados (abierto, aceptada) */
-  --catalogo-danger: var(--catalogo-brand-dark);
-  --catalogo-border: #d4d4d4;
+:root {
+  /* 1. Paleta de Colores Oficial */
+  --zaas-brand-dark: #991b1b;       /* Rojo oscuro: detalles de marca, hover, bordes activos */
+  --zaas-primary: #dc2626;          /* Rojo principal: CTAs principales (Buscar, Nueva Oferta) */
+  --zaas-accent: #f87171;           /* Rojo suave: acentos visuales, insignias secundarias */
+  --zaas-navbar: #171717;           /* Negro: barra de navegación principal y footers */
+  --zaas-text: #404040;             /* Gris oscuro: textos principales y descripciones */
+  --zaas-text-heading: #171717;     /* Negro: títulos de alto contraste */
+  --zaas-bg: #f5f5f5;               /* Gris claro: fondo de la app y separación de secciones */
+  --zaas-surface: #ffffff;          /* Blanco: tarjetas y contenedores */
+  --zaas-border: #e5e5e5;           /* Gris sutil: bordes de tarjetas */
+  --zaas-border-medium: #d4d4d4;    /* Gris medio: bordes de controles y tablas */
+
+  /* Colores semánticos accesibles (Contraste >= 4.5:1 en texto blanco o fondos claros) */
+  --zaas-success: #15803d;          /* Verde oscuro */
+  --zaas-success-bg: #dcfce7;       /* Verde claro accesible */
+  --zaas-success-border: #86efac;
+  --zaas-success-text: #14532d;     /* Verde muy oscuro para texto (ratio 9.2:1) */
+
+  --zaas-warning: #b45309;          /* Ámbar */
+  --zaas-warning-bg: #fef3c7;
+  --zaas-warning-border: #fcd34d;
+  --zaas-warning-text: #78350f;     /* Ámbar oscuro para texto (ratio 8.2:1) */
+
+  --zaas-danger: #991b1b;           /* Rojo oscuro */
+  --zaas-danger-bg: #fee2e2;
+  --zaas-danger-border: #fca5a5;
+  --zaas-danger-text: #991b1b;      /* Ratio 7.1:1 */
+
+  /* Sombras y transiciones sutiles */
+  --zaas-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --zaas-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.08);
+  --zaas-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+  --zaas-radius: 8px;
+  --zaas-radius-lg: 12px;
+  --zaas-transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ==========================================================================
+   RESET & BASE APP CONTAINER
+   ========================================================================== */
+
+.catalogo-app {
   min-height: 100vh;
-  background: var(--catalogo-bg);
-  color: var(--catalogo-text);
+  background-color: var(--zaas-bg);
+  color: var(--zaas-text);
+  display: flex;
+  flex-direction: column;
+}
+
+.catalogo-container {
+  width: 100%;
+  max-width: 1240px;
+  margin: 2.5rem auto;
+  padding: 0 1.5rem;
+  flex: 1;
+}
+
+/* Tipografía de Encabezados (WCAG: Contraste mínimo 4.5:1 / 7:1) */
+.catalogo-app h1,
+.catalogo-app h2,
+.catalogo-app h3,
+.catalogo-app h4 {
+  color: var(--zaas-text-heading);
+  letter-spacing: -0.015em;
+  font-weight: 700;
+}
+
+.catalogo-view-header {
+  margin-bottom: 2rem;
+}
+
+.catalogo-page-title {
+  font-size: 2rem;
+  line-height: 1.25;
+  margin-bottom: 0.5rem;
+  color: var(--zaas-text-heading);
+}
+
+.catalogo-page-subtitle {
+  font-size: 1.05rem;
+  color: var(--zaas-text);
+  line-height: 1.5;
+  max-width: 750px;
+}
+
+/* ==========================================================================
+   ESTADOS DE FOCO ACCESIBLES (WCAG 2.4.7 y 2.4.11)
+   Reemplaza el recuadro rojo delgado y desalineado
+   ========================================================================== */
+
+.catalogo-app :focus-visible {
+  outline: 2px solid var(--zaas-primary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ==========================================================================
+   NAVBAR & HEADER ACCESIBLE
+   ========================================================================== */
+
+.catalogo-header {
+  background-color: var(--zaas-navbar);
+  border-bottom: 3px solid var(--zaas-brand-dark);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .catalogo-navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem 2rem;
-  border-bottom: 3px solid var(--catalogo-brand-dark);
-  background: var(--catalogo-navbar);
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0.85rem 1.5rem;
+  gap: 1.5rem;
   color: #ffffff;
 }
 
-.catalogo-nav-group {
+/* Marca / Logo y distintivo Escrow */
+.catalogo-nav-brand-group {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 0.75rem 1.5rem;
+  gap: 1.25rem;
 }
 
-.catalogo-navbar a,
-.catalogo-navbar button {
+.catalogo-brand {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #ffffff !important;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: baseline;
+  letter-spacing: -0.02em;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  transition: var(--zaas-transition);
+}
+
+.catalogo-brand:hover {
+  color: #ffffff !important;
+  opacity: 0.95;
+}
+
+.brand-dot {
+  color: var(--zaas-primary);
+  font-size: 2rem;
+  line-height: 0;
+}
+
+.navbar-escrow-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: var(--zaas-accent);
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+.navbar-escrow-icon {
+  color: var(--zaas-accent);
+  flex-shrink: 0;
+}
+
+/* Enlaces y contenido de navegación */
+.catalogo-nav-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  gap: 1.5rem;
+}
+
+.catalogo-nav-links {
+  display: flex;
+  align-items: center;
+  list-style: none;
   margin: 0;
   padding: 0;
-  border: 0;
-  background: transparent;
-  color: #ffffff;
-  font: inherit;
+  gap: 0.5rem;
+}
+
+.catalogo-nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.55rem 1.1rem;
+  color: #ffffff !important;
   text-decoration: none;
+  font-weight: 500;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  border-bottom: 3px solid transparent;
+  transition: var(--zaas-transition);
+  min-height: 40px;
+}
+
+.catalogo-nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--zaas-accent) !important;
+}
+
+/* Estado activo limpio con subrayado grueso en rojo */
+.catalogo-nav-link--active,
+.catalogo-nav-link[aria-current="page"] {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-bottom: 3px solid var(--zaas-primary);
+  font-weight: 700;
+  color: #ffffff !important;
+}
+
+/* Estado :focus-visible limpio (reemplaza recuadro rojo desalineado) */
+.catalogo-navbar :focus-visible {
+  outline: 2px solid var(--zaas-accent) !important;
+  outline-offset: 3px !important;
+  background-color: rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+}
+
+/* Zona de usuario en navbar */
+.catalogo-nav-user {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.navbar-role-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.navbar-role-badge--desarrollador {
+  background-color: rgba(220, 38, 38, 0.2);
+  border: 1px solid var(--zaas-primary);
+  color: #fca5a5;
+}
+
+.navbar-role-badge--cliente {
+  background-color: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+.catalogo-nav-username {
+  font-size: 0.9rem;
+  color: #e5e5e5;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.catalogo-nav-logout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  padding: 0.4rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--zaas-transition);
+}
+
+.catalogo-nav-logout-btn:hover {
+  background: rgba(220, 38, 38, 0.2);
+  border-color: var(--zaas-primary);
+  color: #ffffff;
+}
+
+/* Botón toggle móvil */
+.catalogo-nav-toggle {
+  display: none;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  padding: 0.4rem;
+  border-radius: 6px;
   cursor: pointer;
 }
 
-.catalogo-app .catalogo-navbar a,
-.catalogo-app .catalogo-navbar button {
-  color: #ffffff;
-}
+/* ==========================================================================
+   BOTONES UNIFICADOS (Consistencia y Estándares - Heurística #4)
+   ========================================================================== */
 
-.catalogo-app .catalogo-navbar a:hover,
-.catalogo-app .catalogo-navbar button:hover {
-  color: var(--catalogo-accent);
-}
-
-.catalogo-navbar .catalogo-brand {
-  letter-spacing: 0.02em;
-}
-
-.catalogo-navbar .catalogo-brand {
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.catalogo-nav-user {
-  justify-content: flex-end;
-}
-
-.catalogo-nav-user span {
-  font-size: 0.9rem;
-}
-
-.catalogo-container {
-  width: 100%;
-  max-width: 1200px;
-  margin: 2rem auto;
-  padding: 0 1rem;
-}
-
-.catalogo-app h1,
-.catalogo-app h2,
-.catalogo-app h3,
-.catalogo-app h4 {
-  color: var(--catalogo-text);
-}
-
-.catalogo-app h1,
-.catalogo-app h2 {
-  margin-bottom: 1rem;
-}
-
-.catalogo-app a {
-  color: var(--catalogo-primary);
-}
-
-.catalogo-app a:hover {
-  color: var(--catalogo-brand-dark);
-}
-
-.catalogo-app :focus-visible {
-  outline: 2px solid var(--catalogo-primary);
-  outline-offset: 2px;
-}
-
-.catalogo-navbar :focus-visible {
-  outline-color: var(--catalogo-accent);
-}
-
-.catalogo-app .card {
-  margin-bottom: 1rem;
-  padding: 1.5rem;
-  border-radius: 8px;
-  background: var(--catalogo-surface);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: none;
-}
-
-.catalogo-app .card:hover {
-  transform: none;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.catalogo-app .card h4 {
-  margin-bottom: 0.75rem;
-  color: var(--catalogo-text);
-  font-size: 1.15rem;
-}
-
-.catalogo-app .card p {
-  margin-bottom: 0.75rem;
-  color: var(--catalogo-text);
-  line-height: 1.5;
-}
-
-.catalogo-app .btn {
+.btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: auto;
-  margin: 0;
-  padding: 0.5rem 1rem;
-  border: 0;
-  border-radius: 4px;
-  color: #ffffff;
-  font: inherit;
-  font-size: 1rem;
-  line-height: 1.5;
+  gap: 0.5rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 0.625rem 1.25rem;
+  border-radius: 6px;
   text-decoration: none;
   cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: var(--zaas-transition);
+  white-space: nowrap;
 }
 
-.catalogo-app .btn-primary {
-  background: var(--catalogo-primary);
+/* Botón primario: Rojo principal #DC2626 (Buscar, + Nueva Oferta, + Nuevo Proyecto) */
+.btn-primary {
+  background-color: var(--zaas-primary);
+  border-color: var(--zaas-primary);
+  color: #ffffff !important;
 }
 
-.catalogo-app .btn-primary:hover {
-  background: var(--catalogo-primary-hover);
-  color: #ffffff;
+.btn-primary:hover {
+  background-color: var(--zaas-brand-dark);
+  border-color: var(--zaas-brand-dark);
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(153, 27, 27, 0.3);
 }
 
-.catalogo-app .btn-secondary {
-  background: var(--catalogo-secondary);
+/* Botón secundario: Fondo blanco #FFFFFF, borde #404040, texto #404040 (Mis ofertas, Mis productos) */
+.btn-secondary {
+  background-color: #ffffff;
+  border-color: var(--zaas-text);
+  color: var(--zaas-text) !important;
 }
 
-.catalogo-app .btn-secondary:hover {
-  background: var(--catalogo-navbar);
-  color: #ffffff;
+.btn-secondary:hover {
+  background-color: var(--zaas-bg);
+  border-color: var(--zaas-text-heading);
+  color: var(--zaas-text-heading) !important;
+  box-shadow: var(--zaas-shadow-sm);
 }
 
-.catalogo-app .btn-success {
-  background: var(--catalogo-success);
+/* Botón de peligro / cerrar */
+.btn-danger {
+  background-color: var(--zaas-brand-dark);
+  border-color: var(--zaas-brand-dark);
+  color: #ffffff !important;
 }
 
-.catalogo-app .btn-success:hover {
-  background: #166534;
-  color: #ffffff;
+.btn-danger:hover {
+  background-color: #7f1d1d;
+  border-color: #7f1d1d;
+  color: #ffffff !important;
 }
 
-.catalogo-app .btn-danger {
-  background: var(--catalogo-danger);
-}
-
-.catalogo-app .btn-danger:hover {
-  background: #7f1d1d;
-  color: #ffffff;
-}
-
-.catalogo-app .btn-sm {
-  padding: 0.3rem 0.6rem;
+/* Variantes de tamaño */
+.btn-sm {
+  padding: 0.375rem 0.75rem;
   font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 4px;
 }
 
-.catalogo-actions {
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none !important;
+}
+
+/* ==========================================================================
+   CONTROLES DE VISTA PRINCIPAL (Search Bar, Filtros y Botonera con Flex/Grid)
+   ========================================================================== */
+
+.catalog-controls-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+/* Tarjeta contenedora de búsqueda y filtros con padding generoso */
+.catalog-controls-card {
+  padding: 1.75rem !important;
+  background-color: var(--zaas-surface);
+  border: 1px solid var(--zaas-border);
+  border-radius: var(--zaas-radius-lg);
+  box-shadow: var(--zaas-shadow-sm);
+  margin-bottom: 0 !important;
+}
+
+.catalog-search-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.8fr) minmax(200px, 1.2fr) auto;
+  gap: 1.25rem;
+  align-items: flex-end;
+}
+
+/* Caso cuando solo hay búsqueda (sin selector de categoría) */
+.catalog-search-grid:has(.catalog-field-group--filter:empty),
+.catalog-controls-card:not(:has(.catalog-field-group--filter)) .catalog-search-grid {
+  grid-template-columns: 1fr auto;
+}
+
+.catalog-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.catalog-field-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--zaas-text);
+}
+
+.catalog-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.catalog-input-icon {
+  position: absolute;
+  left: 0.85rem;
+  color: #888888;
+  pointer-events: none;
+}
+
+.catalog-input-text {
+  width: 100%;
+  height: 44px;
+  padding: 0.5rem 0.85rem 0.5rem 2.5rem;
+  border: 1.5px solid var(--zaas-border-medium);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  color: var(--zaas-text);
+  background-color: #ffffff;
+  transition: var(--zaas-transition);
+}
+
+.catalog-input-text:focus {
+  border-color: var(--zaas-primary);
+  outline: 2px solid rgba(220, 38, 38, 0.2);
+  outline-offset: 1px;
+}
+
+.catalog-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.catalog-select {
+  width: 100%;
+  height: 44px;
+  padding: 0.5rem 0.85rem;
+  border: 1.5px solid var(--zaas-border-medium);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  color: var(--zaas-text);
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: var(--zaas-transition);
+}
+
+.catalog-select:focus {
+  border-color: var(--zaas-primary);
+  outline: 2px solid rgba(220, 38, 38, 0.2);
+  outline-offset: 1px;
+}
+
+.catalog-form-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 44px;
+}
+
+.catalog-btn-submit {
+  height: 44px;
+}
+
+.catalog-btn-clear {
+  height: 44px;
+}
+
+/* Botonera de acciones unificada */
+.catalog-actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.25rem 0;
+}
+
+.catalog-actions-group {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: 0.75rem;
 }
 
-.catalogo-actions:last-child {
-  margin-bottom: 0;
+.catalog-results-count {
+  font-size: 0.875rem;
+  color: var(--zaas-text);
 }
+
+.results-badge {
+  background-color: #e5e5e5;
+  color: var(--zaas-text);
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+/* ==========================================================================
+   GRID DE TARJETAS CON ESPACIADO GENEROSO
+   ========================================================================== */
 
 .catalogo-grid {
   display: grid;
-  gap: 1rem;
-}
-
-.catalogo-grid-2 {
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.75rem; /* Amplio espaciado entre tarjetas para evitar compresión */
+  margin-top: 1rem;
+  margin-bottom: 2.5rem;
 }
 
 .catalogo-grid-3 {
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
 }
 
-.catalogo-card-footer {
+.catalogo-grid-2 {
+  grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+}
+
+/* ==========================================================================
+   TARJETAS REUTILIZABLES ZAAS (WCAG, ESCROW Y USABILIDAD)
+   ========================================================================== */
+
+.card {
+  background-color: var(--zaas-surface);
+  border: 1px solid var(--zaas-border);
+  border-radius: var(--zaas-radius-lg);
+  padding: 1.75rem; /* Padding amplio para respirabilidad */
+  box-shadow: var(--zaas-shadow-sm);
+  transition: var(--zaas-transition);
+  position: relative;
+}
+
+.zaas-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Hover suave que indica affordance y clickeabilidad */
+.zaas-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--zaas-shadow-md);
+  border-color: #d1d5db;
+}
+
+.zaas-card:focus-within {
+  border-color: var(--zaas-brand-dark);
+  box-shadow: 0 0 0 2px rgba(153, 27, 27, 0.15);
+}
+
+/* Barra superior de la tarjeta: Estado e Insignia Escrow */
+.zaas-card-top-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.5rem;
-  margin: 0.75rem 0;
-}
-
-.catalogo-card-footer strong {
-  color: var(--catalogo-text);
-}
-
-.catalogo-title-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
   flex-wrap: wrap;
   gap: 0.5rem;
-}
-
-.catalogo-search {
-  display: flex;
-  align-items: stretch;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.catalogo-search input {
-  flex: 1;
-  min-width: 200px;
-}
-
-.catalogo-search input,
-.catalogo-search select,
-.catalogo-app .form-group input,
-.catalogo-app .form-group textarea,
-.catalogo-app .form-group select {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid var(--catalogo-border);
-  border-radius: 4px;
-  background: #ffffff;
-  color: var(--catalogo-text);
-  font: inherit;
-  font-size: 1rem;
-}
-
-.catalogo-search input {
-  width: auto;
-}
-
-.catalogo-search select {
-  width: auto;
-}
-
-.catalogo-app .form-group {
   margin-bottom: 1rem;
 }
 
-.catalogo-app .form-group label {
-  display: block;
-  margin-bottom: 0.3rem;
-  font-weight: 500;
-}
-
-.catalogo-app .form-group textarea {
-  min-height: 110px;
-  resize: vertical;
-}
-
-.catalogo-app .form-group select[multiple] {
-  min-height: 120px;
-}
-
-.catalogo-form-card {
-  max-width: 600px;
-  margin: 2rem auto;
-}
-
-.catalogo-demo-card {
-  max-width: 500px;
-}
-
-.catalogo-checkbox {
-  display: flex;
+/* Insignia Escrow Profesional */
+.zaas-escrow-badge {
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-}
-
-.catalogo-app .catalogo-checkbox input {
-  width: auto;
-  margin: 0;
-  accent-color: var(--catalogo-primary);
-}
-
-.catalogo-app .catalogo-checkbox label {
-  display: inline;
-  margin: 0;
-}
-
-.catalogo-app .badge {
-  display: inline-block;
-  margin: 0 0.15rem 0.25rem 0;
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
+  gap: 0.35rem;
+  background-color: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: var(--zaas-brand-dark);
   font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+}
+
+.zaas-escrow-icon {
+  color: var(--zaas-primary);
+  flex-shrink: 0;
+}
+
+/* Título de la tarjeta (WCAG: Color oscuro #404040 / #171717 para contraste AAA, NUNCA rojo por defecto) */
+.zaas-card-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 0 0 0.75rem 0;
+  color: var(--zaas-text-heading);
+}
+
+.zaas-card-title a,
+.zaas-card-title-link {
+  color: var(--zaas-text-heading) !important;
+  text-decoration: none;
+  transition: var(--zaas-transition);
+}
+
+/* Rojo usado estrictamente para interacción / hover / focus con subrayado */
+.zaas-card-title a:hover,
+.zaas-card-title a:focus {
+  color: var(--zaas-primary) !important;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Descripción */
+.zaas-card-description {
+  color: var(--zaas-text);
+  font-size: 0.925rem;
+  line-height: 1.55;
+  margin-bottom: 1.25rem;
+  flex-grow: 1;
+}
+
+/* Etiquetas y tags accesibles */
+.zaas-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+}
+
+.zaas-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+.zaas-tag--category {
+  background-color: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+.zaas-tag--tech {
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #4b5563;
+}
+
+/* Bloque de Información / Presupuesto para Ofertas */
+.zaas-card-info-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  background-color: #f9fafb;
+  border: 1px solid #f3f4f6;
+  border-radius: 8px;
+  margin-bottom: 1.25rem;
+}
+
+.zaas-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.zaas-info-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+
+.zaas-info-highlight {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--zaas-brand-dark);
+}
+
+.zaas-info-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--zaas-text);
+}
+
+/* Pie de tarjeta */
+.zaas-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid var(--zaas-border);
+  gap: 1rem;
+  margin-top: auto;
+}
+
+.zaas-price-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.zaas-price-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+
+.zaas-price-amount {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--zaas-brand-dark);
+}
+
+.zaas-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.775rem;
+  color: #6b7280;
+  margin-top: 0.75rem;
+  padding-top: 0.5rem;
+}
+
+.zaas-card-meta-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.775rem;
+  color: #6b7280;
+}
+
+.zaas-card-proposals {
+  font-weight: 600;
+  color: var(--zaas-text);
+}
+
+/* ==========================================================================
+   INSIGNIAS SEMÁNTICAS (BADGES) CON ICONOS
+   ========================================================================== */
+
+.zaas-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Demo: Verde oscuro accesible con icono play (WCAG AAA) */
+.zaas-badge--demo {
+  background-color: var(--zaas-success-bg);
+  border: 1px solid var(--zaas-success-border);
+  color: var(--zaas-success-text);
+}
+
+.zaas-badge-icon {
+  color: var(--zaas-success-text);
+}
+
+/* Abierto: Verde con punto indicador */
+.zaas-badge--abierto {
+  background-color: var(--zaas-success-bg);
+  border: 1px solid var(--zaas-success-border);
+  color: var(--zaas-success-text);
+}
+
+/* En progreso: Ámbar con punto */
+.zaas-badge--progreso {
+  background-color: var(--zaas-warning-bg);
+  border: 1px solid var(--zaas-warning-border);
+  color: var(--zaas-warning-text);
+}
+
+/* Cerrado */
+.zaas-badge--cerrado {
+  background-color: var(--zaas-danger-bg);
+  border: 1px solid var(--zaas-danger-border);
+  color: var(--zaas-danger-text);
+}
+
+.zaas-badge--neutral {
+  background-color: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  color: #4b5563;
+}
+
+/* Indicadores circulares de estado */
+.status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-indicator--green {
+  background-color: var(--zaas-success);
+  box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.25);
+}
+
+.status-indicator--amber {
+  background-color: var(--zaas-warning);
+  box-shadow: 0 0 0 2px rgba(180, 83, 9, 0.25);
+}
+
+.status-indicator--gray {
+  background-color: #9ca3af;
+}
+
+/* Badges clásicos para compatibilidad en tablas y páginas secundarias */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.775rem;
   font-weight: 600;
   text-transform: capitalize;
 }
 
-.catalogo-app .badge-success {
-  background: var(--catalogo-success);
-  color: #ffffff;
+.badge-success {
+  background-color: var(--zaas-success-bg);
+  border: 1px solid var(--zaas-success-border);
+  color: var(--zaas-success-text);
 }
 
-.catalogo-app .badge-warning {
-  background: #ffc107;
-  color: #333333;
+.badge-warning {
+  background-color: var(--zaas-warning-bg);
+  border: 1px solid var(--zaas-warning-border);
+  color: var(--zaas-warning-text);
 }
 
-.catalogo-app .badge-danger {
-  background: var(--catalogo-brand-dark);
-  color: #ffffff;
+.badge-danger {
+  background-color: var(--zaas-danger-bg);
+  border: 1px solid var(--zaas-danger-border);
+  color: var(--zaas-danger-text);
 }
 
-.catalogo-app .badge-info {
-  background: var(--catalogo-accent);
-  color: var(--catalogo-navbar);
+.badge-info {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
 }
 
-.catalogo-app .badge-secondary {
-  background: var(--catalogo-text);
-  color: #ffffff;
+.badge-secondary {
+  background-color: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  color: var(--zaas-text);
 }
 
-.catalogo-app .alert {
-  margin-bottom: 1rem;
-  padding: 1rem;
-  border-radius: 4px;
-}
+/* ==========================================================================
+   ESTADO VACÍO (EMPTY STATE - Nielsen Heuristic #5 y #9)
+   ========================================================================== */
 
-.catalogo-app .alert-success {
-  background: #d4edda;
-  color: #155724;
-}
-
-.catalogo-app .alert-info {
-  border-left: 4px solid var(--catalogo-accent);
-  background: #ffffff;
-  color: var(--catalogo-text);
-}
-
-.catalogo-app .alert-warning {
-  background: #fff3cd;
-  color: #856404;
-}
-
-.catalogo-app .alert-danger {
-  background: #fee2e2;
-  color: var(--catalogo-brand-dark);
-}
-
-.catalogo-app .form-hint,
-.catalogo-app .field-error {
-  display: block;
-  margin-top: 0.3rem;
-}
-
-.catalogo-app .form-hint {
-  color: var(--catalogo-muted);
-}
-
-.catalogo-app .field-error {
-  color: var(--catalogo-danger);
-}
-
-.catalogo-table-wrapper {
-  overflow-x: auto;
-}
-
-.catalogo-app table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.catalogo-app th,
-.catalogo-app td {
-  padding: 0.75rem;
-  border-bottom: 1px solid var(--catalogo-border);
-  text-align: left;
-  vertical-align: top;
-}
-
-.catalogo-app th {
-  background: var(--catalogo-secondary);
-  color: #ffffff;
-  white-space: nowrap;
-}
-
-.catalogo-table-actions {
+.zaas-empty-state {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  min-width: 140px;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 4rem 2rem !important;
+  background-color: var(--zaas-surface);
+  border: 1.5px dashed var(--zaas-border-medium);
+  border-radius: var(--zaas-radius-lg);
+  margin: 1.5rem 0 3rem;
 }
+
+.zaas-empty-state-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background-color: #fef2f2;
+  color: var(--zaas-brand-dark);
+  margin-bottom: 1.25rem;
+}
+
+.zaas-empty-state-title {
+  font-size: 1.4rem;
+  color: var(--zaas-text-heading);
+  margin-bottom: 0.5rem;
+}
+
+.zaas-empty-state-description {
+  font-size: 1rem;
+  color: var(--zaas-text);
+  max-width: 500px;
+  margin-bottom: 1.75rem;
+  line-height: 1.5;
+}
+
+.zaas-empty-state-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ==========================================================================
+   PAGINACIÓN ACCESIBLE
+   ========================================================================== */
 
 .catalogo-pagination {
   display: flex;
   justify-content: center;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 1rem;
+  gap: 0.75rem;
+  margin-top: 2rem;
+  margin-bottom: 2rem;
 }
 
 .catalogo-pagination-label {
-  padding: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--zaas-text);
+  padding: 0.5rem 0.75rem;
 }
 
-.catalogo-section-title {
-  margin-top: 1rem;
+/* ==========================================================================
+   FORMULARIOS Y GRUPOS (Para formularios de creación/edición)
+   ========================================================================== */
+
+.form-group {
+  margin-bottom: 1.25rem;
 }
 
-.catalogo-inline-status {
-  display: inline-flex;
-  gap: 0.35rem;
-  margin-left: 0.5rem;
+.form-group label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.4rem;
+  color: var(--zaas-text-heading);
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border: 1.5px solid var(--zaas-border-medium);
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: var(--zaas-text);
+  font: inherit;
+  font-size: 0.95rem;
+  transition: var(--zaas-transition);
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  border-color: var(--zaas-primary);
+  outline: 2px solid rgba(220, 38, 38, 0.2);
+  outline-offset: 1px;
+}
+
+.form-hint {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.825rem;
+  color: #6b7280;
+}
+
+.field-error {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.825rem;
+  color: var(--zaas-danger);
+  font-weight: 600;
+}
+
+.catalogo-form-card {
+  max-width: 680px;
+  margin: 2rem auto;
+}
+
+/* ==========================================================================
+   TABLAS Y LISTADOS SECUNDARIOS
+   ========================================================================== */
+
+.catalogo-table-wrapper {
+  overflow-x: auto;
+  margin-top: 1.5rem;
+  border-radius: var(--zaas-radius);
+}
+
+.catalogo-app table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.catalogo-app th {
+  background-color: var(--zaas-text);
+  color: #ffffff;
+  padding: 0.85rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.catalogo-app td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--zaas-border);
+  color: var(--zaas-text);
   vertical-align: middle;
 }
 
-.catalogo-muted {
-  color: var(--catalogo-muted) !important;
+.catalogo-app tbody tr:hover {
+  background-color: #fafafa;
 }
 
-.catalogo-sr-only {
+.catalogo-table-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* ==========================================================================
+   ALERTAS
+   ========================================================================== */
+
+.alert {
+  padding: 1rem 1.25rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  margin-bottom: 1.25rem;
+  line-height: 1.5;
+}
+
+.alert-success {
+  background-color: var(--zaas-success-bg);
+  border: 1px solid var(--zaas-success-border);
+  color: var(--zaas-success-text);
+}
+
+.alert-warning {
+  background-color: var(--zaas-warning-bg);
+  border: 1px solid var(--zaas-warning-border);
+  color: var(--zaas-warning-text);
+}
+
+.alert-danger {
+  background-color: var(--zaas-danger-bg);
+  border: 1px solid var(--zaas-danger-border);
+  color: var(--zaas-danger-text);
+}
+
+.alert-info {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+}
+
+/* Utilidades accesibles */
+.catalogo-sr-only,
+.sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
   padding: 0;
+  margin: -1px;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
-  border: 0;
+  border-width: 0;
 }
 
-@media (max-width: 700px) {
-  .catalogo-navbar {
-    align-items: flex-start;
-    flex-direction: column;
-    padding: 1rem;
-  }
+/* Animación de carga */
+.zaas-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e5e5;
+  border-top-color: var(--zaas-primary);
+  border-radius: 50%;
+  animation: zaas-spin 0.8s linear infinite;
+  margin: 0 auto 0.75rem;
+}
 
-  .catalogo-nav-user {
-    justify-content: flex-start;
-  }
+@keyframes zaas-spin {
+  to { transform: rotate(360deg); }
+}
 
-  .catalogo-container {
-    margin: 1rem auto;
-  }
+.zaas-loading-card {
+  text-align: center;
+  padding: 3rem 1rem !important;
+}
 
-  .catalogo-app .card {
-    padding: 1rem;
-  }
+/* ==========================================================================
+   RESPONSIVE DESIGN (Móviles y Tablets)
+   ========================================================================== */
 
-  .catalogo-grid-2,
-  .catalogo-grid-3 {
+@media (max-width: 900px) {
+  .catalog-search-grid {
     grid-template-columns: 1fr;
   }
 
-  .catalogo-search > * {
+  .catalog-form-buttons {
     width: 100%;
   }
 
-  .catalogo-form-card {
-    margin: 1rem auto;
+  .catalog-btn-submit,
+  .catalog-btn-clear {
+    flex: 1;
+  }
+
+  .catalog-actions-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .catalog-actions-group {
+    justify-content: stretch;
+  }
+
+  .catalog-actions-group .btn {
+    flex: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .catalogo-nav-toggle {
+    display: inline-flex;
+  }
+
+  .catalogo-nav-content {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: var(--zaas-navbar);
+    border-bottom: 2px solid var(--zaas-brand-dark);
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1.25rem 1.5rem;
+    gap: 1.25rem;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .catalogo-nav-content.is-open {
+    display: flex;
+  }
+
+  .catalogo-nav-links {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .catalogo-nav-user {
+    flex-direction: column;
+    align-items: flex-start;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    width: 100%;
+  }
+
+  .catalogo-grid-3,
+  .catalogo-grid-2 {
+    grid-template-columns: 1fr;
   }
 }

@@ -50,37 +50,43 @@ export default function RegisterPage() {
     <div className="auth-container">
       <h1>Crear Cuenta</h1>
       
-      {error && <div className="error">{error}</div>}
+      {error && <div className="error" role="alert">{error}</div>}
       
-      <form onSubmit={handleRegister}>
+      <form onSubmit={handleRegister} aria-label="Formulario de registro">
+        <label htmlFor="reg-email" className="sr-only">Correo electrónico</label>
         <input
+          id="reg-email"
           type="email"
           placeholder="Correo electrónico"
+          aria-label="Correo electrónico"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
         />
+        <label htmlFor="reg-password" className="sr-only">Contraseña</label>
         <input
+          id="reg-password"
           type="password"
-          placeholder="Contraseña"
+          placeholder="Contraseña (mínimo 6 caracteres)"
+          aria-label="Contraseña"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
           minLength={6}
         />
-        <button type="submit" disabled={loading}>
+        <button type="submit" disabled={loading} aria-busy={loading}>
           {loading ? 'Cargando...' : 'Registrarse'}
         </button>
       </form>
 
-      <div className="divider">o</div>
+      <div className="divider" aria-hidden="true">o</div>
 
-      <button onClick={handleGoogleRegister} disabled={loading} className="google-btn">
+      <button onClick={handleGoogleRegister} disabled={loading} className="google-btn" aria-label="Registrarse con Google">
         Registrarse con Google
       </button>
 
       <p>
-        ¿Ya tienes cuenta? <Link to="/login">Inicia sesión</Link>
+        ¿Ya tienes cuenta? <Link to="/login">Inicia sesión aquí</Link>
       </p>
     </div>
   );
