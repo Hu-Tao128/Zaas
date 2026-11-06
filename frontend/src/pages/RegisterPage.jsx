@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { registerWithEmail, loginWithGoogle } from '../services/authService';
+import { registerWithEmail, loginWithGoogle, syncWithBackend } from '../services/authService';
 import { useNavigate, Link } from 'react-router-dom';
 
 export default function RegisterPage() {
@@ -15,11 +15,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const { idToken } = await registerWithEmail(email, password);
-      await fetch('/auth/registro/callback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_token: idToken, tipo_usuario: 'cliente' })
-      });
+      await syncWithBackend(idToken);
       navigate('/');
     } catch (err) {
       setError(err.message || 'Error al registrarse');
@@ -33,11 +29,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const { idToken } = await loginWithGoogle();
-      await fetch('/auth/registro/callback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_token: idToken, tipo_usuario: 'cliente' })
-      });
+      await syncWithBackend(idToken);
       navigate('/');
     } catch (err) {
       setError(err.message || 'Error con Google');

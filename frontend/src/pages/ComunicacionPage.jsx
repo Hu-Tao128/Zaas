@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { consultar, guardar } from '../services/comunicacionService';
+import { guardar } from '../services/comunicacionService';
+import { useComunicacionResource as useResource } from '../hooks/useComunicacionResource';
+import AppNavbar from '../components/AppNavbar';
+import './catalogo/catalogo.css';
 import './comunicacion.css';
 
 const TABS = {
@@ -8,24 +11,6 @@ const TABS = {
   calificaciones: 'Calificaciones', incidencias: 'Incidencias',
 };
 const date = value => value ? new Date(value).toLocaleString('es-MX') : '';
-
-function useResource(path) {
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [revision, setRevision] = useState(0);
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setError('');
-    setResult(null);
-    consultar(path).then(data => { if (active) setResult(data); })
-      .catch(err => { if (active) setError(err.message); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [path, revision]);
-  return { result, error, loading, reload: () => setRevision(n => n + 1) };
-}
 
 function useList(path) {
   const [page, setPage] = useState(1);
@@ -336,10 +321,11 @@ export default function ComunicacionPage() {
   const tab = Object.hasOwn(TABS, params.get('tab')) ? params.get('tab') : 'mensajes';
   const contract = /^\d+$/.test(params.get('contrato') || '') ? params.get('contrato') : '';
   const me = session.result?.data;
-  return <div className="comm-page">
+  return <div className="catalogo-app comm-page">
+    <AppNavbar usuario={me} />
     <header className="comm-header"><div><Link to="/">← Inicio de Zaas</Link>
       <h1>Comunicación</h1><p>Mensajes, avisos y seguimiento de tus proyectos.</p></div>
-      {me && <span>{me.nombre}<small>{me.tipo_usuario}</small></span>}
+      {me && <span className="comm-badge">{me.tipo_usuario === 'admin' ? 'Administrador' : me.tipo_usuario}</span>}
     </header>
     <nav className="comm-tabs" aria-label="Secciones de comunicación">{Object.entries(TABS).map(([id, label]) =>
       <button key={id} type="button" aria-current={tab === id ? 'page' : undefined}

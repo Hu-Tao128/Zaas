@@ -8,7 +8,9 @@ async function request(path, options = {}) {
   });
   const body = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(body?.error || `No se pudo completar la solicitud (${response.status}).`);
+    const error = new Error(body?.error || `No se pudo completar la solicitud (${response.status}).`);
+    error.status = response.status;
+    throw error;
   }
   if (!body) throw new Error('El servidor no devolvió una respuesta válida.');
   return body;

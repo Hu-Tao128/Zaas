@@ -35,7 +35,8 @@ test('muestra el rechazo del servidor y no sigue escribiendo sin sesión', async
     count++;
     return Response.json({ error: 'Debes iniciar sesión.' }, { status: 401 });
   };
-  await assert.rejects(guardar('/incidencias', {}), /Debes iniciar sesión/);
+  await assert.rejects(guardar('/incidencias', {}), error =>
+    error.status === 401 && /Debes iniciar sesión/.test(error.message));
   assert.equal(count, 1);
 });
 

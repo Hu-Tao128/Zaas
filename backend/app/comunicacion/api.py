@@ -132,6 +132,24 @@ def sesion():
                    'tipo_usuario': current_user.tipo_usuario}, csrf_token=generate_csrf())
 
 
+@comunicacion_api.get('/admin/resumen')
+def resumen_admin():
+    if current_user.tipo_usuario != 'admin':
+        raise ErrorComunicacion('Solo un administrador puede ingresar a este panel.', 403)
+    por_estado = dict(db.session.execute(db.select(
+        Incidencia.estado, db.func.count(Incidencia.id)).group_by(Incidencia.estado)).all())
+    recientes = db.session.scalars(db.select(Incidencia).order_by(Incidencia.id.desc()).limit(5)).all()
+    return jsonify(data={
+        'usuario': persona(current_user) | {'tipo_usuario': current_user.tipo_usuario},
+        'incidencias': {
+            'total': sum(por_estado.values()),
+            'pendientes': sum(por_estado.get(estado, 0) for estado in ('abierta', 'en_proceso')),
+            'resueltas': sum(por_estado.get(estado, 0) for estado in ('resuelta', 'cerrada')),
+        },
+        'recientes': [incidencia_json(item) for item in recientes],
+    })
+
+
 @comunicacion_api.get('/contratos')
 def contratos():
     query = db.select(Contrato).where(

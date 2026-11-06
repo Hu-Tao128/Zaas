@@ -60,6 +60,16 @@ pnpm dev                  # Dev server en http://localhost:3000
 pnpm build                # Build para producción
 ```
 
+## Comunicación y administración
+
+Las pantallas de comunicación están en `http://localhost:3000/comunicacion`.
+El panel provisional está en `http://localhost:3000/admin` y solo permite el acceso
+a usuarios con rol `admin`, validado en el backend. Ambas secciones comparten la
+navegación y la paleta roja, negra y gris del catálogo.
+
+Consulta la [referencia de la API](backend/docs/COMUNICACION_API.md) y el
+[informe de cambios](CAMBIOS_COMUNICACION.md) para ver permisos, pruebas y pendientes.
+
 ## Ramas
 
 - `main` — rama estable

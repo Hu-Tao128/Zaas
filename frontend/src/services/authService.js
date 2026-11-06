@@ -1,4 +1,4 @@
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
 import { auth, analytics } from '../firebase';
 import { logEvent } from 'firebase/analytics';
 
@@ -38,8 +38,9 @@ export async function loginWithGoogle() {
  * Registro con email y contraseña
  */
 export async function registerWithEmail(email, password) {
-  // El registro se maneja con loginWithEmail ya que Firebase crea el usuario
-  return await loginWithEmail(email, password);
+  const result = await createUserWithEmailAndPassword(auth, email, password);
+  const idToken = await result.user.getIdToken();
+  return { user: result.user, idToken };
 }
 
 /**
@@ -62,17 +63,4 @@ export function onAuthChange(callback) {
 /**
  * Enviar token al backend para crear sesión
  */
-export async function syncWithBackend(idToken) {
-  const response = await fetch('/auth/callback', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id_token: idToken })
-  });
-  
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Error de autenticación');
-  }
-  
-  return await response.json();
-}
+export { syncWithBackend } from './authBackend';

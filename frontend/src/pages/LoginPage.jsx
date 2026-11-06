@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { loginWithEmail, loginWithGoogle } from '../services/authService';
+import { loginWithEmail, loginWithGoogle, syncWithBackend } from '../services/authService';
 import { useNavigate, Link } from 'react-router-dom';
 
 export default function LoginPage() {
@@ -15,20 +15,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { idToken } = await loginWithEmail(email, password);
-      const response = await fetch('/auth/callback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_token: idToken }),
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error de autenticación');
-      }
-      
-      const data = await response.json();
-      console.log('Login exitoso:', data);
+      await syncWithBackend(idToken);
       navigate('/');
     } catch (err) {
       setError(err.message || 'Error al iniciar sesión');
@@ -42,20 +29,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { idToken } = await loginWithGoogle();
-      const response = await fetch('/auth/callback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_token: idToken }),
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error con Google');
-      }
-      
-      const data = await response.json();
-      console.log('Login con Google exitoso:', data);
+      await syncWithBackend(idToken);
       navigate('/');
     } catch (err) {
       setError(err.message || 'Error con Google');

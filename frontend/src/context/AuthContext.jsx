@@ -8,23 +8,28 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let version = 0;
+    let active = true;
     const unsubscribe = onAuthChange(async (firebaseUser) => {
+      const current = ++version;
+      setLoading(true);
       if (firebaseUser) {
         try {
           const idToken = await firebaseUser.getIdToken();
+          if (!active || current !== version) return;
           await syncWithBackend(idToken);
-          setUser(firebaseUser);
+          if (active && current === version) setUser(firebaseUser);
         } catch (error) {
           console.error('Error syncing with backend:', error);
-          setUser(null);
+          if (active && current === version) setUser(null);
         }
       } else {
         setUser(null);
       }
-      setLoading(false);
+      if (active && current === version) setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => { active = false; version++; unsubscribe(); };
   }, []);
 
   return (

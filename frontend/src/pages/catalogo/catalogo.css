@@ -68,6 +68,17 @@
   font-weight: 700;
 }
 
+.catalogo-navbar a[aria-current="page"] {
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  text-decoration-color: var(--catalogo-accent);
+}
+
+.catalogo-navbar button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .catalogo-nav-user {
   justify-content: flex-end;
 }
