@@ -73,7 +73,7 @@ export default function OfertasPage() {
       {/* Grid accesible de tarjetas de ofertas con espaciado amplio */}
       {!loading && !error && (
         visibles.length > 0 ? (
-          <div className="catalogo-grid catalogo-grid-2">
+          <div className="catalogo-grid catalogo-grid-3">
             {visibles.map((oferta) => (
               <ZaasCard
                 key={oferta.id}

@@ -56,10 +56,28 @@
 
 .catalogo-container {
   width: 100%;
-  max-width: 1240px;
-  margin: 2.5rem auto;
-  padding: 0 1.5rem;
+  max-width: 1280px; /* max-w-7xl */
+  margin: 0 auto;
+  padding: 2rem 1rem; /* mobile-first: py-8 px-4 */
   flex: 1;
+}
+
+.catalogo-page-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .catalogo-container {
+    padding: 2rem 1.5rem; /* sm:px-6 */
+  }
+}
+
+@media (min-width: 1024px) {
+  .catalogo-container {
+    padding: 2rem 2rem; /* lg:px-8 */
+  }
 }
 
 /* Tipografía de Encabezados (WCAG: Contraste mínimo 4.5:1 / 7:1) */
@@ -312,8 +330,8 @@
   font-size: 0.95rem;
   font-weight: 600;
   line-height: 1.4;
-  padding: 0.625rem 1.25rem;
-  border-radius: 6px;
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
   text-decoration: none;
   cursor: pointer;
   border: 1.5px solid transparent;
@@ -564,23 +582,70 @@
   font-size: 0.8rem;
 }
 
+/* Grupos de acciones (listados, detalles y formularios) */
+.catalogo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+
+.catalogo-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.catalogo-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.catalogo-section-title {
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.catalogo-inline-status {
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
 /* ==========================================================================
    GRID DE TARJETAS CON ESPACIADO GENEROSO
    ========================================================================== */
 
 .catalogo-grid {
   display: grid;
-  gap: 1.75rem; /* Amplio espaciado entre tarjetas para evitar compresión */
+  gap: 1.5rem; /* gap-6: espaciado amplio entre tarjetas */
   margin-top: 1rem;
   margin-bottom: 2.5rem;
 }
 
+/* Mobile-first: 1 columna -> 2 en tablet -> 3 en escritorio */
 .catalogo-grid-3 {
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .catalogo-grid-2 {
-  grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 640px) {
+  .catalogo-grid-3,
+  .catalogo-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .catalogo-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 /* ==========================================================================
@@ -1223,15 +1288,35 @@
 
   .catalogo-nav-user {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     padding-top: 1rem;
     border-top: 1px solid rgba(255, 255, 255, 0.15);
     width: 100%;
+    gap: 0.75rem;
   }
 
-  .catalogo-grid-3,
-  .catalogo-grid-2 {
-    grid-template-columns: 1fr;
+  /* En móvil se prioriza el nombre y el rol; se reduce el distintivo Escrow */
+  .navbar-escrow-text {
+    display: none;
+  }
+
+  .navbar-escrow-badge {
+    padding: 0.35rem 0.5rem;
+  }
+
+  .catalogo-nav-profile-link {
+    width: 100%;
+  }
+
+  .catalogo-nav-username {
+    max-width: 100%;
+    font-size: 0.95rem;
+  }
+
+  .catalogo-nav-logout-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 0.55rem 0.85rem;
   }
 }
 
@@ -2672,9 +2757,131 @@
     flex-direction: column-reverse;
   }
 
-  .zaas-role-actions .btn {
+  .zaas-role-actions .zaas-btn-back,
+  .zaas-role-actions .zaas-btn-confirm {
     width: 100%;
+    margin-left: 0;
   }
 }
 
 
+
+/* ==========================================================================
+   DETALLE DE OFERTA (/oferta/:id) — LAYOUT DE 2 COLUMNAS
+   ========================================================================== */
+
+.zaas-badge--escrow-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background-color: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: var(--zaas-brand-dark);
+  padding: 0.3rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.oferta-header-meta {
+  color: #6b7280;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.oferta-header-meta strong {
+  color: var(--zaas-text-heading);
+}
+
+.oferta-section-heading {
+  margin-top: 1.75rem;
+}
+
+.oferta-requerimientos-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.oferta-requerimientos-list li {
+  position: relative;
+  padding-left: 1.6rem;
+  color: var(--zaas-text);
+  line-height: 1.55;
+}
+
+.oferta-requerimientos-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--zaas-primary);
+}
+
+.oferta-price-highlight {
+  color: var(--zaas-primary) !important;
+  font-size: 2rem;
+}
+
+.oferta-back-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.25rem;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--zaas-text) !important;
+  border-radius: 6px;
+}
+
+.oferta-back-link:hover {
+  color: var(--zaas-brand-dark) !important;
+  text-decoration: underline;
+}
+
+.oferta-postulaciones-section {
+  margin-top: 2.5rem;
+}
+
+.oferta-postulaciones-title {
+  font-size: 1.35rem;
+  margin-bottom: 1rem;
+}
+
+.oferta-postulaciones-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .oferta-postulaciones-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.oferta-postulacion-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.oferta-postulacion-card p {
+  margin: 0;
+  color: var(--zaas-text);
+}
+
+.oferta-postulacion-card small {
+  color: #6b7280;
+}
+
+.oferta-description-card .proyecto-description-text {
+  margin-bottom: 0.5rem;
+}

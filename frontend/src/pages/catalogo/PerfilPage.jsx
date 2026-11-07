@@ -5,6 +5,7 @@ import { useCatalogo } from '../../context/CatalogoContext';
 import { useApi } from '../../hooks/useApi';
 import { catalogoApi } from '../../services/catalogoApi';
 import { Badge, BadgeEstado, Cargando, ErrorCard } from '../../components/catalogo/CatalogoUI';
+import { PlusIcon } from '../../components/icons';
 import Toast from '../../components/Toast';
 import { formatDinero, formatFecha } from './catalogoUtils';
 
@@ -297,7 +298,8 @@ export default function PerfilPage() {
                     <h2 className="zaas-section-heading">Ofertas Publicadas ({ofertas.length})</h2>
                     {es_propio && (
                       <Link to="/oferta/nueva" className="btn btn-primary btn-sm">
-                        + Nueva Oferta
+                        <PlusIcon size={14} />
+                        <span>Nueva Oferta</span>
                       </Link>
                     )}
                   </div>

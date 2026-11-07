@@ -188,7 +188,7 @@ export default function CatalogControls({
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
-                <span>+ Nuevo Proyecto</span>
+                <span>Nuevo Proyecto</span>
               </Link>
 
               {/* Botones secundarios con fondo blanco, borde y texto #404040 */}
@@ -217,7 +217,7 @@ export default function CatalogControls({
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
-                <span>+ Nueva Oferta</span>
+                <span>Nueva Oferta</span>
               </Link>
 
               {/* 'Mis ofertas' siempre botón secundario (#FFFFFF bg, #404040 border/text) */}
@@ -227,10 +227,10 @@ export default function CatalogControls({
             </>
           )}
 
-          {/* Enlace de apoyo para desarrolladores en la vista de ofertas */}
-          {!esProyectos && esDesarrollador && (
-            <Link to="/mis-postulaciones" className="btn btn-secondary">
-              Mis postulaciones
+          {/* En la vista de ofertas se ofrece volver al catálogo de productos SaaS */}
+          {!esProyectos && (
+            <Link to="/" className="btn btn-secondary">
+              Ver catálogo
             </Link>
           )}
         </div>

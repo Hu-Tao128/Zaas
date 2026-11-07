@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useApi } from '../../hooks/useApi';
 import { catalogoApi } from '../../services/catalogoApi';
 import { AlertaError, Badge, BadgeEstado, Cargando, EmptyCard, ErrorCard } from '../../components/catalogo/CatalogoUI';
+import { PlusIcon } from '../../components/icons';
 import { formatDinero, formatFecha } from './catalogoUtils';
 
 export default function MisProductosPage() {
@@ -30,12 +31,22 @@ export default function MisProductosPage() {
 
   return (
     <>
-      <h1>Mis productos</h1>
+      <div className="catalogo-view-header">
+        <h1 className="catalogo-page-title">Mis productos</h1>
+        <p className="catalogo-page-subtitle">
+          Gestiona los SaaS que tienes publicados en el catálogo.
+        </p>
+      </div>
       {mensaje && <div className="alert alert-success">{mensaje}</div>}
       <AlertaError>{errorAccion}</AlertaError>
-      <div className="catalogo-actions">
-        <Link to="/proyecto/nuevo" className="btn btn-primary">+ Nuevo Proyecto</Link>
-        <Link to="/" className="btn btn-secondary">Ver catálogo</Link>
+      <div className="catalogo-actions-bar">
+        <div className="catalogo-actions-group">
+          <Link to="/proyecto/nuevo" className="btn btn-primary">
+            <PlusIcon />
+            <span>Nuevo Proyecto</span>
+          </Link>
+          <Link to="/" className="btn btn-secondary">Ver catálogo</Link>
+        </div>
       </div>
 
       {misProyectos.length > 0 ? (

@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useApi } from '../../hooks/useApi';
 import { catalogoApi } from '../../services/catalogoApi';
 import { BadgeEstado, Cargando, EmptyCard, ErrorCard } from '../../components/catalogo/CatalogoUI';
+import { SearchIcon } from '../../components/icons';
 import { formatDinero, formatFecha } from './catalogoUtils';
 
 export default function MisPostulacionesPage() {
@@ -14,10 +15,20 @@ export default function MisPostulacionesPage() {
 
   return (
     <>
-      <h1>Mis postulaciones</h1>
+      <div className="catalogo-view-header">
+        <h1 className="catalogo-page-title">Mis postulaciones</h1>
+        <p className="catalogo-page-subtitle">
+          Sigue el estado de las propuestas que enviaste a las ofertas publicadas.
+        </p>
+      </div>
       {location.state?.mensaje && <div className="alert alert-success">{location.state.mensaje}</div>}
-      <div className="catalogo-actions">
-        <Link to="/ofertas" className="btn btn-primary">Buscar ofertas</Link>
+      <div className="catalogo-actions-bar">
+        <div className="catalogo-actions-group">
+          <Link to="/ofertas" className="btn btn-primary">
+            <SearchIcon />
+            <span>Buscar ofertas</span>
+          </Link>
+        </div>
       </div>
 
       {misPostulaciones.length > 0 ? (
