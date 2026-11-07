@@ -2,8 +2,8 @@
  * Componente Selector de Rol para el paso intermedio de registro.
  * Permite al usuario elegir entre 'cliente' o 'desarrollador' antes de sincronizar con el backend.
  *
- * Cumple con accesibilidad (role="radiogroup", role="radio", aria-checked)
- * y resalta la selección con borde en Rojo Oscuro (#991B1B).
+ * Cumple estrictamente con WCAG (contraste >= 4.5:1, role="radiogroup", role="radio", aria-checked)
+ * y garantiza la jerarquía visual de botones y tarjetas con fondo blanco.
  */
 export default function RoleSelector({
   rolSeleccionado,
@@ -13,8 +13,12 @@ export default function RoleSelector({
   cargando = false,
   error = '',
 }) {
+  const esCliente = rolSeleccionado === 'cliente';
+  const esDesarrollador = rolSeleccionado === 'desarrollador';
+
   return (
     <div className="zaas-role-selector-container">
+      {/* Encabezado */}
       <div className="zaas-role-header">
         <h2 className="zaas-role-title">¿Cómo deseas usar Zaas?</h2>
         <p className="zaas-role-subtitle">
@@ -28,21 +32,19 @@ export default function RoleSelector({
         </div>
       )}
 
-      {/* Selector de roles con radiogroup accesible */}
+      {/* Grid de Tarjetas de Roles con radiogroup accesible */}
       <div
         className="zaas-role-cards-grid"
         role="radiogroup"
         aria-label="Selecciona tu tipo de cuenta en Zaas"
       >
-        {/* Opción 1: Cliente */}
+        {/* Tarjeta 1: Cliente */}
         <button
           type="button"
           role="radio"
-          aria-checked={rolSeleccionado === 'cliente'}
+          aria-checked={esCliente}
           tabIndex={0}
-          className={`zaas-role-card ${
-            rolSeleccionado === 'cliente' ? 'zaas-role-card--selected' : ''
-          }`}
+          className={`zaas-role-card ${esCliente ? 'zaas-role-card--selected' : ''}`}
           onClick={() => onSeleccionarRol('cliente')}
           onKeyDown={(e) => {
             if (e.key === ' ' || e.key === 'Enter') {
@@ -50,13 +52,19 @@ export default function RoleSelector({
               onSeleccionarRol('cliente');
             }
           }}
+          aria-label="Rol Cliente: Busco talento y soluciones SaaS"
         >
           <div className="zaas-role-card-header">
-            <div className="zaas-role-icon-wrapper zaas-role-icon--cliente" aria-hidden="true">
-              {/* Icono de Maletín / Edificio corporativo */}
+            <div
+              className={`zaas-role-icon-wrapper ${
+                esCliente ? 'zaas-role-icon-wrapper--selected' : ''
+              }`}
+              aria-hidden="true"
+            >
+              {/* Icono de Maletín / Edificio */}
               <svg
-                width="32"
-                height="32"
+                width="28"
+                height="28"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -69,12 +77,16 @@ export default function RoleSelector({
                 <circle cx="12" cy="12" r="1" />
               </svg>
             </div>
-            {rolSeleccionado === 'cliente' && (
+
+            {/* Checkmark en esquina superior derecha si está seleccionado */}
+            {esCliente ? (
               <span className="zaas-role-checked-badge" aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </span>
+            ) : (
+              <span className="zaas-role-unchecked-circle" aria-hidden="true" />
             )}
           </div>
 
@@ -85,15 +97,13 @@ export default function RoleSelector({
           </p>
         </button>
 
-        {/* Opción 2: Desarrollador */}
+        {/* Tarjeta 2: Desarrollador */}
         <button
           type="button"
           role="radio"
-          aria-checked={rolSeleccionado === 'desarrollador'}
+          aria-checked={esDesarrollador}
           tabIndex={0}
-          className={`zaas-role-card ${
-            rolSeleccionado === 'desarrollador' ? 'zaas-role-card--selected' : ''
-          }`}
+          className={`zaas-role-card ${esDesarrollador ? 'zaas-role-card--selected' : ''}`}
           onClick={() => onSeleccionarRol('desarrollador')}
           onKeyDown={(e) => {
             if (e.key === ' ' || e.key === 'Enter') {
@@ -101,13 +111,19 @@ export default function RoleSelector({
               onSeleccionarRol('desarrollador');
             }
           }}
+          aria-label="Rol Desarrollador: Ofrezco mis servicios y desarrollo SaaS"
         >
           <div className="zaas-role-card-header">
-            <div className="zaas-role-icon-wrapper zaas-role-icon--dev" aria-hidden="true">
-              {/* Icono de Código / Terminal */}
+            <div
+              className={`zaas-role-icon-wrapper ${
+                esDesarrollador ? 'zaas-role-icon-wrapper--selected' : ''
+              }`}
+              aria-hidden="true"
+            >
+              {/* Icono de Código / Terminal (< />) */}
               <svg
-                width="32"
-                height="32"
+                width="28"
+                height="28"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -120,12 +136,16 @@ export default function RoleSelector({
                 <line x1="14" y1="4" x2="10" y2="20" />
               </svg>
             </div>
-            {rolSeleccionado === 'desarrollador' && (
+
+            {/* Checkmark en esquina superior derecha si está seleccionado */}
+            {esDesarrollador ? (
               <span className="zaas-role-checked-badge" aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </span>
+            ) : (
+              <span className="zaas-role-unchecked-circle" aria-hidden="true" />
             )}
           </div>
 
@@ -137,22 +157,24 @@ export default function RoleSelector({
         </button>
       </div>
 
-      {/* Botones de Confirmación y Retorno */}
+      {/* Botones de Acción Inferiores con Jerarquía Visual Clara */}
       <div className="zaas-role-actions">
         {onVolver && (
           <button
             type="button"
-            className="btn btn-secondary"
+            className="zaas-btn-back"
             onClick={onVolver}
             disabled={cargando}
+            aria-label="Volver al formulario de credenciales"
           >
             ← Volver
           </button>
         )}
 
+        {/* Botón Primario: Rojo Principal (#DC2626) con texto blanco en negrita */}
         <button
           type="button"
-          className="btn btn-primary btn-confirm-role"
+          className="zaas-btn-confirm"
           onClick={onConfirmar}
           disabled={!rolSeleccionado || cargando}
           aria-busy={cargando}
@@ -164,7 +186,7 @@ export default function RoleSelector({
             </>
           ) : (
             <span>
-              Continuar como {rolSeleccionado === 'desarrollador' ? 'Desarrollador' : 'Cliente'} →
+              Continuar como {esDesarrollador ? 'Desarrollador' : 'Cliente'} →
             </span>
           )}
         </button>

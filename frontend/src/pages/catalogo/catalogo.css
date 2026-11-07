@@ -376,6 +376,46 @@
   box-shadow: none !important;
 }
 
+/* Botón social de Google: superficie blanca, borde sutil y texto legible */
+.google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 46px;
+  padding: 0.625rem 1rem;
+  background-color: #ffffff !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 8px;
+  color: #404040 !important;
+  font-family: inherit;
+  font-size: 0.975rem;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.google-btn:hover:not(:disabled) {
+  background-color: #f9fafb !important;
+  border-color: #9ca3af !important;
+  box-shadow: var(--zaas-shadow-sm);
+}
+
+.google-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.google-btn .google-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
 /* ==========================================================================
    CONTROLES DE VISTA PRINCIPAL (Search Bar, Filtros y Botonera con Flex/Grid)
    ========================================================================== */
@@ -971,9 +1011,9 @@
 .form-group textarea,
 .form-group select {
   width: 100%;
-  padding: 0.65rem 0.85rem;
+  padding: 0.75rem 1rem;
   border: 1.5px solid var(--zaas-border-medium);
-  border-radius: 6px;
+  border-radius: 8px;
   background-color: #ffffff;
   color: var(--zaas-text);
   font: inherit;
@@ -2328,17 +2368,27 @@
 
 .btn-auth-submit {
   width: 100%;
-  padding: 0.85rem;
-  font-size: 1.05rem;
-  font-weight: 700;
+  padding: 0.85rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
 }
 
 /* Contenedor del Selector de Roles */
+.zaas-role-page-wrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
 .zaas-role-modal-container {
   max-width: 760px !important;
   width: 100%;
   padding: 2.5rem !important;
+  background-color: #ffffff;
+  border: 1px solid var(--zaas-border);
   border-radius: var(--zaas-radius-lg);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 .zaas-role-selector-container {
@@ -2378,6 +2428,8 @@
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
+  width: 100%;
+  font-family: inherit;
   background-color: #ffffff;
   border: 2px solid #e5e5e5;
   border-radius: 12px;
@@ -2388,9 +2440,10 @@
   outline: none;
 }
 
-.zaas-role-card:hover {
-  border-color: var(--zaas-brand-dark);
-  background-color: #fef2f2;
+/* Hover solo en tarjetas no seleccionadas: borde sutil Rojo Suave #F87171 */
+.zaas-role-card:not(.zaas-role-card--selected):hover {
+  border-color: var(--zaas-accent);
+  background-color: #ffffff;
   transform: translateY(-2px);
   box-shadow: var(--zaas-shadow-sm);
 }
@@ -2400,9 +2453,9 @@
   outline-offset: 3px;
 }
 
-/* Borde resaltado en Rojo Oscuro (#991B1B) al seleccionar */
+/* Estado seleccionado: borde Rojo Oscuro #991B1B + tinte ultra suave #FEF2F2 */
 .zaas-role-card--selected {
-  border: 2.5px solid var(--zaas-brand-dark) !important;
+  border: 2px solid var(--zaas-brand-dark) !important;
   background-color: #fef2f2 !important;
   box-shadow: 0 4px 16px rgba(153, 27, 27, 0.12);
 }
@@ -2415,6 +2468,7 @@
   margin-bottom: 1.25rem;
 }
 
+/* Icono con fondo Gris Claro #F5F5F5 y borde sutil */
 .zaas-role-icon-wrapper {
   display: flex;
   align-items: center;
@@ -2422,22 +2476,28 @@
   width: 58px;
   height: 58px;
   border-radius: 12px;
+  background-color: #f5f5f5;
+  border: 1px solid #e5e5e5;
+  color: var(--zaas-text);
   transition: var(--zaas-transition);
 }
 
-.zaas-role-icon--cliente {
-  background-color: #f3f4f6;
-  color: var(--zaas-text-heading);
-}
-
-.zaas-role-icon--dev {
-  background-color: #fef2f2;
-  color: var(--zaas-brand-dark);
-}
-
-.zaas-role-card--selected .zaas-role-icon-wrapper {
+.zaas-role-card--selected .zaas-role-icon-wrapper,
+.zaas-role-icon-wrapper--selected {
   background-color: #ffffff;
+  border-color: #fca5a5;
+  color: var(--zaas-brand-dark);
   box-shadow: var(--zaas-shadow-sm);
+}
+
+/* Indicador circular cuando la tarjeta no está seleccionada */
+.zaas-role-unchecked-circle {
+  display: block;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid #d4d4d4;
+  background-color: #ffffff;
 }
 
 .zaas-role-checked-badge {
@@ -2458,10 +2518,11 @@
   margin: 0 0 0.35rem 0;
 }
 
+/* Textos descriptivos en Gris Oscuro #404040 (contraste >= 4.5:1) */
 .zaas-role-card-tagline {
   font-size: 0.95rem;
   font-weight: 700;
-  color: var(--zaas-brand-dark);
+  color: var(--zaas-text);
   margin: 0 0 0.75rem 0;
 }
 
@@ -2481,11 +2542,69 @@
   border-top: 1px solid var(--zaas-border);
 }
 
-.btn-confirm-role {
+/* Botón secundario: fondo transparente/Gris Claro, sin competir con el CTA */
+.zaas-btn-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.85rem 1.5rem;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--zaas-text);
+  background-color: transparent;
+  border: 1.5px solid var(--zaas-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--zaas-transition);
+}
+
+.zaas-btn-back:hover {
+  background-color: #f5f5f5;
+  border-color: #d4d4d4;
+  color: var(--zaas-text-heading);
+}
+
+.zaas-btn-back:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Botón primario: Rojo Principal #DC2626 con texto BLANCO #FFFFFF */
+.zaas-btn-confirm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-left: auto;
   padding: 0.85rem 1.75rem;
+  font-family: inherit;
   font-size: 1.05rem;
   font-weight: 700;
-  margin-left: auto;
+  line-height: 1.4;
+  color: #ffffff !important;
+  background-color: var(--zaas-primary);
+  border: 1.5px solid var(--zaas-primary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--zaas-transition);
+}
+
+.zaas-btn-confirm:hover:not(:disabled) {
+  background-color: var(--zaas-brand-dark);
+  border-color: var(--zaas-brand-dark);
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(153, 27, 27, 0.3);
+}
+
+.zaas-btn-confirm:disabled {
+  background-color: #cccccc;
+  border-color: #cccccc;
+  color: #ffffff !important;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* Sugerencias de autocompletado en perfil de desarrollador */

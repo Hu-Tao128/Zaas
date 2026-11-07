@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { registerWithEmail, loginWithGoogle } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
+import GoogleButton from '../components/GoogleButton';
 import RoleSelector from '../components/RoleSelector';
 
 /**
@@ -32,6 +34,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
+  const { marcarAutenticado } = useAuth();
 
   function validarPasoCredenciales() {
     const nuevosErrores = {};
@@ -142,9 +145,11 @@ export default function RegisterPage() {
         throw new Error(errorData.error || 'Error al sincronizar tu cuenta con Zaas');
       }
 
-      const data = await response.json();
-      // Redirigir a la vista principal
-      navigate(data.redirect || '/');
+      await response.json();
+      // Marcar la sesión de Firebase como activa antes de navegar para evitar
+      // que ProtectedRoute rebote a /login por una condición de carrera.
+      marcarAutenticado(firebaseData.user);
+      navigate('/', { replace: true });
     } catch (err) {
       setErrorGeneral(err.message || 'Error al guardar tu cuenta en el servidor.');
     } finally {
@@ -306,39 +311,11 @@ export default function RegisterPage() {
             <span>o</span>
           </div>
 
-          <button
-            type="button"
+          <GoogleButton
+            label="Registrarse con Google"
             onClick={handleGoogleSubmit}
             disabled={loading}
-            className="google-btn btn"
-            aria-label="Registrarse con cuenta de Google"
-          >
-            <svg
-              aria-hidden="true"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              className="google-icon"
-            >
-              <path
-                fill="#EA4335"
-                d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"
-              />
-              <path
-                fill="#4285F4"
-                d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.1-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.1c0 2.8.7 5.4 1.9 7.8l3.7-2.9c-.2-.7-.4-1.5-.4-2.3z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16.5C3.7 20.3 7.5 23.5 12 23.5z"
-              />
-            </svg>
-            <span>Registrarse con Google</span>
-          </button>
+          />
 
           <p className="auth-footer-text">
             ¿Ya tienes cuenta? <Link to="/login">Inicia sesión aquí</Link>
@@ -346,15 +323,17 @@ export default function RegisterPage() {
         </div>
       ) : (
         /* Paso 2: Selector de Rol Intermedio */
-        <div className="auth-container zaas-role-modal-container">
-          <RoleSelector
-            rolSeleccionado={rolSeleccionado}
-            onSeleccionarRol={setRolSeleccionado}
-            onConfirmar={handleConfirmarRol}
-            onVolver={() => setPaso('credenciales')}
-            cargando={loading}
-            error={errorGeneral}
-          />
+        <div className="zaas-role-page-wrapper">
+          <div className="zaas-role-modal-container">
+            <RoleSelector
+              rolSeleccionado={rolSeleccionado}
+              onSeleccionarRol={setRolSeleccionado}
+              onConfirmar={handleConfirmarRol}
+              onVolver={() => setPaso('credenciales')}
+              cargando={loading}
+              error={errorGeneral}
+            />
+          </div>
         </div>
       )}
     </div>
