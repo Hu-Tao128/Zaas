@@ -51,7 +51,7 @@ def error_sincronizacion(error):
     return jsonify({'error': 'No se pudo vincular la cuenta. Vuelve a iniciar sesión.'}), 409
 
 
-def find_or_create_user(firebase_data: dict, tipo_usuario='cliente') -> Usuario:
+def find_or_create_user(firebase_data: dict, tipo_usuario='cliente', datos_perfil=None) -> Usuario:
     """
     Busca un usuario por firebase_uid o email. Si no existe, lo crea.
     Retorna el usuario de la base de datos local (SQLite).
@@ -59,10 +59,13 @@ def find_or_create_user(firebase_data: dict, tipo_usuario='cliente') -> Usuario:
     usuario = _buscar_usuario(firebase_data)
     try:
         if usuario is None:
+            datos_perfil = datos_perfil or {}
+            nombre_firebase = (firebase_data.get('name') or '').split()
             usuario = Usuario(
                 firebase_uid=firebase_data['uid'],
-                nombres=firebase_data.get('name', '').split()[0] if firebase_data.get('name') else 'Usuario',
-                apellido_paterno=firebase_data.get('name', '').split()[-1] if firebase_data.get('name') else '',
+                nombres=datos_perfil.get('nombres') or (nombre_firebase[0] if nombre_firebase else 'Usuario'),
+                apellido_paterno=datos_perfil.get('apellido_paterno') or (nombre_firebase[-1] if nombre_firebase else ''),
+                apellido_materno=datos_perfil.get('apellido_materno'),
                 email=firebase_data['email'],
                 tipo_usuario=tipo_usuario,
             )
@@ -154,12 +157,17 @@ def registro_callback():
         return jsonify({'error': 'Token no proporcionado'}), 400
 
     firebase_data = verify_firebase_token(id_token)
+
     if not firebase_data:
         return jsonify({'error': 'Token inválido o expirado'}), 401
 
-    # Repetir la sincronización no duplica cuentas ni cambia roles existentes.
-    usuario = find_or_create_user(firebase_data, tipo_usuario=tipo_usuario)
-
+    datos_perfil = {}
+    for campo in ('nombres', 'apellido_paterno', 'apellido_materno'):
+        valor = data.get(campo, '')
+        if not isinstance(valor, str) or len(valor.strip()) > 100:
+            return jsonify({'error': 'Los nombres y apellidos admiten hasta 100 caracteres.'}), 400
+        datos_perfil[campo] = valor.strip()
+    usuario = find_or_create_user(firebase_data, tipo_usuario=tipo_usuario, datos_perfil=datos_perfil)
     login_user(usuario, remember=True)
 
     return jsonify({
@@ -168,6 +176,7 @@ def registro_callback():
             'id': usuario.id,
             'email': usuario.email,
             'nombre': usuario.nombres,
+            'tipo_usuario': usuario.tipo_usuario,
         }
     })
 
@@ -175,12 +184,16 @@ def registro_callback():
 @auth_bp.route('/logout')
 @login_required
 def logout():
+    # Guardar el uid antes de cerrar la sesión: después de logout_user()
+    # current_user pasa a ser anónimo y no tendría firebase_uid.
+    firebase_uid = getattr(current_user, 'firebase_uid', None)
+
     logout_user()
     session.clear()
 
     # Revocar sesiones de Firebase también
-    if current_user.firebase_uid:
-        revoke_firebase_sessions(current_user.firebase_uid)
+    if firebase_uid:
+        revoke_firebase_sessions(firebase_uid)
 
     flash('Sesión cerrada correctamente.', 'info')
     return redirect(url_for('auth.login'))

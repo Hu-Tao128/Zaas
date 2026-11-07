@@ -14,6 +14,7 @@ from app.extensions import db
 from app.auth.models import Usuario, Perfil
 from app.catalogo.models import Proyecto, OfertaTrabajo, Categoria, Tecnologia
 from app.contratos.models import Contrato, PlantillaContrato
+from app.contratos.plantillas import NOMBRE_PLANTILLA_BASE, PLANTILLA_BASE_V1
 from app.comunicacion.models import Notificacion
 
 
@@ -83,8 +84,8 @@ def seed():
 
         # ── Plantilla de contrato ──
         plantilla = PlantillaContrato(
-            nombre='Contrato Estándar',
-            contenido_html='<h1>Contrato de Servicios</h1><p>Términos estándar...</p>'
+            nombre=NOMBRE_PLANTILLA_BASE,
+            contenido_html=PLANTILLA_BASE_V1
         )
         db.session.add(plantilla)
 

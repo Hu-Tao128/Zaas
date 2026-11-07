@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { guardar } from '../services/comunicacionService';
 import { useComunicacionResource as useResource } from '../hooks/useComunicacionResource';
-import AppNavbar from '../components/AppNavbar';
+import Navbar from '../components/Navbar';
 import './catalogo/catalogo.css';
 import './comunicacion.css';
 
@@ -322,7 +322,7 @@ export default function ComunicacionPage() {
   const contract = /^\d+$/.test(params.get('contrato') || '') ? params.get('contrato') : '';
   const me = session.result?.data;
   return <div className="catalogo-app comm-page">
-    <AppNavbar usuario={me} />
+    <Navbar usuario={me} />
     <header className="comm-header"><div><Link to="/">← Inicio de Zaas</Link>
       <h1>Comunicación</h1><p>Mensajes, avisos y seguimiento de tus proyectos.</p></div>
       {me && <span className="comm-badge">{me.tipo_usuario === 'admin' ? 'Administrador' : me.tipo_usuario}</span>}

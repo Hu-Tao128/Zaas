@@ -18,7 +18,12 @@ import MisOfertasPage from './pages/catalogo/MisOfertasPage';
 import PostularPage from './pages/catalogo/PostularPage';
 import MisPostulacionesPage from './pages/catalogo/MisPostulacionesPage';
 import DetallePostulacionPage from './pages/catalogo/DetallePostulacionPage';
+import PerfilPage from './pages/catalogo/PerfilPage';
+import ContratosList from './pages/contratos/ContratosList';
+import ContratoForm from './pages/contratos/ContratoForm';
+import ContratoDetalle from './pages/contratos/ContratoDetalle';
 import './pages/catalogo/catalogo.css';
+import './pages/contratos/contratos.css';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -79,6 +84,11 @@ export default function App() {
             <Route path="mis-ofertas" element={soCliente(<MisOfertasPage />)} />
             <Route path="mis-postulaciones" element={soDesarrollador(<MisPostulacionesPage />)} />
             <Route path="postulacion/:id" element={<DetallePostulacionPage />} />
+            <Route path="contratos" element={<ContratosList />} />
+            <Route path="contratos/nuevo" element={<ContratoForm />} />
+            <Route path="contratos/:id" element={<ContratoDetalle />} />
+            <Route path="perfil" element={<PerfilPage />} />
+            <Route path="perfil/:id" element={<PerfilPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

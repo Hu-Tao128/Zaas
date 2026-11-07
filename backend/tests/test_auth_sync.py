@@ -5,7 +5,13 @@ from unittest.mock import patch
 from app import create_app
 from app.extensions import db, login_manager
 from app.auth.models import Usuario, Perfil
-from test_comunicacion import TestConfig
+
+
+class TestConfig:
+    TESTING = True
+    SECRET_KEY = 'auth-tests-only'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    FIREBASE_KEY_PATH = 'no-test-credentials.json'
 
 
 class AuthSyncTest(unittest.TestCase):
@@ -77,6 +83,27 @@ class AuthSyncTest(unittest.TestCase):
         self.assertEqual(self.login().status_code, 200)
         self.assertEqual(self.register('cliente').status_code, 200)
         self.assert_one_account('desarrollador')
+
+    def test_registration_keeps_selected_role_and_profile_through_login(self):
+        response = self.client.post('/auth/registro/callback', json={
+            'id_token': 'token-verificado', 'tipo_usuario': 'desarrollador',
+            'nombres': 'Ana María', 'apellido_paterno': 'García', 'apellido_materno': 'López',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.login().status_code, 200)
+        self.assert_one_account('desarrollador')
+        with self.app.app_context():
+            self.assertEqual(db.session.scalar(db.select(Usuario)).nombre_completo, 'Ana María García López')
+
+    def test_registration_rejects_unsigned_firebase_token(self):
+        import jwt
+        token = jwt.encode({'sub': 'forged', 'email': self.identity['email']}, key='', algorithm='none')
+        with patch('app.auth.routes.verify_firebase_token', return_value=None), \
+             patch('app.auth.routes.is_firebase_ready', return_value=False):
+            response = self.client.post('/auth/registro/callback', json={'id_token': token})
+        self.assertEqual(response.status_code, 401)
+        with self.app.app_context():
+            self.assertEqual(db.session.query(Usuario).count(), 0)
 
     def test_email_collision_with_different_identity_does_not_return_another_user(self):
         self.assertEqual(self.login().status_code, 200)

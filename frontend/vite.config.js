@@ -10,6 +10,12 @@ export default defineConfig({
         target: 'http://localhost:5000',
         changeOrigin: true
       },
+      // Solo la API JSON de contratos va al backend; las rutas React /contratos
+      // (lista, formulario y detalle) las resuelve el SPA con fallback de Vite.
+      '/contratos/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true
+      },
       '/api': 'http://localhost:5000'
     }
   }

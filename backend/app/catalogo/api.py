@@ -23,6 +23,9 @@ from app.catalogo.models import (
     Proyecto, OfertaTrabajo, Postulacion, SolicitudDemo, Categoria, Tecnologia,
     CategoriaProyecto,
 )
+from app.auth.models import Usuario, Perfil
+from app.comunicacion.models import Calificacion
+from app.contratos.models import Contrato
 from app.catalogo.routes import (
     _aceptar_postulacion, _rechazar_postulacion, _cargar_opciones, _cerrar_oferta_atomico,
     _enviar_postulacion, _hay_aceptada, _motivo_oferta_no_abierta, _postulacion_de,
@@ -506,3 +509,162 @@ def aceptar_postulacion(id):
 @_requiere('cliente')
 def rechazar_postulacion(id):
     return _resolver(id, 'rechazada')
+
+
+# ---------------------------------------------------------------------- perfiles
+
+def _serializar_perfil(u, perfil=None):
+    if perfil is None:
+        perfil = u.perfil
+
+    # Calificaciones recibidas
+    calificaciones = u.calificaciones_recibidas or []
+    total_calificaciones = len(calificaciones)
+    promedio_calificacion = (
+        round(sum(c.puntaje for c in calificaciones) / total_calificaciones, 1)
+        if total_calificaciones > 0 else None
+    )
+
+    # Contratos completados y en curso
+    if u.tipo_usuario == 'desarrollador':
+        contratos_rel = u.contratos_como_desarrollador or []
+    else:
+        contratos_rel = u.contratos_como_cliente or []
+    contratos_completados = sum(1 for c in contratos_rel if c.estado in ('entregado', 'finalizado'))
+
+    # Proyectos para desarrollador
+    proyectos = [_proyecto(p) for p in (u.proyectos or []) if p.estado == 'activo']
+
+    # Ofertas para cliente
+    ofertas = [_oferta(o) for o in (u.ofertas or []) if o.estado in ('abierto', 'en_progreso', 'cerrado')]
+
+    return {
+        'usuario': {
+            'id': u.id,
+            'nombres': u.nombres,
+            'apellido_paterno': u.apellido_paterno,
+            'apellido_materno': u.apellido_materno or '',
+            'email': getattr(u, 'email', None),
+            'tipo_usuario': u.tipo_usuario,
+            'fecha_registro': _iso(u.fecha_registro, utc=True),
+        },
+        'perfil': {
+            'id': perfil.id if perfil else None,
+            'descripcion': (perfil.descripcion or '') if perfil else '',
+            'habilidades': (perfil.habilidades or '') if perfil else '',
+            'empresa': (perfil.empresa or '') if perfil else '',
+            'stack_tecnologico': (perfil.stack_tecnologico or '') if perfil else '',
+            'enlaces': (perfil.enlaces or '') if perfil else '',
+        },
+        'estadisticas': {
+            'total_proyectos': len(proyectos),
+            'total_ofertas': len(ofertas),
+            'contratos_completados': contratos_completados,
+            'total_contratos': len(contratos_rel),
+            'promedio_calificacion': promedio_calificacion,
+            'total_calificaciones': total_calificaciones,
+        },
+        'proyectos': proyectos,
+        'ofertas': ofertas,
+        'calificaciones': [
+            {
+                'id': c.id,
+                'puntaje': c.puntaje,
+                'comentarios': c.comentarios,
+                'fecha_hora': _iso(c.fecha_hora, utc=True),
+                'evaluador': _usuario_publico(c.evaluador) if c.evaluador else None,
+            }
+            for c in calificaciones
+        ],
+        'contratos': [
+            {
+                'id': c.id,
+                'costo_acordado': c.costo_acordado,
+                'estado': c.estado,
+                'fecha_creacion': _iso(c.fecha_creacion, utc=True),
+                'titulo': c.producto.titulo if c.producto else (c.encargo.titulo if c.encargo else f'Contrato #{c.id}'),
+            }
+            for c in contratos_rel
+        ],
+    }
+
+
+@catalogo_api_bp.get('/perfil')
+@_requiere()
+def mi_perfil():
+    """Devuelve el perfil completo del usuario autenticado."""
+    data = _serializar_perfil(current_user)
+    data['es_propio'] = True
+    return jsonify(data)
+
+
+@catalogo_api_bp.get('/perfil/<int:id>')
+def obtener_perfil(id):
+    """Devuelve el perfil público de cualquier usuario."""
+    usuario = db.session.get(Usuario, id)
+    if not usuario:
+        return _error('Usuario no encontrado.', 404)
+    es_propio = current_user.is_authenticated and current_user.id == usuario.id
+    data = _serializar_perfil(usuario)
+    data['es_propio'] = es_propio
+    return jsonify(data)
+
+
+@catalogo_api_bp.put('/perfil')
+@_requiere()
+def actualizar_perfil():
+    """Actualiza datos personales y de perfil del usuario actual."""
+    datos = _datos_json()
+    errores = {}
+
+    nombres = str(datos.get('nombres', '')).strip()
+    apellido_paterno = str(datos.get('apellido_paterno', '')).strip()
+    apellido_materno = str(datos.get('apellido_materno', '')).strip()
+    empresa = str(datos.get('empresa', '')).strip()
+    descripcion = str(datos.get('descripcion', '')).strip()
+    habilidades = str(datos.get('habilidades', '')).strip()
+    stack_tecnologico = str(datos.get('stack_tecnologico', '')).strip()
+    enlaces = str(datos.get('enlaces', '')).strip()
+
+    if not nombres:
+        errores['nombres'] = 'El nombre es obligatorio.'
+    elif len(nombres) > 100:
+        errores['nombres'] = 'El nombre no puede superar 100 caracteres.'
+
+    if not apellido_paterno:
+        errores['apellido_paterno'] = 'El apellido paterno es obligatorio.'
+    elif len(apellido_paterno) > 100:
+        errores['apellido_paterno'] = 'El apellido paterno no puede superar 100 caracteres.'
+
+    if len(apellido_materno) > 100:
+        errores['apellido_materno'] = 'El apellido materno no puede superar 100 caracteres.'
+
+    if len(empresa) > 150:
+        errores['empresa'] = 'El nombre de empresa no puede superar 150 caracteres.'
+
+    if errores:
+        return _error('Revisa los campos del formulario.', 422, errores)
+
+    # Actualizar Usuario
+    current_user.nombres = nombres
+    current_user.apellido_paterno = apellido_paterno
+    current_user.apellido_materno = apellido_materno
+
+    # Actualizar Perfil
+    perfil = current_user.perfil
+    if not perfil:
+        perfil = Perfil(id_usuario=current_user.id)
+        db.session.add(perfil)
+
+    perfil.empresa = empresa
+    perfil.descripcion = descripcion
+    perfil.habilidades = habilidades
+    perfil.stack_tecnologico = stack_tecnologico
+    perfil.enlaces = enlaces
+
+    db.session.commit()
+
+    resultado = _serializar_perfil(current_user, perfil)
+    resultado['es_propio'] = True
+    return _ok('Perfil actualizado exitosamente.', perfil_data=resultado)
+

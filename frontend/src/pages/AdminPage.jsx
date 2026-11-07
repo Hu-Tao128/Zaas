@@ -1,5 +1,5 @@
 import { Link, Navigate } from 'react-router-dom';
-import AppNavbar from '../components/AppNavbar';
+import Navbar from '../components/Navbar';
 import { useComunicacionResource } from '../hooks/useComunicacionResource';
 import './catalogo/catalogo.css';
 import './admin.css';
@@ -20,7 +20,7 @@ export default function AdminPage() {
   const summary = resource.result?.data;
   if (resource.status === 401) return <Navigate to="/login" replace />;
   return <div className="catalogo-app admin-app">
-    <AppNavbar usuario={summary?.usuario} />
+    <Navbar usuario={summary?.usuario} />
     <main className="catalogo-container admin-container">
       {resource.loading && <p role="status">Comprobando acceso al panel…</p>}
       {resource.status === 403 && <section className="card admin-access" role="alert">
