@@ -225,12 +225,16 @@ def registro_callback():
 @auth_bp.route('/logout')
 @login_required
 def logout():
+    # Guardar el uid antes de cerrar la sesión: después de logout_user()
+    # current_user pasa a ser anónimo y no tendría firebase_uid.
+    firebase_uid = getattr(current_user, 'firebase_uid', None)
+
     logout_user()
     session.clear()
 
     # Revocar sesiones de Firebase también
-    if current_user.firebase_uid:
-        revoke_firebase_sessions(current_user.firebase_uid)
+    if firebase_uid:
+        revoke_firebase_sessions(firebase_uid)
 
     flash('Sesión cerrada correctamente.', 'info')
     return redirect(url_for('auth.login'))

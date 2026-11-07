@@ -67,6 +67,15 @@ export async function logout() {
   if (analytics) {
     logEvent(analytics, 'logout');
   }
+
+  // Cerrar también la sesión de Flask (cookie). El endpoint redirige a /login,
+  // pero solo nos interesa que invalide la cookie del servidor.
+  try {
+    await fetch('/auth/logout', { credentials: 'include' });
+  } catch (error) {
+    console.error('No se pudo cerrar la sesión del servidor:', error);
+  }
+
   await signOut(auth);
 }
 
@@ -84,6 +93,7 @@ export async function syncWithBackend(idToken) {
   const response = await fetch('/auth/callback', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ id_token: idToken })
   });
   
