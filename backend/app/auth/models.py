@@ -34,6 +34,11 @@ class Usuario(UserMixin, db.Model):
     mensajes_enviados = db.relationship('Mensaje', foreign_keys='Mensaje.id_emisor', back_populates='emisor')
     mensajes_recibidos = db.relationship('Mensaje', foreign_keys='Mensaje.id_receptor', back_populates='receptor')
 
+    @property
+    def nombre_completo(self):
+        partes = [self.nombres, self.apellido_paterno, self.apellido_materno]
+        return ' '.join(parte.strip() for parte in partes if parte and parte.strip())
+
     def __repr__(self):
         return f'<Usuario {self.email}>'
 

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Aceptar Contrato #{{ contrato.id }} - Zaas{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="flex" style="justify-content:space-between;align-items:flex-start;">
+        <h1>Revisar y aceptar contrato #{{ contrato.id }}</h1>
+        <button type="button" class="btn btn-secondary btn-sm no-print" onclick="window.print()">Imprimir</button>
+    </div>
+    <p>
+        <strong>Cliente:</strong> {{ contrato.nombre_cliente }}<br>
+        <strong>Desarrollador:</strong> {{ contrato.nombre_desarrollador }}<br>
+        <strong>Costo acordado:</strong> ${{ '%.2f'|format(contrato.costo_acordado) }} MXN
+    </p>
+    {% if contrato.estado == 'pendiente' %}
+        <p class="mt-1">
+            <span class="badge badge-warning">Una de las partes ya firmó</span>
+            Falta tu aceptación para que el contrato quede formalizado.
+        </p>
+    {% endif %}
+</div>
+
+<div class="card">
+    {% include 'contratos/_documento.html' %}
+</div>
+
+<div class="card no-print">
+    <h2 class="mb-2">Confirmar aceptación</h2>
+    <p class="mb-2">
+        Al confirmar, se registrará tu aceptación con fecha, hora y dirección IP.
+        Esta acción no se puede deshacer.
+    </p>
+
+    <form method="POST">
+        {{ form.hidden_tag() }}
+
+        <div class="form-group">
+            <label style="display:flex;gap:0.6rem;align-items:flex-start;font-weight:normal;">
+                {{ form.acepto() }}
+                <span>{{ form.acepto.label.text }}</span>
+            </label>
+            {% for error in form.acepto.errors %}
+                <small style="color:#c0392b;">{{ error }}</small>
+            {% endfor %}
+        </div>
+
+        <div class="flex">
+            {{ form.submit(class="btn btn-success") }}
+            <a href="{{ url_for('contratos.ver_contrato', id=contrato.id) }}" class="btn btn-secondary">
+                Volver sin aceptar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

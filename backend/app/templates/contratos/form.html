@@ -1,29 +1,80 @@
 {% extends "base.html" %}
 {% block title %}Nuevo Contrato - Zaas{% endblock %}
 {% block content %}
-<div class="card" style="max-width:600px;margin:2rem auto;">
+<div class="card" style="max-width:720px;margin:2rem auto;">
     <h2 class="mb-2">Nuevo Contrato</h2>
+
+    <p class="mb-2">
+        <strong>Cliente:</strong> {{ current_user.nombre_completo }} ({{ current_user.email }})
+        <br>
+        <small>El contrato se creará a tu nombre como cliente.</small>
+    </p>
+
+    {% if form.id_desarrollador.choices|length == 1 and form.id_desarrollador.choices[0][0] == 0 %}
+        <div class="alert alert-warning">
+            No hay desarrolladores registrados todavía. Pide a un desarrollador que cree su cuenta
+            antes de generar un contrato.
+        </div>
+    {% endif %}
+
     <form method="POST">
         {{ form.hidden_tag() }}
+
         <div class="form-group">
-            {{ form.id_cliente.label }} {{ form.id_cliente() }}
+            {{ form.id_desarrollador.label }}
+            {{ form.id_desarrollador() }}
+            {% for error in form.id_desarrollador.errors %}
+                <small style="color:#c0392b;">{{ error }}</small>
+            {% endfor %}
         </div>
+
         <div class="form-group">
-            {{ form.id_desarrollador.label }} {{ form.id_desarrollador() }}
+            {{ form.id_producto.label }}
+            {{ form.id_producto() }}
+            <small>Puedes vincular el contrato a uno de los productos del desarrollador.</small>
+            {% for error in form.id_producto.errors %}
+                <small style="color:#c0392b;">{{ error }}</small>
+            {% endfor %}
         </div>
+
         <div class="form-group">
-            {{ form.id_producto.label }} {{ form.id_producto() }}
+            {{ form.id_encargo.label }}
+            {{ form.id_encargo() }}
+            <small>También puedes vincularlo a una de tus ofertas de trabajo publicadas.</small>
+            {% for error in form.id_encargo.errors %}
+                <small style="color:#c0392b;">{{ error }}</small>
+            {% endfor %}
         </div>
+
         <div class="form-group">
-            {{ form.id_encargo.label }} {{ form.id_encargo() }}
+            {{ form.costo_acordado.label }}
+            {{ form.costo_acordado(step="0.01", min="0.01") }}
+            {% for error in form.costo_acordado.errors %}
+                <small style="color:#c0392b;">{{ error }}</small>
+            {% endfor %}
         </div>
+
         <div class="form-group">
-            {{ form.costo_acordado.label }} {{ form.costo_acordado() }}
+            {{ form.plantilla_id.label }}
+            {{ form.plantilla_id() }}
+            <small>La plantilla se guarda con los nombres de ambas partes al crear el contrato.</small>
+            {% for error in form.plantilla_id.errors %}
+                <small style="color:#c0392b;">{{ error }}</small>
+            {% endfor %}
         </div>
+
         <div class="form-group">
-            {{ form.terminos_condiciones.label }} {{ form.terminos_condiciones() }}
+            {{ form.notas.label }}
+            {{ form.notas(rows="4", placeholder="Alcance, fechas, condiciones especiales...") }}
+            {% for error in form.notas.errors %}
+                <small style="color:#c0392b;">{{ error }}</small>
+            {% endfor %}
         </div>
-        <button type="submit" class="btn btn-primary">Crear Contrato</button>
+
+        <div class="flex">
+            {{ form.submit(class="btn btn-primary") }}
+            <a href="{{ url_for('contratos.listar_contratos') }}" class="btn btn-secondary">Cancelar</a>
+        </div>
     </form>
 </div>
 {% endblock %}
