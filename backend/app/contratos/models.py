@@ -41,6 +41,27 @@ class Contrato(db.Model):
     calificaciones = db.relationship('Calificacion', back_populates='contrato', cascade='all, delete-orphan')
     pagos = db.relationship('Pago', back_populates='contrato', cascade='all, delete-orphan')
 
+    @property
+    def nombre_cliente(self):
+        return self.cliente.nombre_completo if self.cliente else 'Cliente no disponible'
+
+    @property
+    def nombre_desarrollador(self):
+        return self.desarrollador.nombre_completo if self.desarrollador else 'Desarrollador no disponible'
+
+    @property
+    def objeto(self):
+        """Título del producto/oferta que da origen al contrato."""
+        if self.producto:
+            return self.producto.titulo
+        if self.encargo:
+            return self.encargo.titulo
+        return 'Servicio de desarrollo de software'
+
+    @property
+    def firmas_completas(self):
+        return bool(self.firma_cliente and self.firma_desarrollador)
+
     def __repr__(self):
         return f'<Contrato {self.id} - {self.estado}>'
 

@@ -1,0 +1,9 @@
+{% if contrato.terminos_condiciones %}
+<div class="contrato-documento">
+    {{ contrato.terminos_condiciones | safe }}
+</div>
+{% else %}
+<div class="alert alert-warning">
+    Este contrato todavía no tiene términos generados. Vuelve a abrirlo o contacta al administrador.
+</div>
+{% endif %}
