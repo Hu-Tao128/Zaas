@@ -328,8 +328,8 @@ export default function DetalleProyectoPage() {
                 <>
                   {/* CTA Primario: 'Contratar' en Rojo Principal (#DC2626) con texto blanco */}
                   {usuario.tipo_usuario === 'cliente' ? (
-                    <a
-                      href={urlContratarProyecto(proyecto)}
+                    <Link
+                      to={urlContratarProyecto(proyecto)}
                       className="btn btn-primary btn-contratar-cta"
                       aria-label={`Iniciar contrato de compra con Escrow para ${proyecto.titulo}`}
                     >
@@ -348,7 +348,7 @@ export default function DetalleProyectoPage() {
                         <path d="m9 12 2 2 4-4" />
                       </svg>
                       <span>Contratar con Escrow</span>
-                    </a>
+                    </Link>
                   ) : (
                     <div className="catalogo-muted" style={{ fontSize: '0.85rem', textAlign: 'center', marginBottom: '0.5rem' }}>
                       Inicia sesión como cliente para adquirir este SaaS con Escrow.

@@ -65,7 +65,7 @@ export default function DetallePostulacionPage() {
             </>
           )}
           {esCliente && postulacion.estado === 'aceptada' && (
-            <a href={urlContratarPostulacion(postulacion)} className="btn btn-primary">Contratar a este desarrollador</a>
+            <Link to={urlContratarPostulacion(postulacion)} className="btn btn-primary">Contratar a este desarrollador</Link>
           )}
           {esCliente ? (
             <>
