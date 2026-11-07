@@ -142,6 +142,17 @@ export default function Navbar() {
                 Ofertas
               </NavLink>
             </li>
+            <li>
+              <NavLink
+                to="/contratos"
+                onClick={cerrarMenu}
+                className={({ isActive }) =>
+                  `catalogo-nav-link ${isActive ? 'catalogo-nav-link--active' : ''}`
+                }
+              >
+                Contratos
+              </NavLink>
+            </li>
           </ul>
 
           <div className="catalogo-nav-user">

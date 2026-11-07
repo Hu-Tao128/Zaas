@@ -6,6 +6,7 @@ from app.auth import auth_bp
 from app.auth.firebase_service import init_firebase_app
 from app.catalogo import catalogo_bp
 from app.contratos import contratos_bp
+from app.contratos.api import contratos_api_bp
 from app.pagos import pagos_bp
 from app.comunicacion import comunicacion_bp
 from app.supabase_api import supabase_bp
@@ -38,6 +39,7 @@ def create_app(config_class=None):
     app.register_blueprint(auth_bp)
     app.register_blueprint(catalogo_bp)
     app.register_blueprint(contratos_bp)
+    app.register_blueprint(contratos_api_bp)
     app.register_blueprint(pagos_bp)
     app.register_blueprint(comunicacion_bp)
     app.register_blueprint(supabase_bp)

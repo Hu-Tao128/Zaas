@@ -1,0 +1,862 @@
+/* ==========================================================================
+   CONTRATOS ESCROW — Paleta oficial Zaas y enfoque mobile-first
+   ========================================================================== */
+
+.contratos-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.contratos-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* --- Estadísticas ------------------------------------------------------- */
+
+.contratos-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (min-width: 900px) {
+  .contratos-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.contrato-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 1.25rem;
+  background: var(--zaas-surface);
+  border: 1px solid var(--zaas-border);
+  border-radius: var(--zaas-radius-lg);
+  box-shadow: var(--zaas-shadow-sm);
+}
+
+.contrato-stat-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+
+.contrato-stat-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--zaas-text-heading);
+  line-height: 1.2;
+}
+
+.contrato-stat-value--warning { color: var(--zaas-warning-text); }
+.contrato-stat-value--brand { color: var(--zaas-primary); }
+.contrato-stat-value--success { color: var(--zaas-success-text); }
+
+/* --- Filtros ------------------------------------------------------------ */
+
+.contratos-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.contratos-filter {
+  padding: 0.45rem 0.9rem;
+  border-radius: 9999px;
+  border: 1px solid var(--zaas-border-medium);
+  background: var(--zaas-surface);
+  color: var(--zaas-text);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--zaas-transition);
+}
+
+.contratos-filter:hover {
+  border-color: var(--zaas-accent);
+  color: var(--zaas-brand-dark);
+}
+
+.contratos-filter.is-active {
+  background: var(--zaas-primary);
+  border-color: var(--zaas-primary);
+  color: #ffffff;
+}
+
+/* --- Grid de contratos -------------------------------------------------- */
+
+.contratos-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+@media (min-width: 700px) {
+  .contratos-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .contratos-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.contrato-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.contrato-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.contrato-card-id {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.contrato-id {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #6b7280;
+  letter-spacing: 0.02em;
+}
+
+.contrato-card-title {
+  font-size: 1.15rem;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.contrato-card-title a {
+  color: var(--zaas-text-heading);
+  text-decoration: none;
+}
+
+.contrato-card-title a:hover {
+  color: var(--zaas-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.contrato-card-party {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--zaas-text);
+}
+
+.contrato-card-escrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 0.9rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--zaas-radius);
+}
+
+.contrato-escrow-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #9a3412;
+}
+
+.contrato-escrow-amount {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--zaas-primary);
+}
+
+.contrato-card-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.contrato-card-cta {
+  width: 100%;
+  margin-top: auto;
+}
+
+/* --- Badges ------------------------------------------------------------- */
+
+.contrato-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.contrato-badge--borrador {
+  background: #f5f5f5;
+  border-color: #d4d4d4;
+  color: var(--zaas-text);
+}
+.contrato-badge--pendiente {
+  background: #fef2f2;
+  border-color: var(--zaas-accent);
+  color: var(--zaas-brand-dark);
+}
+.contrato-badge--aceptado {
+  background: var(--zaas-success-bg);
+  border-color: var(--zaas-success-border);
+  color: var(--zaas-success-text);
+}
+.contrato-badge--progreso {
+  background: var(--zaas-warning-bg);
+  border-color: var(--zaas-warning-border);
+  color: var(--zaas-warning-text);
+}
+.contrato-badge--entregado {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1e40af;
+}
+.contrato-badge--finalizado {
+  background: #171717;
+  border-color: #171717;
+  color: #ffffff;
+}
+.contrato-badge--cancelado {
+  background: var(--zaas-danger-bg);
+  border-color: var(--zaas-danger-border);
+  color: var(--zaas-danger-text);
+}
+.contrato-badge--neutral {
+  background: #f5f5f5;
+  border-color: #e5e5e5;
+  color: var(--zaas-text);
+}
+
+.contrato-escrow-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.contrato-escrow-badge--pendiente {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #9a3412;
+}
+.contrato-escrow-badge--retenido {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: var(--zaas-brand-dark);
+}
+.contrato-escrow-badge--liberado {
+  background: var(--zaas-success-bg);
+  border-color: var(--zaas-success-border);
+  color: var(--zaas-success-text);
+}
+.contrato-escrow-badge--neutral {
+  background: #f5f5f5;
+  border-color: #e5e5e5;
+  color: var(--zaas-text);
+}
+
+.contrato-rol-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.contrato-rol-badge--cliente {
+  background: #171717;
+  color: #ffffff;
+}
+
+.contrato-rol-badge--dev {
+  background: #fef2f2;
+  color: var(--zaas-brand-dark);
+  border: 1px solid #fca5a5;
+}
+
+/* --- Estados vacío / carga / error -------------------------------------- */
+
+.contrato-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+  padding: 3rem 1.5rem !important;
+}
+
+.contrato-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: var(--zaas-brand-dark);
+}
+
+.contrato-empty-title {
+  font-size: 1.35rem;
+  margin: 0;
+}
+
+.contrato-empty-text {
+  max-width: 480px;
+  margin: 0;
+  color: var(--zaas-text);
+}
+
+.contrato-loading {
+  text-align: center;
+  padding: 3rem 1.5rem !important;
+}
+
+.contrato-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+/* --- Formulario --------------------------------------------------------- */
+
+.contrato-form-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 1000px) {
+  .contrato-form-layout {
+    grid-template-columns: minmax(0, 1.9fr) minmax(280px, 1fr);
+  }
+}
+
+.contrato-form-card {
+  padding: 1.75rem !important;
+}
+
+.contrato-form-title {
+  font-size: 1.35rem;
+  margin: 0 0 1.25rem;
+}
+
+.contrato-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .contrato-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.contrato-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--zaas-border);
+}
+
+.contrato-submit {
+  min-width: 180px;
+}
+
+.contrato-form-aside {
+  position: sticky;
+  top: 90px;
+}
+
+.contrato-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.75rem !important;
+}
+
+.contrato-summary-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+}
+
+.contrato-summary-name {
+  font-size: 1.05rem;
+  color: var(--zaas-text-heading);
+}
+
+.contrato-summary-email {
+  font-size: 0.85rem;
+  color: #6b7280;
+  word-break: break-word;
+}
+
+.contrato-summary-amount {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: var(--zaas-primary);
+  line-height: 1.15;
+}
+
+/* --- Detalle ------------------------------------------------------------ */
+
+.contrato-header-card {
+  padding: 1.75rem !important;
+}
+
+.contrato-header-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.contrato-header-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.contrato-header-object {
+  margin: 0.25rem 0 1rem;
+  font-size: 1.05rem;
+  color: var(--zaas-text);
+}
+
+.contrato-header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  font-size: 0.9rem;
+  color: var(--zaas-text);
+}
+
+.contrato-header-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.contrato-detalle-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 1000px) {
+  .contrato-detalle-layout {
+    grid-template-columns: minmax(0, 1.8fr) minmax(300px, 1.1fr);
+  }
+}
+
+.contrato-detalle-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.contrato-detalle-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  position: sticky;
+  top: 90px;
+}
+
+@media (max-width: 999px) {
+  .contrato-detalle-sidebar,
+  .contrato-form-aside {
+    position: static;
+  }
+}
+
+.contrato-documento-card {
+  padding: 1.75rem !important;
+}
+
+.contrato-documento-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.contrato-section-title {
+  font-size: 1.25rem;
+  margin: 0;
+  color: var(--zaas-text-heading);
+}
+
+.contrato-documento-copy {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.contrato-documento-scroll {
+  max-height: 62vh;
+  overflow-y: auto;
+  padding: 1.5rem;
+  background: #ffffff;
+  border: 1px solid var(--zaas-border);
+  border-radius: var(--zaas-radius-lg);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04);
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 1000px) {
+  .contrato-documento-scroll {
+    max-height: 72vh;
+  }
+}
+
+.contrato-documento {
+  max-width: 760px;
+  margin: 0 auto;
+  color: var(--zaas-text);
+  font-size: 0.98rem;
+  line-height: 1.7;
+}
+
+.contrato-documento h2 {
+  font-size: 1.35rem;
+  margin: 0 0 1rem;
+  color: var(--zaas-text-heading);
+  text-align: center;
+}
+
+.contrato-documento h3 {
+  font-size: 1.02rem;
+  margin: 1.4rem 0 0.45rem;
+  color: var(--zaas-text-heading);
+}
+
+.contrato-documento p {
+  margin: 0 0 0.8rem;
+}
+
+.contrato-documento .firmas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.5rem;
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--zaas-border);
+}
+
+.contrato-documento .firma {
+  min-width: 210px;
+  flex: 1;
+}
+
+.contrato-section {
+  padding: 1.75rem !important;
+}
+
+.contrato-subsection-title {
+  font-size: 1rem;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.contrato-firmas-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+@media (min-width: 640px) {
+  .contrato-firmas-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.contrato-firma-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border: 1px solid var(--zaas-border);
+  border-radius: var(--zaas-radius);
+}
+
+.contrato-firma-parte {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+
+.contrato-firma-nombre {
+  color: var(--zaas-text-heading);
+}
+
+.contrato-firma-estado {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--zaas-warning-text);
+}
+
+.contrato-firma-estado.is-signed {
+  color: var(--zaas-success-text);
+}
+
+.contrato-firma-folio {
+  font-size: 0.78rem;
+  color: #6b7280;
+  word-break: break-all;
+}
+
+.contrato-aceptaciones-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.88rem;
+  color: var(--zaas-text);
+}
+
+.contrato-entregables-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.contrato-entregable {
+  padding: 1rem;
+  border: 1px solid var(--zaas-border);
+  border-radius: var(--zaas-radius);
+  background: #f9fafb;
+}
+
+.contrato-entregable-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.contrato-entregable-desc,
+.contrato-entregable-comment {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: var(--zaas-text);
+}
+
+.contrato-entregable-link {
+  display: inline-block;
+  margin-top: 0.4rem;
+  font-weight: 600;
+}
+
+.contrato-entregable-date {
+  display: block;
+  margin-top: 0.5rem;
+  color: #6b7280;
+}
+
+/* --- Panel Escrow y acciones ------------------------------------------- */
+
+.contrato-escrow-card,
+.contrato-acciones-card {
+  padding: 1.5rem !important;
+}
+
+.contrato-escrow-total {
+  display: block;
+  margin: 0.25rem 0 0.75rem;
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--zaas-primary);
+  line-height: 1.1;
+}
+
+.contrato-escrow-breakdown {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 0.85rem 0;
+  border-top: 1px solid var(--zaas-border);
+  border-bottom: 1px solid var(--zaas-border);
+}
+
+.contrato-escrow-breakdown div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.contrato-escrow-breakdown span {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+
+.contrato-escrow-breakdown strong {
+  color: var(--zaas-text-heading);
+}
+
+.contrato-main-cta {
+  width: 100%;
+  padding: 0.85rem 1.25rem;
+  font-size: 1rem;
+}
+
+.contrato-confirm-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.contrato-confirm-title {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.contrato-confirm-text {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--zaas-text);
+}
+
+.contrato-confirm-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+  color: var(--zaas-text);
+  line-height: 1.45;
+}
+
+.contrato-confirm-check input {
+  margin-top: 0.2rem;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--zaas-primary);
+  flex-shrink: 0;
+}
+
+.contrato-confirm-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.contrato-confirm-actions .btn {
+  width: 100%;
+}
+
+.contrato-accion-nota {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--zaas-text);
+  line-height: 1.5;
+}
+
+.contrato-accion-nota--ok {
+  padding: 0.75rem;
+  border-radius: var(--zaas-radius);
+  background: var(--zaas-success-bg);
+  border: 1px solid var(--zaas-success-border);
+  color: var(--zaas-success-text);
+  font-weight: 600;
+}
+
+.contrato-back-link {
+  display: inline-block;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--zaas-text) !important;
+}
+
+.contrato-back-link:hover {
+  color: var(--zaas-brand-dark) !important;
+  text-decoration: underline;
+}
+
+/* --- Impresión ---------------------------------------------------------- */
+
+@media print {
+  .catalogo-header,
+  .proyecto-breadcrumbs,
+  .contrato-detalle-sidebar,
+  .no-print,
+  .alert {
+    display: none !important;
+  }
+
+  .contrato-detalle-layout {
+    display: block;
+  }
+
+  .contrato-documento-scroll,
+  .contrato-documento-card,
+  .contrato-section,
+  .contrato-header-card {
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+}

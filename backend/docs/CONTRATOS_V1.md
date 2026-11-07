@@ -105,3 +105,29 @@ creados conservan su versión original**.
 
 Todas las rutas requieren sesión iniciada con Flask-Login. La sesión se crea
 desde el login de React mediante `/auth/callback`.
+---
+
+## API JSON para el frontend React
+
+Las vistas HTML siguen disponibles para compatibilidad. El frontend React consume
+una API JSON paralela, registrada en `backend/app/contratos/api.py` con el
+prefijo `/contratos/api`.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/contratos/api/opciones` | Desarrolladores, productos, ofertas, plantillas y datos del cliente autenticado. |
+| `GET` | `/contratos/api/` | Lista los contratos del usuario (como cliente y como desarrollador). Acepta `?estado=`. |
+| `GET` | `/contratos/api/<id>` | Detalle completo, documento legal (`documento_html`), firmas, entregables y estado Escrow. |
+| `POST` | `/contratos/api/crear` | Crea un contrato validando `ContratoForm`. Devuelve `400` con `errores` por campo si falla. |
+| `POST` | `/contratos/api/<id>/aceptar` | Registra la firma (`{"acepto": true}`). Si firma el cliente, retiene el monto en Escrow. |
+| `POST` | `/contratos/api/<id>/cancelar` | Cancela el contrato (`{"confirmar": true}`). |
+
+Convenciones de respuesta:
+
+```json
+{ "ok": true, "mensaje": "...", "contrato": { } }
+{ "ok": false, "mensaje": "Revisa los campos del formulario.", "errores": { "campo": "mensaje" } }
+```
+
+La sesión es la cookie de Flask-Login creada por `/auth/callback`. Las mutaciones
+envían el token de `/contratos/api/csrf` en la cabecera `X-CSRFToken`.

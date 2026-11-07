@@ -38,7 +38,7 @@ export function fechaMinimaLocal() {
   return ahora.toISOString().slice(0, 16);
 }
 
-// El módulo de contratos sigue en Flask: se enlaza con una navegación normal (no con <Link>).
+// El formulario de contratos vive en React (/contratos/nuevo); estas URLs lo prellenan.
 // Ajusta la ruta base si tu blueprint de contratos usa otra.
 const CONTRATOS_NUEVO = '/contratos/nuevo';
 
