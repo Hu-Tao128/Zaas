@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { loginWithEmail, loginWithGoogle } from '../services/authService';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import GoogleButton from '../components/GoogleButton';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -8,28 +10,25 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { user, loading: authLoading, sincronizar, marcarAutenticado } = useAuth();
+
+  // Si la sesión ya está activa (por ejemplo, tras un rebote de redirección),
+  // llevar al usuario al área privada en lugar de dejarlo en /login.
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/', { replace: true });
+    }
+  }, [authLoading, user, navigate]);
 
   async function handleEmailLogin(e) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const { idToken } = await loginWithEmail(email, password);
-      const response = await fetch('/auth/callback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_token: idToken }),
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error de autenticación');
-      }
-      
-      const data = await response.json();
-      console.log('Login exitoso:', data);
-      navigate(data.redirect || '/');
+      const { user: firebaseUser } = await loginWithEmail(email, password);
+      await sincronizar(firebaseUser);
+      marcarAutenticado(firebaseUser);
+      navigate('/', { replace: true });
     } catch (err) {
       setError(err.message || 'Error al iniciar sesión');
     } finally {
@@ -41,22 +40,10 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const { idToken } = await loginWithGoogle();
-      const response = await fetch('/auth/callback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_token: idToken }),
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error con Google');
-      }
-      
-      const data = await response.json();
-      console.log('Login con Google exitoso:', data);
-      navigate(data.redirect || '/');
+      const { user: firebaseUser } = await loginWithGoogle();
+      await sincronizar(firebaseUser);
+      marcarAutenticado(firebaseUser);
+      navigate('/', { replace: true });
     } catch (err) {
       setError(err.message || 'Error con Google');
     } finally {
@@ -65,40 +52,75 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="auth-container">
-      <h1>Iniciar Sesión</h1>
-      
-      {error && <div className="error">{error}</div>}
-      
-      <form onSubmit={handleEmailLogin}>
-        <input
-          type="email"
-          placeholder="Correo electrónico"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
+    <div className="auth-wrapper">
+      <div className="auth-container zaas-auth-card">
+        <div className="auth-header-brand">
+          <Link to="/" className="auth-brand-logo" aria-label="Zaas - Inicio">
+            Zaas<span className="brand-dot">.</span>
+          </Link>
+          <h1>Iniciar Sesión</h1>
+          <p className="auth-subtitle">
+            Accede a tu cuenta para comprar SaaS y contratar talento con garantía Escrow.
+          </p>
+        </div>
+
+        {error && (
+          <div className="error" role="alert">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleEmailLogin} aria-label="Formulario de inicio de sesión">
+          <div className="form-group">
+            <label htmlFor="login-email">Correo electrónico</label>
+            <input
+              id="login-email"
+              type="email"
+              placeholder="tu@correo.com"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="login-password">Contraseña</label>
+            <input
+              id="login-password"
+              type="password"
+              placeholder="Tu contraseña"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn btn-primary btn-auth-submit"
+            aria-busy={loading}
+          >
+            {loading ? 'Cargando...' : 'Iniciar Sesión'}
+          </button>
+        </form>
+
+        <div className="divider" aria-hidden="true">
+          <span>o</span>
+        </div>
+
+        <GoogleButton
+          label="Continuar con Google"
+          onClick={handleGoogleLogin}
+          disabled={loading}
         />
-        <input
-          type="password"
-          placeholder="Contraseña"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit" disabled={loading}>
-          {loading ? 'Cargando...' : 'Iniciar Sesión'}
-        </button>
-      </form>
 
-      <div className="divider">o</div>
-
-      <button onClick={handleGoogleLogin} disabled={loading} className="google-btn">
-        Continuar con Google
-      </button>
-
-      <p>
-        ¿No tienes cuenta? <Link to="/registro">Regístrate aquí</Link>
-      </p>
+        <p className="auth-footer-text">
+          ¿No tienes cuenta? <Link to="/registro">Regístrate aquí</Link>
+        </p>
+      </div>
     </div>
   );
 }

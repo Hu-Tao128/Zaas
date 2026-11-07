@@ -1,4 +1,11 @@
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signOut,
+  onAuthStateChanged
+} from 'firebase/auth';
 import { auth, analytics } from '../firebase';
 import { logEvent } from 'firebase/analytics';
 
@@ -38,8 +45,19 @@ export async function loginWithGoogle() {
  * Registro con email y contraseña
  */
 export async function registerWithEmail(email, password) {
-  // El registro se maneja con loginWithEmail ya que Firebase crea el usuario
-  return await loginWithEmail(email, password);
+  try {
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    const idToken = await result.user.getIdToken();
+    if (analytics) {
+      logEvent(analytics, 'sign_up', { method: 'email' });
+    }
+    return { user: result.user, idToken };
+  } catch (error) {
+    if (error.code === 'auth/email-already-in-use') {
+      return await loginWithEmail(email, password);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -49,6 +67,15 @@ export async function logout() {
   if (analytics) {
     logEvent(analytics, 'logout');
   }
+
+  // Cerrar también la sesión de Flask (cookie). El endpoint redirige a /login,
+  // pero solo nos interesa que invalide la cookie del servidor.
+  try {
+    await fetch('/auth/logout', { credentials: 'include' });
+  } catch (error) {
+    console.error('No se pudo cerrar la sesión del servidor:', error);
+  }
+
   await signOut(auth);
 }
 
@@ -66,6 +93,7 @@ export async function syncWithBackend(idToken) {
   const response = await fetch('/auth/callback', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ id_token: idToken })
   });
   

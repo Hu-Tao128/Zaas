@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useApi } from '../../hooks/useApi';
 import { catalogoApi } from '../../services/catalogoApi';
 import { AlertaError, BadgeEstado, Cargando, EmptyCard, ErrorCard } from '../../components/catalogo/CatalogoUI';
+import { PlusIcon } from '../../components/icons';
 import { formatDinero, formatFecha, recortar } from './catalogoUtils';
 
 export default function MisOfertasPage() {
@@ -33,40 +34,56 @@ export default function MisOfertasPage() {
 
   return (
     <>
-      <h1>Mis ofertas</h1>
+      <div className="catalogo-view-header">
+        <h1 className="catalogo-page-title">Mis ofertas</h1>
+        <p className="catalogo-page-subtitle">
+          Revisa las ofertas que has publicado y las propuestas recibidas.
+        </p>
+      </div>
       {mensaje && <div className="alert alert-success">{mensaje}</div>}
       <AlertaError>{errorAccion}</AlertaError>
-      <div className="catalogo-actions">
-        <Link to="/oferta/nueva" className="btn btn-primary">+ Nueva Oferta</Link>
-        <Link to="/ofertas" className="btn btn-secondary">Ver ofertas públicas</Link>
+      <div className="catalogo-actions-bar">
+        <div className="catalogo-actions-group">
+          <Link to="/oferta/nueva" className="btn btn-primary">
+            <PlusIcon />
+            <span>Nueva Oferta</span>
+          </Link>
+          <Link to="/ofertas" className="btn btn-secondary">Ver ofertas públicas</Link>
+        </div>
       </div>
 
-      {misOfertas.length > 0 ? misOfertas.map((oferta) => (
-        <article key={oferta.id} className="card">
-          <div className="catalogo-title-row">
-            <h3><Link to={`/oferta/${oferta.id}`}>{oferta.titulo}</Link></h3>
-            <BadgeEstado estado={oferta.estado} />
-          </div>
-          <p>{recortar(oferta.descripcion_requerimientos || 'Sin descripción', 200)}</p>
-          <p>
-            <strong>Presupuesto:</strong> {oferta.presupuesto ? formatDinero(oferta.presupuesto) : 'No especificado'}
-            {' | '}
-            <strong>Entrega:</strong> {oferta.fecha_entrega ? formatFecha(oferta.fecha_entrega) : 'Sin fecha'}
-            {' | '}
-            <strong>Publicada:</strong> {formatFecha(oferta.fecha_publicacion)}
-          </p>
-          <p><strong>Postulaciones:</strong> {oferta.num_postulaciones}</p>
-          <div className="catalogo-actions">
-            <Link to={`/oferta/${oferta.id}`} className="btn btn-secondary btn-sm">Ver detalle y postulaciones</Link>
-            {oferta.estado === 'abierto' && (
-              <Link to={`/oferta/${oferta.id}/editar`} className="btn btn-secondary btn-sm">Editar</Link>
-            )}
-            {['abierto', 'en_progreso'].includes(oferta.estado) && (
-              <button type="button" className="btn btn-danger btn-sm" onClick={() => handleCerrar(oferta)}>Cerrar</button>
-            )}
-          </div>
-        </article>
-      )) : <EmptyCard>Aún no has publicado ofertas.</EmptyCard>}
+      {misOfertas.length > 0 ? (
+        <div className="catalogo-stack">
+          {misOfertas.map((oferta) => (
+            <article key={oferta.id} className="card">
+              <div className="catalogo-title-row">
+                <h3><Link to={`/oferta/${oferta.id}`}>{oferta.titulo}</Link></h3>
+                <BadgeEstado estado={oferta.estado} />
+              </div>
+              <p>{recortar(oferta.descripcion_requerimientos || 'Sin descripción', 200)}</p>
+              <p>
+                <strong>Presupuesto:</strong> {oferta.presupuesto ? formatDinero(oferta.presupuesto) : 'No especificado'}
+                {' | '}
+                <strong>Entrega:</strong> {oferta.fecha_entrega ? formatFecha(oferta.fecha_entrega) : 'Sin fecha'}
+                {' | '}
+                <strong>Publicada:</strong> {formatFecha(oferta.fecha_publicacion)}
+              </p>
+              <p><strong>Postulaciones:</strong> {oferta.num_postulaciones}</p>
+              <div className="catalogo-actions">
+                <Link to={`/oferta/${oferta.id}`} className="btn btn-secondary btn-sm">Ver detalle y postulaciones</Link>
+                {oferta.estado === 'abierto' && (
+                  <Link to={`/oferta/${oferta.id}/editar`} className="btn btn-secondary btn-sm">Editar</Link>
+                )}
+                {['abierto', 'en_progreso'].includes(oferta.estado) && (
+                  <button type="button" className="btn btn-danger btn-sm" onClick={() => handleCerrar(oferta)}>Cerrar</button>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyCard>Aún no has publicado ofertas.</EmptyCard>
+      )}
     </>
   );
 }

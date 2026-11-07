@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useCatalogo } from '../../context/CatalogoContext';
 import { useApi } from '../../hooks/useApi';
 import { catalogoApi } from '../../services/catalogoApi';
-import { BadgeEstado, Cargando, EmptyCard, ErrorCard, Pagination } from '../../components/catalogo/CatalogoUI';
-import { formatDinero, formatFecha, recortar } from './catalogoUtils';
+import { Cargando, ErrorCard, Pagination } from '../../components/catalogo/CatalogoUI';
+import CatalogControls from '../../components/CatalogControls';
+import ZaasCard from '../../components/ZaasCard';
+import EmptyState from '../../components/EmptyState';
 
 export default function OfertasPage() {
   const { usuario } = useCatalogo();
@@ -22,12 +24,18 @@ export default function OfertasPage() {
     [busquedaParam, paginaParam],
   );
   const visibles = data?.items || [];
+  const tieneFiltros = Boolean(busquedaParam || busqueda);
 
   function handleSubmit(event) {
-    event.preventDefault();
+    if (event?.preventDefault) event.preventDefault();
     const params = new URLSearchParams();
     if (busqueda.trim()) params.set('q', busqueda.trim());
     setSearchParams(params);
+  }
+
+  function handleLimpiar() {
+    setBusqueda('');
+    setSearchParams(new URLSearchParams());
   }
 
   function cambiarPagina(nuevaPagina) {
@@ -37,62 +45,66 @@ export default function OfertasPage() {
   }
 
   return (
-    <>
-      <h1>Ofertas de Trabajo</h1>
-
-      <form className="card catalogo-search" onSubmit={handleSubmit}>
-        <input
-          type="search"
-          value={busqueda}
-          onChange={(event) => setBusqueda(event.target.value)}
-          placeholder="Buscar por título o requerimientos..."
-          aria-label="Buscar ofertas"
-        />
-        <button type="submit" className="btn btn-primary">Buscar</button>
-        {busquedaParam && <Link to="/ofertas" className="btn btn-secondary">Limpiar</Link>}
-      </form>
-
-      <div className="catalogo-actions">
-        {usuario.tipo_usuario === 'cliente' ? (
-          <>
-            <Link to="/oferta/nueva" className="btn btn-primary">+ Nueva Oferta</Link>
-            <Link to="/mis-ofertas" className="btn btn-secondary">Mis ofertas</Link>
-          </>
-        ) : (
-          <Link to="/mis-postulaciones" className="btn btn-secondary">Mis postulaciones</Link>
-        )}
+    <div className="catalogo-page-container">
+      {/* Encabezado descriptivo de la vista de ofertas */}
+      <div className="catalogo-view-header">
+        <h1 className="catalogo-page-title">Ofertas de Trabajo y Proyectos</h1>
+        <p className="catalogo-page-subtitle">
+          Contrata desarrolladores o postúlate a encargos protegidos con contratos y pagos en garantía Escrow.
+        </p>
       </div>
 
+      {/* Controles accesibles: búsqueda, filtros y botonera unificada */}
+      <CatalogControls
+        tipo="ofertas"
+        busqueda={busqueda}
+        onBusquedaChange={setBusqueda}
+        onSubmit={handleSubmit}
+        onLimpiar={handleLimpiar}
+        tieneFiltros={tieneFiltros}
+        usuario={usuario}
+        totalResultados={data?.total}
+      />
+
+      {/* Indicadores de carga y error */}
       {loading && <Cargando />}
       {error && <ErrorCard error={error} />}
 
-      {!loading && !error && (visibles.length > 0 ? (
-        <div className="catalogo-grid catalogo-grid-2">
-          {visibles.map((oferta) => (
-            <article key={oferta.id} className="card">
-              <h4><Link to={`/oferta/${oferta.id}`}>{oferta.titulo}</Link></h4>
-              <p>{recortar(oferta.descripcion_requerimientos, 120) || 'Sin descripción'}</p>
-              {oferta.presupuesto && <p><strong>Presupuesto:</strong> {formatDinero(oferta.presupuesto)}</p>}
-              {oferta.fecha_entrega && <p><strong>Entrega:</strong> {formatFecha(oferta.fecha_entrega)}</p>}
-              <div className="catalogo-actions">
-                <BadgeEstado estado={oferta.estado} />
-                {usuario.tipo_usuario === 'desarrollador' && (
-                  <Link to={`/oferta/${oferta.id}/postular`} className="btn btn-primary btn-sm">Postularme</Link>
-                )}
-              </div>
-              <small>{formatFecha(oferta.fecha_publicacion)}</small>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <EmptyCard>
-          {busquedaParam
-            ? `No se encontraron ofertas abiertas para "${busquedaParam}".`
-            : 'No hay ofertas abiertas por el momento.'}
-        </EmptyCard>
-      ))}
+      {/* Grid accesible de tarjetas de ofertas con espaciado amplio */}
+      {!loading && !error && (
+        visibles.length > 0 ? (
+          <div className="catalogo-grid catalogo-grid-3">
+            {visibles.map((oferta) => (
+              <ZaasCard
+                key={oferta.id}
+                variant="oferta"
+                data={oferta}
+                usuario={usuario}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            title={tieneFiltros ? 'No encontramos ofertas para tu búsqueda' : 'No hay ofertas abiertas'}
+            description={
+              tieneFiltros
+                ? `No se encontraron ofertas de trabajo abiertas para "${busquedaParam}". Intenta con otros requerimientos o restablece la búsqueda.`
+                : 'No hay ofertas abiertas por el momento. ¡Publica una nueva oferta para iniciar!'
+            }
+            onReset={tieneFiltros ? handleLimpiar : undefined}
+            resetText="Limpiar búsqueda y ver todas"
+          />
+        )
+      )}
 
-      {data && <Pagination pagina={data.page} totalPaginas={data.pages} onCambiarPagina={cambiarPagina} />}
-    </>
+      {/* Paginación accesible */}
+      {data && (
+        <Pagination
+          pagina={data.page}
+          totalPaginas={data.pages}
+          onCambiarPagina={cambiarPagina}
+        />
+      )}
+    </div>
   );
 }
