@@ -1,50 +1,63 @@
-# Supabase en Zaas
+# Supabase en ZaaS
 
 ## Configuración
 
-1. Copia `.env.example` a `.env` y completa las credenciales:
+1. Copia `.env.example` a `.env` y completa:
    ```bash
    cp .env.example .env
    ```
-2. Obtén `SUPABASE_URL` y `SUPABASE_KEY` desde tu proyecto en [Supabase Dashboard](https://app.supabase.com).
+2. Obtén `SUPABASE_URL` y `SUPABASE_KEY` (service_role) en
+   [Supabase Dashboard](https://app.supabase.com/project/_/settings/api).
 
-## Cómo usar el cliente en cualquier blueprint
+No se usa Supabase Auth ni Third-Party Auth. Firebase autentica y el backend
+guarda los usuarios en Supabase con la `service_role` key.
+
+## Login Firebase -> Supabase
+
+El frontend envía el ID token de Firebase a:
+
+```
+POST /auth/firebase-login
+```
+
+El backend:
+
+1. verifica el token con Firebase Admin,
+2. crea/actualiza el usuario local (sesión Flask),
+3. hace upsert en `public.usuario` por `firebase_uid`/`email`,
+4. crea `public.perfil` si falta,
+5. devuelve `id`, `firebase_uid`, `email`, `tipo_usuario` y `supabase_id`.
+
+Guía completa: [`FIREBASE_SUPABASE.md`](FIREBASE_SUPABASE.md).
+
+## Sincronización masiva
+
+```bash
+cd backend
+source .venv/bin/activate
+
+python supabase_setup.py --verify           # 27 tablas del MR
+python supabase_setup.py --sync-firebase    # usuarios de Firebase -> Supabase
+```
+
+## Cliente en el backend
 
 ```python
 from app.extensions import get_supabase
 
-def mi_funcion():
-    client = get_supabase()
-    
-    # SELECT
-    response = client.table('mi_tabla').select('*').eq('estado', 'activo').execute()
-    datos = response.data
-    
-    # INSERT
-    response = client.table('mi_tabla').insert({'nombre': 'ejemplo'}).execute()
-    
-    # UPDATE
-    response = client.table('mi_tabla').update({'nombre': 'nuevo'}).eq('id', 1).execute()
-    
-    # DELETE
-    response = client.table('mi_tabla').delete().eq('id', 1).execute()
+client = get_supabase()
+respuesta = client.table('usuario').select('*').eq('firebase_uid', uid).execute()
 ```
 
-## Endpoints de ejemplo
+## RLS
 
-El blueprint `supabase_api` incluye endpoints CRUD para la tabla `todos`:
+Las tablas tienen RLS habilitado y sin políticas para `anon`/`authenticated`.
+El backend usa `service_role`, que omite RLS. El frontend no se conecta directo
+a Supabase; consume la API Flask.
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `GET` | `/api/supabase/health` | Verifica conexión a Supabase |
-| `GET` | `/api/supabase/todos` | Lista todos los todos |
-| `POST` | `/api/supabase/todos` | Crea un nuevo todo |
-| `PATCH` | `/api/supabase/todos/<id>` | Actualiza un todo |
-| `DELETE` | `/api/supabase/todos/<id>` | Elimina un todo |
+## Notas
 
-## Notas importantes
-
-- El cliente se inicializa **una sola vez** al arrancar la app (`init_supabase`).
-- Si faltan las credenciales, la app arranca pero `get_supabase()` lanza `RuntimeError`.
-- **No mezcles** SQLAlchemy y Supabase para la misma tabla — elige una fuente de verdad.
-- Para queries complejas, usa Supabase; para relaciones y transacciones, usa SQLAlchemy.
+- El cliente se inicializa una sola vez al arrancar la app (`init_supabase`).
+- No mezcles SQLAlchemy y Supabase para la misma tabla: elige una fuente de
+  verdad. SQLite es el entorno local y Supabase el MR compartido.
+- Para queries complejas, usa Supabase; para relaciones y transacciones, SQLAlchemy.

@@ -36,9 +36,22 @@ Zaas/
 ## Arquitectura
 
 - **Firebase Auth** → Autenticación (email/password + Google Sign-In)
-- **SQLite local** → Datos de usuario (perfil, proyectos, ofertas, contratos)
-- **Supabase** → Datos compartidos (notificaciones, métricas, config global)
+- **Supabase (Postgres)** → Modelo relacional del MR (27 tablas)
+- **SQLite local** → Entorno de desarrollo y respaldo del backend Flask
 - **Firebase Analytics** → Tracking de eventos en el frontend
+
+### Firebase Auth + Supabase
+
+El frontend autentica con Firebase y el backend valida el ID token en
+`POST /auth/firebase-login`. Desde ahí se guardan `usuario` y `perfil` en
+Supabase con la `service_role` key, sin Supabase Auth ni Third-Party Auth.
+La guía está en [`backend/docs/FIREBASE_SUPABASE.md`](backend/docs/FIREBASE_SUPABASE.md).
+
+```bash
+cd backend
+python supabase_setup.py --verify           # comprueba las 27 tablas del MR
+python supabase_setup.py --sync-firebase    # usuarios -> public.usuario/perfil
+```
 
 ## Contratos (v1.0)
 
@@ -72,7 +85,9 @@ cd backend
 python -m venv venv
 source venv/bin/activate  # En Windows: venv\Scripts\activate
 pip install -r requirements.txt
-python seed.py            # Crear DB y datos de prueba
+python seed.py            # Base nueva + datos de prueba
+# Si ya tienes una base local con el esquema anterior:
+python migrate_mr.py      # Migra al Modelo Relacional corregido sin borrar datos
 python run.py             # Servidor en http://localhost:5000
 ```
 
@@ -100,3 +115,18 @@ pnpm build                # Build para producción
 | Sidrac | contratos | contrato, entregable, aceptacion, plantilla_contrato |
 | Daniel | pagos | pago, liberacion, recibo, disputa, arbitraje |
 | Gael | comunicacion | conversacion, mensaje, notificacion, calificacion, incidencia |
+
+## Versionamiento
+
+La versión actual vive en [`VERSION`](VERSION) y en `frontend/package.json`.
+El historial está en [`CHANGELOG.md`](CHANGELOG.md).
+
+```bash
+./scripts/release.sh --bump minor --yes    # 1.x.0
+./scripts/release.sh --bump patch --yes    # 1.x.x
+./scripts/release.sh --bump major --yes    # cambios incompatibles
+```
+
+El script actualiza `VERSION` y `frontend/package.json`, crea el commit
+`chore(release): vX.Y.Z`, publica el commit y crea el tag/release en GitHub.
+Requiere `gh auth login`.
