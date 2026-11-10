@@ -7,6 +7,9 @@
     <p><strong>Tipo:</strong> {{ disputa.tipo }}</p>
     <p><strong>Reportante:</strong> {{ disputa.reportante.nombres if disputa.reportante else 'N/A' }}</p>
     <p><strong>Descripción:</strong> {{ disputa.descripcion }}</p>
+    <p><strong>Pago relacionado:</strong> {{ ('#' ~ disputa.id_pago) if disputa.id_pago else 'N/A' }}</p>
+    <p><strong>Entregable relacionado:</strong> {{ disputa.entregable.titulo if disputa.entregable else 'N/A' }}</p>
+    <p><strong>Incidencia relacionada:</strong> {{ ('#' ~ disputa.id_incidencia) if disputa.id_incidencia else 'N/A' }}</p>
     <p><strong>Fecha:</strong> {{ disputa.fecha_hora_publicacion.strftime('%d/%m/%Y') }}</p>
     {% if disputa.resolucion %}
         <h3 class="mt-2">Resolución</h3>

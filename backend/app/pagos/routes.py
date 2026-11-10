@@ -33,7 +33,9 @@ def pagar_contrato(id):
         pago = Pago(
             id_contrato=id,
             monto=contrato.costo_acordado,
-            estado_escrow='retenido'
+            estado_escrow='retenido',
+            metodo_pago='simulado',
+            transaccion_id=f'TX-{uuid.uuid4().hex[:12].upper()}',
         )
         db.session.add(pago)
         db.session.commit()
@@ -43,7 +45,8 @@ def pagar_contrato(id):
         recibo = Recibo(
             id_pago=pago.id,
             folio=folio,
-            contenido_html=_generar_html_recibo(pago, contrato)
+            total=pago.monto,
+            contenido_html=_generar_html_recibo(pago, contrato, folio)
         )
         db.session.add(recibo)
         db.session.commit()
@@ -90,9 +93,13 @@ def liberar_fondos(id):
     pago.fecha_liberacion = datetime.utcnow()
     contrato.estado = 'finalizado'
 
+    aprobados = [e for e in (contrato.entregables or []) if e.estado == 'aprobado']
+    entregable = max(aprobados, key=lambda e: e.fecha_subida or datetime.min, default=None)
+
     liberacion = Liberacion(
         id_pago=pago.id,
         id_usuario=current_user.id,
+        id_entregable=entregable.id if entregable else None,
         monto_liberado=pago.monto,
         motivo='Entregable aprobado por el cliente'
     )
@@ -114,18 +121,31 @@ def nueva_disputa(id):
         abort(403)
     form = DisputaForm()
     if form.validate_on_submit():
+        pago = db.session.execute(
+            db.select(Pago).filter_by(id_contrato=id, estado_escrow='retenido')
+        ).scalar_one_or_none()
+        aprobados = [e for e in (contrato.entregables or []) if e.estado in ('pendiente', 'aprobado')]
+        entregable = max(aprobados, key=lambda e: e.fecha_subida or datetime.min, default=None)
+
+        # El MR prohíbe que una disputa apunte a pago y entregable a la vez.
+        if form.tipo.data == 'entregable' and entregable:
+            id_pago, id_entregable = None, entregable.id
+        elif pago:
+            id_pago, id_entregable = pago.id, None
+        else:
+            id_pago, id_entregable = None, (entregable.id if entregable else None)
+
         disputa = Disputa(
             id_contrato=id,
             id_reportante=current_user.id,
+            id_pago=id_pago,
+            id_entregable=id_entregable,
             tipo=form.tipo.data,
             descripcion=form.descripcion.data
         )
         db.session.add(disputa)
 
         # Congelar fondos si existen
-        pago = db.session.execute(
-            db.select(Pago).filter_by(id_contrato=id, estado_escrow='retenido')
-        ).scalar_one_or_none()
         if pago:
             pago.estado_escrow = 'retenido'  # se mantiene congelado
 
@@ -143,6 +163,9 @@ def resolver_disputa(id):
     disputa = db.session.get(Disputa, id)
     if not disputa:
         abort(404)
+    if disputa.estado in ('resuelta', 'cerrada'):
+        flash('Esta disputa ya fue resuelta.', 'warning')
+        return redirect(url_for('pagos.ver_disputa', id=id))
     form = ArbitrajeForm()
     if form.validate_on_submit():
         arbitraje = Arbitraje(
@@ -154,9 +177,9 @@ def resolver_disputa(id):
         )
         db.session.add(arbitraje)
 
-        pago = db.session.execute(
+        pago = disputa.pago or db.session.execute(
             db.select(Pago).filter_by(id_contrato=disputa.id_contrato)
-        ).scalar_one_or_none()
+        ).scalars().first()
         if pago:
             if form.decision.data == 'liberar':
                 pago.estado_escrow = 'liberado'
@@ -189,11 +212,11 @@ def ver_disputa(id):
     return render_template('pagos/ver_disputa.html', disputa=disputa)
 
 
-def _generar_html_recibo(pago, contrato):
+def _generar_html_recibo(pago, contrato, folio=''):
     return f"""
     <html><body>
     <h1>Recibo de Pago - Zaas</h1>
-    <p><strong>Folio:</strong> (generado al guardar)</p>
+    <p><strong>Folio:</strong> {folio}</p>
     <p><strong>Monto:</strong> ${pago.monto:.2f}</p>
     <p><strong>Contrato:</strong> #{contrato.id}</p>
     <p><strong>Cliente:</strong> {contrato.cliente.nombres} {contrato.cliente.apellido_paterno}</p>

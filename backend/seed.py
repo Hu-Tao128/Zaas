@@ -11,7 +11,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app import create_app
 from app.extensions import db
-from app.auth.models import Usuario, Perfil
+from app.auth.models import (
+    Usuario, Perfil, Habilidad, PerfilHabilidad, PerfilTecnologia,
+)
 from app.catalogo.models import Proyecto, OfertaTrabajo, Categoria, Tecnologia
 from app.contratos.models import Contrato, PlantillaContrato
 from app.contratos.plantillas import NOMBRE_PLANTILLA_BASE, PLANTILLA_BASE_V1
@@ -45,23 +47,12 @@ def seed():
         db.session.add_all([admin, cliente1, dev1, dev2])
         db.session.flush()
 
-        # ── Perfiles ──
-        for u in [cliente1, dev1, dev2]:
-            perfil = Perfil(
-                id_usuario=u.id,
-                descripcion=f'Perfil de {u.nombres}',
-                habilidades='Python, Flask, JavaScript' if u.tipo_usuario == 'desarrollador' else 'Gestión de proyectos',
-                empresa='Tech Corp' if u.tipo_usuario == 'desarrollador' else None,
-                stack_tecnologico='Flask, SQLAlchemy, HTML/CSS' if u.tipo_usuario == 'desarrollador' else None,
-                enlaces='https://github.com' if u.tipo_usuario == 'desarrollador' else None
-            )
-            db.session.add(perfil)
-
-        # ── Categorías y Tecnologías ──
-        cat_web = Categoria(nombre='Desarrollo Web')
-        cat_mobile = Categoria(nombre='Aplicaciones Móviles')
-        cat_data = Categoria(nombre='Data Science')
-        db.session.add_all([cat_web, cat_mobile, cat_data])
+        # ── Catálogo de habilidades y tecnologías ──
+        hab_python = Habilidad(nombre='Python')
+        hab_flask = Habilidad(nombre='Flask')
+        hab_js = Habilidad(nombre='JavaScript')
+        hab_gestion = Habilidad(nombre='Gestión de proyectos')
+        db.session.add_all([hab_python, hab_flask, hab_js, hab_gestion])
 
         tech_python = Tecnologia(nombre='Python')
         tech_js = Tecnologia(nombre='JavaScript')
@@ -69,6 +60,35 @@ def seed():
         tech_flask = Tecnologia(nombre='Flask')
         db.session.add_all([tech_python, tech_js, tech_react, tech_flask])
         db.session.flush()
+
+        # ── Perfiles (MR: habilidades y tecnologías normalizadas) ──
+        for u in [cliente1, dev1, dev2]:
+            perfil = Perfil(
+                id_usuario=u.id,
+                descripcion=f'Perfil de {u.nombres}',
+                empresa='Tech Corp' if u.tipo_usuario == 'desarrollador' else None,
+                enlaces='https://github.com' if u.tipo_usuario == 'desarrollador' else None
+            )
+            if u.tipo_usuario == 'desarrollador':
+                perfil.habilidades.extend([
+                    PerfilHabilidad(habilidad=hab_python),
+                    PerfilHabilidad(habilidad=hab_flask),
+                    PerfilHabilidad(habilidad=hab_js),
+                ])
+                perfil.tecnologias.extend([
+                    PerfilTecnologia(tecnologia=tech_python),
+                    PerfilTecnologia(tecnologia=tech_flask),
+                    PerfilTecnologia(tecnologia=tech_react),
+                ])
+            else:
+                perfil.habilidades.append(PerfilHabilidad(habilidad=hab_gestion))
+            db.session.add(perfil)
+
+        # ── Categorías ──
+        cat_web = Categoria(nombre='Desarrollo Web')
+        cat_mobile = Categoria(nombre='Aplicaciones Móviles')
+        cat_data = Categoria(nombre='Data Science')
+        db.session.add_all([cat_web, cat_mobile, cat_data])
 
         # ── Proyectos ──
         p1 = Proyecto(id_usuario=dev1.id, titulo='Sistema de Inventarios', descripcion='Aplicación web para gestión de inventarios con reportes.', precio=5000, demo_habilitada=True)

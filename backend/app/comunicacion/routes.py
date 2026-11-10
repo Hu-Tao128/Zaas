@@ -1,5 +1,6 @@
 from flask import render_template, redirect, url_for, request, flash, abort
 from flask_login import login_required, current_user
+from sqlalchemy import or_
 from app.comunicacion import comunicacion_bp
 from app.comunicacion.models import Conversacion, Mensaje, Notificacion, Calificacion, Incidencia
 from app.comunicacion.forms import MensajeForm, CalificacionForm, IncidenciaForm
@@ -157,9 +158,19 @@ def calificar_contrato(id):
 @login_required
 def nueva_incidencia():
     form = IncidenciaForm()
+    contratos = db.session.execute(
+        db.select(Contrato).filter(or_(
+            Contrato.id_cliente == current_user.id,
+            Contrato.id_desarrollador == current_user.id,
+        )).order_by(Contrato.fecha_creacion.desc())
+    ).scalars().all()
+    form.id_contrato.choices = [(0, 'Sin contrato relacionado')] + [
+        (c.id, f'Contrato #{c.id} — {c.objeto}') for c in contratos
+    ]
     if form.validate_on_submit():
         incidencia = Incidencia(
             id_usuario=current_user.id,
+            id_contrato=form.id_contrato.data or None,
             tipo=form.tipo.data,
             descripcion=form.descripcion.data
         )

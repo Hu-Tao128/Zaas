@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import TextAreaField, IntegerField, StringField, SelectField
-from wtforms.validators import DataRequired, Length, NumberRange
+from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
 
 class MensajeForm(FlaskForm):
@@ -21,3 +21,9 @@ class IncidenciaForm(FlaskForm):
         ('otro', 'Otro')
     ], validators=[DataRequired()])
     descripcion = TextAreaField('Descripción', validators=[DataRequired()])
+    id_contrato = SelectField(
+        'Contrato relacionado (opcional)',
+        coerce=int,
+        validators=[Optional()],
+        validate_choice=False,
+    )

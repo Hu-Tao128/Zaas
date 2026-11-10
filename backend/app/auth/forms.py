@@ -26,5 +26,5 @@ class PerfilForm(FlaskForm):
     descripcion = TextAreaField('Descripción')
     habilidades = StringField('Habilidades (separadas por comas)')
     empresa = StringField('Empresa', validators=[Length(max=150)])
-    stack_tecnologico = TextAreaField('Stack Tecnológico')
+    tecnologias = TextAreaField('Tecnologías (separadas por comas)')
     enlaces = StringField('Enlaces (separados por comas)')

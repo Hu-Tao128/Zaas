@@ -5,6 +5,12 @@ from app.extensions import db
 
 class Usuario(UserMixin, db.Model):
     __tablename__ = 'usuario'
+    __table_args__ = (
+        db.CheckConstraint(
+            "tipo_usuario IN ('cliente', 'desarrollador', 'admin')",
+            name='ck_usuario_tipo_usuario',
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     firebase_uid = db.Column(db.String(128), unique=True, nullable=True, index=True)
@@ -47,14 +53,76 @@ class Perfil(db.Model):
     __tablename__ = 'perfil'
 
     id = db.Column(db.Integer, primary_key=True)
-    id_usuario = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    id_usuario = db.Column(
+        db.Integer, db.ForeignKey('usuario.id'), nullable=False, unique=True
+    )
     descripcion = db.Column(db.Text)
-    habilidades = db.Column(db.Text)  # lista separada por comas
     empresa = db.Column(db.String(150))
-    stack_tecnologico = db.Column(db.Text)
     enlaces = db.Column(db.Text)
 
     usuario = db.relationship('Usuario', back_populates='perfil')
+    habilidades = db.relationship(
+        'PerfilHabilidad', back_populates='perfil', cascade='all, delete-orphan'
+    )
+    tecnologias = db.relationship(
+        'PerfilTecnologia', back_populates='perfil', cascade='all, delete-orphan'
+    )
+
+    @property
+    def nombres_habilidades(self):
+        return [item.habilidad.nombre for item in self.habilidades if item.habilidad]
+
+    @property
+    def nombres_tecnologias(self):
+        return [item.tecnologia.nombre for item in self.tecnologias if item.tecnologia]
 
     def __repr__(self):
         return f'<Perfil Usuario {self.id_usuario}>'
+
+
+class Habilidad(db.Model):
+    __tablename__ = 'habilidad'
+
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(100), unique=True, nullable=False)
+
+    perfiles = db.relationship(
+        'PerfilHabilidad', back_populates='habilidad', cascade='all, delete-orphan'
+    )
+
+    def __repr__(self):
+        return f'<Habilidad {self.nombre}>'
+
+
+class PerfilHabilidad(db.Model):
+    __tablename__ = 'perfil_habilidad'
+    __table_args__ = (
+        db.UniqueConstraint('id_perfil', 'id_habilidad', name='uq_perfil_habilidad'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    id_perfil = db.Column(db.Integer, db.ForeignKey('perfil.id'), nullable=False)
+    id_habilidad = db.Column(db.Integer, db.ForeignKey('habilidad.id'), nullable=False)
+
+    perfil = db.relationship('Perfil', back_populates='habilidades')
+    habilidad = db.relationship('Habilidad', back_populates='perfiles')
+
+    def __repr__(self):
+        return f'<PerfilHabilidad perfil={self.id_perfil} habilidad={self.id_habilidad}>'
+
+
+class PerfilTecnologia(db.Model):
+    __tablename__ = 'perfil_tecnologia'
+    __table_args__ = (
+        db.UniqueConstraint('id_perfil', 'id_tecnologia', name='uq_perfil_tecnologia'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    id_perfil = db.Column(db.Integer, db.ForeignKey('perfil.id'), nullable=False)
+    id_tecnologia = db.Column(db.Integer, db.ForeignKey('tecnologia.id'), nullable=False)
+
+    perfil = db.relationship('Perfil', back_populates='tecnologias')
+    tecnologia = db.relationship('Tecnologia')
+
+    def __repr__(self):
+        return f'<PerfilTecnologia perfil={self.id_perfil} tecnologia={self.id_tecnologia}>'
