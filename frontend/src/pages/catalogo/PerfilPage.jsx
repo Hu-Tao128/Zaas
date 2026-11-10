@@ -45,10 +45,9 @@ export default function PerfilPage() {
   const nombreCompleto = `${usuario.nombres} ${usuario.apellido_paterno} ${usuario.apellido_materno || ''}`.trim();
   const inicial = usuario.nombres?.charAt(0)?.toUpperCase() || 'U';
 
-  // Habilidades y enlaces mapeados de campos de texto
-  const listaHabilidades = perfil.habilidades
-    ? perfil.habilidades.split(',').map((h) => h.trim()).filter(Boolean)
-    : [];
+  // El MR normaliza habilidades y tecnologías en tablas intermedias.
+  const listaHabilidades = (perfil.habilidades || []).map((h) => h.nombre);
+  const listaTecnologias = (perfil.tecnologias || []).map((t) => t.nombre);
 
   const listaEnlaces = perfil.enlaces
     ? perfil.enlaces.split(',').map((e) => e.trim()).filter(Boolean)
@@ -209,11 +208,17 @@ export default function PerfilPage() {
                 </section>
               )}
 
-              {/* Stack Tecnológico */}
-              {perfil.stack_tecnologico && (
-                <section className="card zaas-profile-section" aria-label="Stack tecnológico">
-                  <h2 className="zaas-section-heading">Stack Tecnológico y Herramientas</h2>
-                  <p className="zaas-stack-text">{perfil.stack_tecnologico}</p>
+              {/* Tecnologías */}
+              {listaTecnologias.length > 0 && (
+                <section className="card zaas-profile-section" aria-label="Tecnologías">
+                  <h2 className="zaas-section-heading">Tecnologías y Herramientas</h2>
+                  <div className="zaas-skills-cloud">
+                    {listaTecnologias.map((tecnologia, idx) => (
+                      <span key={`t-${idx}`} className="zaas-tag zaas-tag--skill">
+                        {tecnologia}
+                      </span>
+                    ))}
+                  </div>
                 </section>
               )}
 
@@ -418,6 +423,9 @@ export default function PerfilPage() {
  * (Cliente vs Desarrollador), sugerencias interactivas de autocompletado,
  * validaciones y prevención de errores (WCAG y Heurísticas de Nielsen #5 & #9).
  */
+const separarLista = (texto) =>
+  (texto || '').split(',').map((item) => item.trim()).filter(Boolean);
+
 function FormularioEditarPerfil({ usuario, perfil, onGuardadoExitoso }) {
   const esDesarrollador = usuario.tipo_usuario === 'desarrollador';
 
@@ -427,8 +435,8 @@ function FormularioEditarPerfil({ usuario, perfil, onGuardadoExitoso }) {
     apellido_materno: usuario.apellido_materno || '',
     empresa: perfil.empresa || '',
     descripcion: perfil.descripcion || '',
-    habilidades: perfil.habilidades || '',
-    stack_tecnologico: perfil.stack_tecnologico || '',
+    habilidades: (perfil.habilidades || []).map((h) => h.nombre).join(', '),
+    tecnologias: (perfil.tecnologias || []).map((t) => t.nombre).join(', '),
     enlaces: perfil.enlaces || '',
   });
 
@@ -443,21 +451,16 @@ function FormularioEditarPerfil({ usuario, perfil, onGuardadoExitoso }) {
   ];
 
   function agregarSugerenciaHabilidad(sugerencia) {
-    const actuales = datos.habilidades
-      ? datos.habilidades.split(',').map((s) => s.trim()).filter(Boolean)
-      : [];
-
+    const actuales = separarLista(datos.habilidades);
     if (!actuales.includes(sugerencia)) {
-      const nuevo = [...actuales, sugerencia].join(', ');
-      setDatos((prev) => ({ ...prev, habilidades: nuevo }));
+      setDatos((prev) => ({ ...prev, habilidades: [...actuales, sugerencia].join(', ') }));
     }
   }
 
-  function agregarSugerenciaStack(sugerencia) {
-    const actual = datos.stack_tecnologico.trim();
-    if (!actual.includes(sugerencia)) {
-      const nuevo = actual ? `${actual}, ${sugerencia}` : sugerencia;
-      setDatos((prev) => ({ ...prev, stack_tecnologico: nuevo }));
+  function agregarSugerenciaTecnologia(sugerencia) {
+    const actuales = separarLista(datos.tecnologias);
+    if (!actuales.includes(sugerencia)) {
+      setDatos((prev) => ({ ...prev, tecnologias: [...actuales, sugerencia].join(', ') }));
     }
   }
 
@@ -502,15 +505,13 @@ function FormularioEditarPerfil({ usuario, perfil, onGuardadoExitoso }) {
 
     setGuardando(true);
     try {
-      // Si el usuario es cliente, nos aseguramos de no enviar datos técnicos
-      const datosAEnviar = esDesarrollador
-        ? datos
-        : {
-            ...datos,
-            habilidades: '',
-            stack_tecnologico: '',
-            enlaces: '',
-          };
+      // El backend normaliza las listas en perfil_habilidad / perfil_tecnologia.
+      const datosAEnviar = {
+        ...datos,
+        habilidades: esDesarrollador ? separarLista(datos.habilidades) : [],
+        tecnologias: esDesarrollador ? separarLista(datos.tecnologias) : [],
+        enlaces: esDesarrollador ? datos.enlaces : '',
+      };
 
       const resp = await catalogoApi.actualizarPerfil(datosAEnviar);
       onGuardadoExitoso?.(resp.perfil_data);
@@ -730,15 +731,17 @@ function FormularioEditarPerfil({ usuario, perfil, onGuardadoExitoso }) {
               </div>
             </div>
 
-            {/* Stack Tecnológico */}
+            {/* Tecnologías */}
             <div className="form-group">
-              <label htmlFor="perfil-stack">Stack Tecnológico Detallado</label>
+              <label htmlFor="perfil-tecnologias">
+                Tecnologías y Herramientas (separadas por comas)
+              </label>
               <textarea
-                id="perfil-stack"
-                name="stack_tecnologico"
-                value={datos.stack_tecnologico}
+                id="perfil-tecnologias"
+                name="tecnologias"
+                value={datos.tecnologias}
                 onChange={handleChange}
-                placeholder="Ej. Frontend en React/Next.js, Backend en Python Flask/FastAPI, PostgreSQL, AWS, Tailwind CSS..."
+                placeholder="Ej. React, Next.js, FastAPI, PostgreSQL, Docker, AWS, Tailwind CSS..."
                 rows={3}
               />
               <div className="zaas-suggestions-box">
@@ -749,8 +752,8 @@ function FormularioEditarPerfil({ usuario, perfil, onGuardadoExitoso }) {
                       key={`st-${sug}`}
                       type="button"
                       className="zaas-chip-btn"
-                      onClick={() => agregarSugerenciaStack(sug)}
-                      aria-label={`Añadir tecnología ${sug} al stack`}
+                      onClick={() => agregarSugerenciaTecnologia(sug)}
+                      aria-label={`Añadir tecnología ${sug}`}
                     >
                       + {sug}
                     </button>

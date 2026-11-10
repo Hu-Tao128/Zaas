@@ -153,6 +153,28 @@ export default function Navbar() {
                 Contratos
               </NavLink>
             </li>
+            <li>
+              <NavLink
+                to="/notificaciones"
+                onClick={cerrarMenu}
+                className={({ isActive }) =>
+                  `catalogo-nav-link ${isActive ? 'catalogo-nav-link--active' : ''}`
+                }
+              >
+                Notificaciones
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/incidencias"
+                onClick={cerrarMenu}
+                className={({ isActive }) =>
+                  `catalogo-nav-link ${isActive ? 'catalogo-nav-link--active' : ''}`
+                }
+              >
+                Incidencias
+              </NavLink>
+            </li>
           </ul>
 
           <div className="catalogo-nav-user">

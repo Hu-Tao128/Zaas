@@ -1,5 +1,5 @@
 // Cliente de la API JSON de Contratos Escrow (`/contratos/api`).
-// Usa la sesión de Flask-Login creada por /auth/callback y el token CSRF de Flask-WTF.
+// Usa la sesión de Flask-Login creada por /auth/firebase-login y el token CSRF de Flask-WTF.
 const BASE = '/contratos/api';
 
 let csrfToken = null;
@@ -69,4 +69,10 @@ export const contratosApi = {
   crear: (datos) => peticion('POST', '/crear', datos),
   aceptar: (id) => peticion('POST', `/${id}/aceptar`, { acepto: true }),
   cancelar: (id) => peticion('POST', `/${id}/cancelar`, { confirmar: true }),
+
+  crearEntregable: (id, datos) => peticion('POST', `/${id}/entregables`, datos),
+  revisarEntregable: (id, datos) => peticion('POST', `/entregables/${id}/revisar`, datos),
+  liberar: (id) => peticion('POST', `/${id}/liberar`, {}),
+  abrirDisputa: (id, datos) => peticion('POST', `/${id}/disputa`, datos),
+  resolverDisputa: (id, datos) => peticion('POST', `/disputas/${id}/resolver`, datos),
 };

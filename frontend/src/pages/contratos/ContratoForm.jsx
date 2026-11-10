@@ -45,6 +45,15 @@ function validar(valores, productos) {
     errores.notas = 'Las notas no pueden superar los 2000 caracteres.';
   }
 
+  // Regla del MR: exactamente uno de producto / encargo.
+  if (!valores.id_producto && !valores.id_encargo) {
+    errores.id_producto = 'Selecciona un producto o una oferta.';
+    errores.id_encargo = 'Selecciona un producto o una oferta.';
+  } else if (valores.id_producto && valores.id_encargo) {
+    errores.id_producto = 'Selecciona solo un producto o una oferta, no ambos.';
+    errores.id_encargo = 'Selecciona solo un producto o una oferta, no ambos.';
+  }
+
   if (valores.id_producto && valores.id_desarrollador) {
     const producto = productos.find((p) => p.id === Number(valores.id_producto));
     if (producto && producto.id_usuario !== Number(valores.id_desarrollador)) {
@@ -272,7 +281,9 @@ export default function ContratoForm() {
               id="contrato-oferta"
               value={valores.id_encargo}
               onChange={(e) => actualizar('id_encargo', e.target.value)}
-              aria-describedby="contrato-oferta-hint"
+              onBlur={() => marcarTocado('id_encargo')}
+              aria-invalid={Boolean(mostrarError('id_encargo'))}
+              aria-describedby={`contrato-oferta-hint${mostrarError('id_encargo') ? ' contrato-oferta-error' : ''}`}
             >
               <option value="">Sin oferta relacionada</option>
               {opciones.ofertas.map((oferta) => (
@@ -285,6 +296,11 @@ export default function ContratoForm() {
             <small className="form-hint" id="contrato-oferta-hint">
               Vincula el contrato a una de tus ofertas publicadas.
             </small>
+            {mostrarError('id_encargo') && (
+              <small className="field-error" id="contrato-oferta-error" role="alert">
+                {mostrarError('id_encargo')}
+              </small>
+            )}
           </div>
 
           <div className="contrato-form-grid">

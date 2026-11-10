@@ -90,7 +90,7 @@ export function onAuthChange(callback) {
  * Enviar token al backend para crear sesión
  */
 export async function syncWithBackend(idToken) {
-  const response = await fetch('/auth/callback', {
+  const response = await fetch('/auth/firebase-login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
