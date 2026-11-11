@@ -2,7 +2,7 @@
 
 Reutiliza los formularios WTForms y la lógica de negocio de ``routes.py`` pero
 responde siempre JSON. La sesión es la cookie de Flask-Login que crea
-``/auth/callback``.
+``/auth/firebase-login``.
 
 Convenciones:
   éxito -> {"ok": true, "mensaje": "...", ...datos}
@@ -23,14 +23,14 @@ from werkzeug.datastructures import MultiDict
 from app.auth.models import Usuario
 from app.catalogo.models import OfertaTrabajo, Proyecto
 from app.contratos.forms import AceptacionForm, ContratoForm
-from app.contratos.models import Aceptacion, Contrato, PlantillaContrato
+from app.contratos.models import Aceptacion, Contrato, Entregable, PlantillaContrato
 from app.contratos.plantillas import (
     NOMBRE_PLANTILLA_BASE,
     ensure_default_plantilla,
     render_plantilla,
 )
 from app.extensions import db
-from app.pagos.models import Pago, Recibo
+from app.pagos.models import Arbitraje, Disputa, Liberacion, Pago, Recibo
 
 contratos_api_bp = Blueprint('contratos_api', __name__, url_prefix='/contratos/api')
 
@@ -164,13 +164,67 @@ def _escrow(contrato):
     }
 
 
+def _recibo(recibo):
+    if recibo is None:
+        return None
+    return {
+        'id': recibo.id,
+        'folio': recibo.folio,
+        'fecha_emision': _iso(recibo.fecha_emision, utc=True),
+        'total': recibo.total if recibo.total is not None else recibo.pago.monto,
+        'contenido_html': recibo.contenido_html,
+    }
+
+
+def _liberacion(liberacion):
+    return {
+        'id': liberacion.id,
+        'id_entregable': liberacion.id_entregable,
+        'monto_liberado': liberacion.monto_liberado,
+        'motivo': liberacion.motivo,
+        'fecha_hora': _iso(liberacion.fecha_hora, utc=True),
+        'usuario': _usuario_publico(liberacion.usuario),
+    }
+
+
+def _disputa(disputa):
+    return {
+        'id': disputa.id,
+        'tipo': disputa.tipo,
+        'descripcion': disputa.descripcion,
+        'estado': disputa.estado,
+        'id_pago': disputa.id_pago,
+        'id_entregable': disputa.id_entregable,
+        'id_incidencia': disputa.id_incidencia,
+        'fecha_hora_publicacion': _iso(disputa.fecha_hora_publicacion, utc=True),
+        'fecha_hora_resolucion': _iso(disputa.fecha_hora_resolucion, utc=True),
+        'resolucion': disputa.resolucion,
+        'reportante': _usuario_publico(disputa.reportante),
+        'arbitraje': (
+            {
+                'id': disputa.arbitrajes[0].id,
+                'decision': disputa.arbitrajes[0].decision,
+                'porcentaje_desarrollador': disputa.arbitrajes[0].porcentaje_desarrollador,
+                'notas': disputa.arbitrajes[0].notas,
+                'fecha_hora': _iso(disputa.arbitrajes[0].fecha_hora, utc=True),
+            }
+            if disputa.arbitrajes else None
+        ),
+    }
+
+
 def _pago(pago):
+    recibo = pago.recibos[0] if pago.recibos else None
     return {
         'id': pago.id,
         'monto': pago.monto,
         'estado_escrow': pago.estado_escrow,
+        'metodo_pago': pago.metodo_pago,
+        'transaccion_id': pago.transaccion_id,
         'fecha_pago': _iso(pago.fecha_pago, utc=True),
         'fecha_liberacion': _iso(pago.fecha_liberacion, utc=True),
+        'recibo': _recibo(recibo),
+        'liberaciones': [_liberacion(item) for item in (pago.liberaciones or [])],
     }
 
 
@@ -218,6 +272,10 @@ def _contrato_resumen(contrato):
             {'id': contrato.encargo.id, 'titulo': contrato.encargo.titulo}
             if contrato.encargo else None
         ),
+        'plantilla': (
+            {'id': contrato.plantilla.id, 'nombre': contrato.plantilla.nombre}
+            if contrato.plantilla else None
+        ),
         'firmas': {
             'cliente': bool(contrato.firma_cliente),
             'desarrollador': bool(contrato.firma_desarrollador),
@@ -231,14 +289,23 @@ def _acciones(contrato):
     soy_cliente = current_user.id == contrato.id_cliente
     soy_desarrollador = current_user.id == contrato.id_desarrollador
     es_parte = soy_cliente or soy_desarrollador
+    es_admin = current_user.tipo_usuario == 'admin'
     ya_firme = _ya_firmo(contrato, current_user.id)
     puede_firmar = (
         es_parte
         and contrato.estado in ('borrador', 'pendiente')
         and not ya_firme
     )
+    pagos_retenidos = [p for p in (contrato.pagos or []) if p.estado_escrow == 'retenido']
+    ya_califico = any(
+        c.id_evaluador == current_user.id for c in (contrato.calificaciones or [])
+    )
+    disputa_abierta = any(
+        d.estado in ('abierta', 'en_revision') for d in (contrato.disputas or [])
+    )
     return {
         'es_parte': es_parte,
+        'es_admin': es_admin,
         'soy_cliente': soy_cliente,
         'soy_desarrollador': soy_desarrollador,
         'ya_firme': ya_firme,
@@ -249,6 +316,9 @@ def _acciones(contrato):
         ),
         'puede_revisar_entregables': soy_cliente,
         'puede_depositar_escrow': soy_cliente and not (contrato.pagos or []),
+        'puede_liberar': soy_cliente and bool(pagos_retenidos),
+        'puede_disputar': es_parte and contrato.estado not in ('finalizado', 'cancelado') and not disputa_abierta,
+        'puede_calificar': es_parte and contrato.estado == 'finalizado' and not ya_califico,
     }
 
 
@@ -261,6 +331,12 @@ def _contrato_detalle(contrato):
         'aceptaciones': [_aceptacion(a) for a in (contrato.aceptaciones or [])],
         'entregables': [_entregable(e) for e in (contrato.entregables or [])],
         'pagos': [_pago(p) for p in (contrato.pagos or [])],
+        'liberaciones': [
+            _liberacion(item)
+            for pago in (contrato.pagos or [])
+            for item in (pago.liberaciones or [])
+        ],
+        'disputas': [_disputa(d) for d in (contrato.disputas or [])],
         'acciones': _acciones(contrato),
     })
     return data
@@ -381,6 +457,8 @@ def detalle_contrato(id):
     if not contrato.terminos_condiciones:
         # Contratos antiguos sin documento: generarlo con la plantilla base.
         plantilla = ensure_default_plantilla()
+        if not contrato.id_plantilla:
+            contrato.id_plantilla = plantilla.id
         contrato.terminos_condiciones = render_plantilla(
             plantilla.contenido_html,
             _contexto_plantilla(contrato),
@@ -465,6 +543,18 @@ def crear_contrato():
         form.plantilla_id.errors.append('La plantilla seleccionada no existe.')
         valido = False
 
+    # Regla del MR: exactamente uno de producto / encargo.
+    if not producto and not encargo:
+        mensaje = 'Selecciona un producto o una oferta para el contrato.'
+        form.id_producto.errors.append(mensaje)
+        form.id_encargo.errors.append(mensaje)
+        valido = False
+    elif producto and encargo:
+        mensaje = 'Selecciona solo un producto o una oferta, no ambos.'
+        form.id_producto.errors.append(mensaje)
+        form.id_encargo.errors.append(mensaje)
+        valido = False
+
     if not valido:
         return _form_invalido(form)
 
@@ -473,6 +563,7 @@ def crear_contrato():
         id_desarrollador=desarrollador.id,
         id_producto=producto.id if producto else None,
         id_encargo=encargo.id if encargo else None,
+        id_plantilla=plantilla.id,
         costo_acordado=float(form.costo_acordado.data),
         estado='borrador',
     )
@@ -493,10 +584,11 @@ def crear_contrato():
     )
 
 
-def _html_recibo(pago, contrato):
+def _html_recibo(pago, contrato, folio=None):
     return (
         '<html><body>'
         '<h1>Recibo de depósito Escrow - Zaas</h1>'
+        f'<p><strong>Folio:</strong> {html.escape(folio or "")}</p>'
         f'<p><strong>Monto:</strong> ${pago.monto:,.2f} MXN</p>'
         f'<p><strong>Contrato:</strong> #{contrato.id}</p>'
         f'<p><strong>Cliente:</strong> {html.escape(contrato.cliente.nombre_completo)}</p>'
@@ -517,6 +609,8 @@ def _depositar_escrow(contrato):
         id_contrato=contrato.id,
         monto=contrato.costo_acordado,
         estado_escrow='retenido',
+        metodo_pago='simulado',
+        transaccion_id=f'TX-{uuid.uuid4().hex[:12].upper()}',
     )
     db.session.add(pago)
     db.session.flush()
@@ -525,7 +619,8 @@ def _depositar_escrow(contrato):
     db.session.add(Recibo(
         id_pago=pago.id,
         folio=folio,
-        contenido_html=_html_recibo(pago, contrato),
+        total=pago.monto,
+        contenido_html=_html_recibo(pago, contrato, folio),
     ))
     return pago
 
@@ -546,6 +641,8 @@ def aceptar_contrato(id):
 
     if not contrato.terminos_condiciones:
         plantilla = ensure_default_plantilla()
+        if not contrato.id_plantilla:
+            contrato.id_plantilla = plantilla.id
         contrato.terminos_condiciones = render_plantilla(
             plantilla.contenido_html,
             _contexto_plantilla(contrato),
@@ -612,3 +709,212 @@ def cancelar_contrato(id):
     contrato.estado = 'cancelado'
     db.session.commit()
     return _ok('Contrato cancelado.', contrato=_contrato_detalle(contrato))
+
+
+# ---------------------------------------------------- entregables / escrow
+
+@contratos_api_bp.post('/<int:id>/entregables')
+@_requiere('desarrollador')
+def crear_entregable(id):
+    contrato, error = _contrato_o_error(id)
+    if error:
+        return error
+    if contrato.id_desarrollador != current_user.id:
+        return _error('Solo el desarrollador del contrato puede subir entregables.', 403)
+    if contrato.estado not in ('aceptado', 'en_progreso'):
+        return _error('Solo puedes subir entregables de un contrato aceptado y en progreso.', 409)
+
+    datos = _datos_json()
+    titulo = str(datos.get('titulo', '')).strip()
+    if not titulo:
+        return _error('El título es obligatorio.', 422, {'titulo': 'El título es obligatorio.'})
+    if len(titulo) > 200:
+        return _error('El título no puede superar 200 caracteres.', 422, {
+            'titulo': 'El título no puede superar 200 caracteres.',
+        })
+
+    entregable = Entregable(
+        id_contrato=contrato.id,
+        titulo=titulo,
+        descripcion=str(datos.get('descripcion', '')).strip() or None,
+        url_archivo=str(datos.get('url_archivo', '')).strip() or None,
+        estado='pendiente',
+    )
+    db.session.add(entregable)
+    if contrato.estado == 'aceptado':
+        contrato.estado = 'en_progreso'
+    db.session.commit()
+    db.session.refresh(contrato)
+    return _ok('Entregable subido. El cliente debe revisarlo.', 201, contrato=_contrato_detalle(contrato))
+
+
+@contratos_api_bp.post('/entregables/<int:id>/revisar')
+@_requiere()
+def revisar_entregable(id):
+    entregable = db.session.get(Entregable, id)
+    if entregable is None:
+        return _error('Entregable no encontrado.', 404)
+    contrato = entregable.contrato
+    if contrato.id_cliente != current_user.id:
+        return _error('Solo el cliente puede revisar los entregables.', 403)
+    if entregable.estado != 'pendiente':
+        return _error('Este entregable ya fue revisado.', 409)
+
+    datos = _datos_json()
+    aprobar = bool(datos.get('aprobar'))
+    comentario = str(datos.get('comentario', '')).strip()
+
+    entregable.comentario_revision = comentario or None
+    entregable.fecha_revision = datetime.utcnow()
+
+    if aprobar:
+        entregable.estado = 'aprobado'
+        pendientes = [e for e in contrato.entregables if e.id != entregable.id and e.estado == 'pendiente']
+        aprobados = [e for e in contrato.entregables if e.estado == 'aprobado']
+        if not pendientes and aprobados:
+            contrato.estado = 'entregado'
+        elif contrato.estado == 'aceptado':
+            contrato.estado = 'en_progreso'
+        mensaje = 'Entregable aprobado.'
+    else:
+        entregable.estado = 'rechazado'
+        if contrato.estado == 'aceptado':
+            contrato.estado = 'en_progreso'
+        mensaje = 'Entregable rechazado. El desarrollador debe corregirlo.'
+
+    db.session.commit()
+    db.session.refresh(contrato)
+    return _ok(mensaje, contrato=_contrato_detalle(contrato))
+
+
+@contratos_api_bp.post('/<int:id>/liberar')
+@_requiere('cliente')
+def liberar_fondos(id):
+    contrato, error = _contrato_o_error(id)
+    if error:
+        return error
+    if contrato.id_cliente != current_user.id:
+        return _error('Solo el cliente puede liberar los fondos.', 403)
+
+    pago = next((p for p in (contrato.pagos or []) if p.estado_escrow == 'retenido'), None)
+    if pago is None:
+        return _error('No hay fondos retenidos para este contrato.', 409)
+
+    aprobados = [e for e in (contrato.entregables or []) if e.estado == 'aprobado']
+    entregable = max(aprobados, key=lambda e: e.fecha_subida or datetime.min, default=None)
+
+    pago.estado_escrow = 'liberado'
+    pago.fecha_liberacion = datetime.utcnow()
+    contrato.estado = 'finalizado'
+    db.session.add(Liberacion(
+        id_pago=pago.id,
+        id_usuario=current_user.id,
+        id_entregable=entregable.id if entregable else None,
+        monto_liberado=pago.monto,
+        motivo='Entregable aprobado por el cliente',
+    ))
+    db.session.commit()
+    db.session.refresh(contrato)
+    return _ok(f'Fondos liberados: ${pago.monto:,.2f} al desarrollador.', contrato=_contrato_detalle(contrato))
+
+
+@contratos_api_bp.post('/<int:id>/disputa')
+@_requiere()
+def abrir_disputa(id):
+    contrato, error = _contrato_o_error(id)
+    if error:
+        return error
+    if not _es_parte(contrato):
+        return _error('Solo las partes del contrato pueden abrir una disputa.', 403)
+    if contrato.estado in ('finalizado', 'cancelado'):
+        return _error('No puedes abrir una disputa de un contrato cerrado.', 409)
+    if any(d.estado in ('abierta', 'en_revision') for d in (contrato.disputas or [])):
+        return _error('Ya existe una disputa abierta para este contrato.', 409)
+
+    datos = _datos_json()
+    tipo = str(datos.get('tipo', '')).strip() or 'otro'
+    descripcion = str(datos.get('descripcion', '')).strip()
+    if not descripcion:
+        return _error('Describe el motivo de la disputa.', 422, {
+            'descripcion': 'Describe el motivo de la disputa.',
+        })
+
+    pago = contrato.pagos[0] if contrato.pagos else None
+    entregable = max(
+        (contrato.entregables or []),
+        key=lambda e: e.fecha_subida or datetime.min,
+        default=None,
+    )
+    # El MR prohíbe que una disputa apunte a pago y entregable a la vez.
+    if tipo == 'entregable' and entregable:
+        id_pago, id_entregable = None, entregable.id
+    elif pago:
+        id_pago, id_entregable = pago.id, None
+    else:
+        id_pago, id_entregable = None, (entregable.id if entregable else None)
+
+    disputa = Disputa(
+        id_contrato=contrato.id,
+        id_reportante=current_user.id,
+        id_pago=id_pago,
+        id_entregable=id_entregable,
+        tipo=tipo,
+        descripcion=descripcion,
+        estado='abierta',
+    )
+    db.session.add(disputa)
+    db.session.commit()
+    db.session.refresh(contrato)
+    return _ok('Disputa creada. Un administrador la revisará.', 201, contrato=_contrato_detalle(contrato))
+
+
+@contratos_api_bp.post('/disputas/<int:id>/resolver')
+@_requiere('admin')
+def resolver_disputa(id):
+    disputa = db.session.get(Disputa, id)
+    if disputa is None:
+        return _error('Disputa no encontrada.', 404)
+    if disputa.estado in ('resuelta', 'cerrada'):
+        return _error('Esta disputa ya fue resuelta.', 409)
+
+    datos = _datos_json()
+    decision = datos.get('decision')
+    if decision not in ('liberar', 'reembolsar', 'dividir'):
+        return _error('Decisión inválida.', 422, {
+            'decision': 'Elige liberar, reembolsar o dividir.',
+        })
+    try:
+        porcentaje = float(datos.get('porcentaje_desarrollador') or 0)
+    except (TypeError, ValueError):
+        return _error('El porcentaje debe ser numérico.', 422, {
+            'porcentaje_desarrollador': 'El porcentaje debe ser numérico.',
+        })
+    if not 0 <= porcentaje <= 100:
+        return _error('El porcentaje debe estar entre 0 y 100.', 422, {
+            'porcentaje_desarrollador': 'El porcentaje debe estar entre 0 y 100.',
+        })
+
+    arbitraje = Arbitraje(
+        id_disputa=disputa.id,
+        id_arbitro=current_user.id,
+        decision=decision,
+        porcentaje_desarrollador=porcentaje,
+        notas=str(datos.get('notas', '')).strip() or None,
+    )
+    db.session.add(arbitraje)
+
+    pago = disputa.pago or (disputa.contrato.pagos[0] if disputa.contrato.pagos else None)
+    if pago:
+        pago.fecha_liberacion = datetime.utcnow()
+        pago.estado_escrow = {
+            'liberar': 'liberado',
+            'reembolsar': 'reembolsado',
+            'dividir': 'dividido',
+        }[decision]
+
+    disputa.estado = 'resuelta'
+    disputa.fecha_hora_resolucion = datetime.utcnow()
+    disputa.resolucion = str(datos.get('notas', '')).strip() or None
+    db.session.commit()
+    db.session.refresh(disputa.contrato)
+    return _ok('Disputa resuelta.', contrato=_contrato_detalle(disputa.contrato))

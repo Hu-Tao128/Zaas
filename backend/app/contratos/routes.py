@@ -97,6 +97,8 @@ def _asegurar_terminos(contrato):
     if contrato.terminos_condiciones:
         return
     plantilla = ensure_default_plantilla()
+    if not contrato.id_plantilla:
+        contrato.id_plantilla = plantilla.id
     contrato.terminos_condiciones = render_plantilla(
         plantilla.contenido_html,
         _contexto_plantilla(contrato),
@@ -232,12 +234,25 @@ def nuevo_contrato():
             form.plantilla_id.errors.append('La plantilla seleccionada no existe.')
             valido = False
 
+        # Regla del MR: exactamente uno de producto / encargo.
+        if not producto and not encargo:
+            mensaje = 'Selecciona un producto o una oferta para el contrato.'
+            form.id_producto.errors.append(mensaje)
+            form.id_encargo.errors.append(mensaje)
+            valido = False
+        elif producto and encargo:
+            mensaje = 'Selecciona solo un producto o una oferta, no ambos.'
+            form.id_producto.errors.append(mensaje)
+            form.id_encargo.errors.append(mensaje)
+            valido = False
+
         if valido:
             contrato = Contrato(
                 id_cliente=current_user.id,
                 id_desarrollador=desarrollador.id,
                 id_producto=producto.id if producto else None,
                 id_encargo=encargo.id if encargo else None,
+                id_plantilla=plantilla.id,
                 costo_acordado=form.costo_acordado.data,
                 estado='borrador',
             )

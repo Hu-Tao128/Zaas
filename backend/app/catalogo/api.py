@@ -2,7 +2,7 @@
 
 Reutiliza la misma lógica (y las mismas operaciones atómicas) que las vistas HTML de
 routes.py: cierre de ofertas, cerrojo de postulaciones, aceptar/rechazar. Todo cuelga de
-/api/catalogo y usa la sesión de Flask-Login que crea /auth/callback.
+/api/catalogo y usa la sesión de Flask-Login que crea /auth/firebase-login.
 
 Convenciones de respuesta:
   éxito  -> {"ok": true,  "mensaje": "...", ...datos}
@@ -24,6 +24,7 @@ from app.catalogo.models import (
     CategoriaProyecto,
 )
 from app.auth.models import Usuario, Perfil
+from app.auth.perfil_utils import sincronizar_habilidades, sincronizar_tecnologias
 from app.comunicacion.models import Calificacion
 from app.contratos.models import Contrato
 from app.catalogo.routes import (
@@ -551,10 +552,18 @@ def _serializar_perfil(u, perfil=None):
         'perfil': {
             'id': perfil.id if perfil else None,
             'descripcion': (perfil.descripcion or '') if perfil else '',
-            'habilidades': (perfil.habilidades or '') if perfil else '',
             'empresa': (perfil.empresa or '') if perfil else '',
-            'stack_tecnologico': (perfil.stack_tecnologico or '') if perfil else '',
             'enlaces': (perfil.enlaces or '') if perfil else '',
+            'habilidades': [
+                {'id': item.habilidad.id, 'nombre': item.habilidad.nombre}
+                for item in (perfil.habilidades if perfil else [])
+                if item.habilidad
+            ],
+            'tecnologias': [
+                {'id': item.tecnologia.id, 'nombre': item.tecnologia.nombre}
+                for item in (perfil.tecnologias if perfil else [])
+                if item.tecnologia
+            ],
         },
         'estadisticas': {
             'total_proyectos': len(proyectos),
@@ -622,9 +631,11 @@ def actualizar_perfil():
     apellido_materno = str(datos.get('apellido_materno', '')).strip()
     empresa = str(datos.get('empresa', '')).strip()
     descripcion = str(datos.get('descripcion', '')).strip()
-    habilidades = str(datos.get('habilidades', '')).strip()
-    stack_tecnologico = str(datos.get('stack_tecnologico', '')).strip()
     enlaces = str(datos.get('enlaces', '')).strip()
+    # El MR normaliza habilidades y tecnologías en tablas intermedias.
+    # Se aceptan listas de strings/objetos o texto separado por comas.
+    habilidades = datos.get('habilidades', [])
+    tecnologias = datos.get('tecnologias', datos.get('stack_tecnologico', []))
 
     if not nombres:
         errores['nombres'] = 'El nombre es obligatorio.'
@@ -658,9 +669,9 @@ def actualizar_perfil():
 
     perfil.empresa = empresa
     perfil.descripcion = descripcion
-    perfil.habilidades = habilidades
-    perfil.stack_tecnologico = stack_tecnologico
     perfil.enlaces = enlaces
+    sincronizar_habilidades(perfil, habilidades)
+    sincronizar_tecnologias(perfil, tecnologias)
 
     db.session.commit()
 

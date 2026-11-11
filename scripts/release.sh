@@ -14,6 +14,9 @@
 #   1.0.0  -> versión inicial de producción / breaking changes
 #   1.X.0  -> nuevas características, módulos o epics
 #   1.x.X  -> correcciones, UI/UX y refactorizaciones
+#
+# La versión se escribe en VERSION y frontend/package.json, se commitea como
+# "chore(release): vX.Y.Z" y después se crea el tag/release en GitHub.
 # ============================================================================
 
 set -euo pipefail
@@ -246,6 +249,38 @@ fi
 if [[ "$ASSUME_YES" -ne 1 ]]; then
   read -rp "¿Crear el tag ${TAG} y publicar la release en GitHub? [y/N] " confirm
   [[ "$confirm" =~ ^[yY]$ ]] || { info "Cancelado."; exit 1; }
+fi
+
+# ---------------------------------------------------------------- versión
+# Mantiene sincronizados VERSION y frontend/package.json con el tag.
+printf '%s\n' "$NEW_VERSION" > VERSION
+python3 - "$NEW_VERSION" <<'PY'
+import json
+import sys
+
+path = 'frontend/package.json'
+with open(path, encoding='utf-8') as archivo:
+    datos = json.load(archivo)
+datos['version'] = sys.argv[1]
+with open(path, 'w', encoding='utf-8') as archivo:
+    json.dump(datos, archivo, indent=2, ensure_ascii=False)
+    archivo.write('\n')
+PY
+
+git add VERSION frontend/package.json
+if ! git diff --cached --quiet; then
+  git commit -m "chore(release): v${NEW_VERSION}"
+  ok "Versión actualizada a ${NEW_VERSION}."
+else
+  info "La versión ya estaba en ${NEW_VERSION}."
+fi
+
+# El commit de versión debe estar en el remoto antes de crear la release.
+if git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
+  git push
+  ok "Commit de versión publicado."
+else
+  warn "Sin upstream configurado: publica el commit de versión antes de crear la release."
 fi
 
 # ---------------------------------------------------------------- publicar

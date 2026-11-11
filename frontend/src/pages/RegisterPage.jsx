@@ -130,7 +130,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/auth/registro/callback', {
+      const response = await fetch('/auth/firebase-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

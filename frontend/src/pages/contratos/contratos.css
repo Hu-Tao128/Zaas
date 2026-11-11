@@ -860,3 +860,8 @@
     padding: 0 !important;
   }
 }
+
+/* Notificaciones leídas */
+.contrato-card.is-read {
+  opacity: 0.72;
+}

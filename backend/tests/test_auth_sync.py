@@ -105,6 +105,25 @@ class AuthSyncTest(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(db.session.query(Usuario).count(), 0)
 
+    def test_firebase_login_preserves_existing_role_when_syncing_to_supabase(self):
+        self.assertEqual(self.register('desarrollador').status_code, 200)
+        with patch('app.auth.firebase_supabase.sync_firebase_user', return_value=42) as sync:
+            response = self.client.post('/auth/firebase-login', json={
+                'id_token': 'token-verificado', 'tipo_usuario': 'cliente',
+            })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['usuario']['tipo_usuario'], 'desarrollador')
+        self.assertEqual(response.json['usuario']['supabase_id'], 42)
+        self.assertEqual(sync.call_args.kwargs['tipo_usuario'], 'desarrollador')
+        self.assert_one_account('desarrollador')
+
+    def test_firebase_login_rejects_unverified_identity(self):
+        with patch('app.auth.routes.verify_firebase_token', return_value=None), \
+             patch('app.auth.firebase_supabase.sync_firebase_user') as sync:
+            response = self.client.post('/auth/firebase-login', json={'id_token': 'sin-firma'})
+        self.assertEqual(response.status_code, 401)
+        sync.assert_not_called()
+
     def test_email_collision_with_different_identity_does_not_return_another_user(self):
         self.assertEqual(self.login().status_code, 200)
         self.identity = self.identity | {'uid': 'different-uid'}

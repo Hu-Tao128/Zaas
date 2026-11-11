@@ -82,7 +82,8 @@ def contrato_json(contrato):
 def mensaje_json(mensaje):
     return {campo: getattr(mensaje, campo) for campo in
             ('id', 'id_conversacion', 'id_emisor', 'id_receptor', 'contenido', 'leido')} | {
-                'fecha_hora': fecha(mensaje.fecha_hora)}
+                'fecha_hora': fecha(mensaje.fecha_hora),
+                'emisor': {'nombre_completo': mensaje.emisor.nombre_completo} if mensaje.emisor else None}
 
 
 def notificacion_json(notificacion):
@@ -108,9 +109,10 @@ def calificacion_json(calificacion):
 
 def incidencia_json(incidencia):
     return {campo: getattr(incidencia, campo) for campo in
-            ('id', 'id_usuario', 'tipo', 'descripcion', 'estado', 'resolucion', 'id_admin')} | {
+            ('id', 'id_usuario', 'tipo', 'descripcion', 'estado', 'resolucion', 'id_admin', 'id_contrato')} | {
                 'fecha_hora': fecha(incidencia.fecha_hora),
-                'fecha_resolucion': fecha(incidencia.fecha_resolucion)}
+                'fecha_resolucion': fecha(incidencia.fecha_resolucion),
+                'contrato_objeto': incidencia.contrato.objeto if incidencia.contrato else None}
 
 
 def paginar(query, serializar, **extra):
@@ -220,6 +222,15 @@ def abrir_conversacion(id):
     return jsonify(data={'id': conversacion.id, 'contrato': contrato_json(conversacion.contrato)})
 
 
+@comunicacion_api.get('/contratos/<int:id>/mensajes')
+def mensajes_del_contrato(id):
+    contrato = obtener(Contrato, id)
+    verificar_participante(contrato, current_user)
+    query = (db.select(Mensaje).join(Conversacion).options(selectinload(Mensaje.emisor))
+             .where(Conversacion.id_contrato == id).order_by(Mensaje.id.desc()))
+    return paginar(query, mensaje_json)
+
+
 @comunicacion_api.route('/conversaciones/<int:id>/mensajes', methods=['GET', 'POST'])
 def mensajes(id):
     conversacion = obtener(Conversacion, id)
@@ -315,7 +326,8 @@ def calificar(id):
 def incidencias():
     if request.method == 'POST':
         data = datos_json()
-        incidencia = registrar_incidencia(current_user, data.get('tipo'), data.get('descripcion'))
+        incidencia = registrar_incidencia(current_user, data.get('tipo'), data.get('descripcion'),
+                                          data.get('id_contrato'))
         db.session.commit()
         return jsonify(data=incidencia_json(incidencia)), 201
     query = db.select(Incidencia)

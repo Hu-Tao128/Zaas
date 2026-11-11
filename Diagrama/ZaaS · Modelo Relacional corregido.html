@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ZaaS · Modelo Relacional corregido</title>
+<style>
+:root{--bg:#fff;--card:#fff;--txt:#1b1b1b;--sub:#666;--line:#444;--ul:#999;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#181818;--card:#262626;--txt:#eee;--sub:#aaa;--line:#ccc;--ul:#777;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#181818;--card:#262626;--txt:#eee;--sub:#aaa;--line:#ccc;--ul:#777;color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+h1{font-size:20px;margin:14px 16px 4px}
+.lg{margin:0 16px 8px;font-size:12px;color:var(--sub);line-height:1.6}
+.wrap{overflow-x:auto;padding:0 8px 16px}
+svg{min-width:1500px;width:100%;height:auto;display:block}
+.rel{fill:none;stroke:var(--line);stroke-width:1.2}
+.rel.u{stroke:var(--ul);stroke-dasharray:4 3}
+svg.dim .rel{opacity:.1}
+svg.dim .rel.hl{opacity:1;stroke-width:2.2}
+.t{cursor:pointer}
+text{font-family:ui-monospace,Consolas,monospace}
+</style></head><body>
+<h1>ZaaS · Modelo Relacional unificado (MR + backend)</h1>
+<div class="lg"><b>PK</b> clave primaria · <b>FK</b> clave foránea · <b>UQ</b> único. Extremos de línea: lado hijo (FK) y lado padre (PK): <b>N</b>, <b>1</b>, <b>0..1</b>. Líneas punteadas = FK hacia <i>usuario</i>. Pasa el cursor sobre una tabla para resaltar sus relaciones.<br>
+Reglas fuera del diagrama: CHECK en <i>contrato</i> (exactamente uno de id_producto / id_encargo), CHECK en <i>disputa</i> (no pago y entregable a la vez), UNIQUE (id_oferta, id_desarrollador) en <i>postulacion</i>, UNIQUE sobre el par en las tablas intermedias, CHECK de valores en las columnas de estado y tipo_usuario. <i>id_producto</i> referencia a <i>proyecto</i> e <i>id_encargo</i> a <i>oferta_trabajo</i>.</div>
+<div class="wrap"><svg id="s" viewBox="0 0 1700 700"></svg></div>
+<script>
+const W=200,H=16,HD=24;
+const M={
+a:{n:'MÓDULO AUTH',c:'#7b1e3a',x:20,y:20,w:1220,h:230},
+c:{n:'MÓDULO CATÁLOGO',c:'#1f4e9c',x:20,y:260,w:760,h:460},
+k:{n:'MÓDULO CONTRATOS',c:'#1f7a45',x:800,y:260,w:490,h:420},
+p:{n:'MÓDULO PAGOS',c:'#c47f0a',x:1320,y:20,w:490,h:570},
+m:{n:'MÓDULO COMUNICACIÓN',c:'#7b35a0',x:800,y:720,w:1010,h:360}};
+const T={
+usuario:['a',20,20,['P id','U firebase_uid','- nombres','- apellido_paterno','- apellido_materno','U email','- fecha_registro','- tipo_usuario']],
+perfil:['a',20,196,['P id','FU id_usuario','- descripcion','- empresa','- enlaces']],
+perfil_habilidad:['a',20,324,['P id','F id_perfil','F id_habilidad']],
+habilidad:['a',20,420,['P id','U nombre']],
+perfil_tecnologia:['a',20,500,['P id','F id_perfil','F id_tecnologia']],
+categoria:['c',260,20,['P id','U nombre']],
+categoria_proyecto:['c',260,100,['P id','F id_proyecto','F id_categoria']],
+proyecto:['c',500,60,['P id','F id_usuario','- titulo','- descripcion','- precio','- demo_habilitada','- fecha_publicacion','- estado']],
+tecnologia:['c',260,292,['P id','U nombre']],
+tecnologia_proyecto:['c',260,196,['P id','F id_proyecto','F id_tecnologia']],
+solicitud_demo:['c',260,380,['P id','F id_producto','F id_cliente','- nombre_contacto','- correo_contacto','- fecha_solicitud']],
+oferta_trabajo:['c',500,236,['P id','F id_cliente','- titulo','- descripcion_requerimientos','- presupuesto','- estado','- fecha_publicacion','- fecha_entrega']],
+postulacion:['c',500,412,['P id','F id_desarrollador','F id_oferta','- detalles','- costo_propuesto','- estado','- fecha_hora']],
+plantilla_contrato:['k',740,20,['P id','- nombre','- contenido_html','- fecha_creacion']],
+contrato:['k',740,132,['P id','F id_cliente','F id_desarrollador','F id_producto','F id_encargo','F id_plantilla','- terminos_condiciones','- costo_acordado','- estado','- firma_cliente','- firma_desarrollador','- fecha_creacion']],
+entregable:['k',740,372,['P id','F id_contrato','- titulo','- descripcion','- url_archivo','- estado','- fecha_subida','- fecha_revision','- comentario_revision']],
+aceptacion:['k',740,564,['P id','F id_contrato','F id_usuario','- fecha_hora','- ip']],
+pago:['p',980,20,['P id','F id_contrato','- monto','- estado_escrow','- fecha_pago','- fecha_liberacion','- metodo_pago','U transaccion_id']],
+liberacion:['p',980,196,['P id','F id_pago','F id_usuario','F id_entregable','- monto_liberado','- motivo','- fecha_hora']],
+recibo:['p',980,356,['P id','FU id_pago','U folio','- fecha_emision','- total','- contenido_html']],
+disputa:['p',1220,20,['P id','F id_contrato','F id_admin','F id_reportante','F id_pago','F id_entregable','FU id_incidencia','- tipo','- descripcion','- fecha_hora_publicacion','- estado','- fecha_hora_resolucion','- resolucion']],
+arbitraje:['p',1220,276,['P id','FU id_disputa','F id_arbitro','- decision','- porcentaje_desarrollador','- notas','- fecha_hora']],
+conversacion:['m',1460,20,['P id','F id_contrato','- fecha_creacion']],
+mensaje:['m',1460,116,['P id','F id_conversacion','F id_emisor','F id_receptor','- contenido','- fecha_hora','- leido']],
+notificacion:['m',1460,276,['P id','F id_usuario','- asunto','- mensaje','- leido','- fecha_hora_creacion','- link']],
+calificacion:['m',1460,436,['P id','F id_contrato','F id_evaluador','F id_evaluado','- puntaje','- comentarios','- fecha_hora']],
+incidencia:['m',1220,420,['P id','F id_usuario','F id_admin','F id_contrato','- tipo','- descripcion','- estado','- fecha_hora','- resolucion','- fecha_resolucion']]};
+const R=[
+['perfil','id_usuario','usuario','0..1'],['perfil_habilidad','id_perfil','perfil'],['perfil_habilidad','id_habilidad','habilidad'],
+['perfil_tecnologia','id_perfil','perfil'],['perfil_tecnologia','id_tecnologia','tecnologia'],
+['categoria_proyecto','id_proyecto','proyecto'],['categoria_proyecto','id_categoria','categoria'],
+['tecnologia_proyecto','id_proyecto','proyecto'],['tecnologia_proyecto','id_tecnologia','tecnologia'],
+['proyecto','id_usuario','usuario'],['oferta_trabajo','id_cliente','usuario'],
+['postulacion','id_oferta','oferta_trabajo'],['postulacion','id_desarrollador','usuario'],
+['solicitud_demo','id_producto','proyecto'],['solicitud_demo','id_cliente','usuario'],
+['contrato','id_cliente','usuario'],['contrato','id_desarrollador','usuario'],
+['contrato','id_producto','proyecto','N','0..1'],['contrato','id_encargo','oferta_trabajo','N','0..1'],['contrato','id_plantilla','plantilla_contrato','N','0..1'],
+['entregable','id_contrato','contrato'],['aceptacion','id_contrato','contrato'],['aceptacion','id_usuario','usuario'],
+['pago','id_contrato','contrato'],['liberacion','id_pago','pago'],['liberacion','id_usuario','usuario'],['liberacion','id_entregable','entregable','N','0..1'],
+['recibo','id_pago','pago','0..1'],
+['disputa','id_contrato','contrato'],['disputa','id_admin','usuario'],['disputa','id_reportante','usuario'],
+['disputa','id_pago','pago','N','0..1'],['disputa','id_entregable','entregable','N','0..1'],['disputa','id_incidencia','incidencia','0..1','0..1'],
+['arbitraje','id_disputa','disputa','0..1'],['arbitraje','id_arbitro','usuario'],
+['conversacion','id_contrato','contrato','N','0..1'],['mensaje','id_conversacion','conversacion'],
+['mensaje','id_emisor','usuario'],['mensaje','id_receptor','usuario'],['notificacion','id_usuario','usuario'],
+['calificacion','id_contrato','contrato'],['calificacion','id_evaluador','usuario'],['calificacion','id_evaluado','usuario'],
+['incidencia','id_usuario','usuario'],['incidencia','id_admin','usuario'],['incidencia','id_contrato','contrato']];
+for(const k in T){const t=T[k];t.x=t[1];t.y=t[2];t.f=t[3].map(s=>{const i=s.indexOf(' ');return[s.slice(0,i),s.slice(i+1)]});t.h=HD+t.f.length*H}
+let s='',L='';
+
+const lab=(x,y,t,a)=>`<text x="${x}" y="${y}" font-size="9.5" font-weight="700" text-anchor="${a}" fill="var(--txt)">${t}</text>`;
+R.forEach((r,i)=>{const[ch,f,pa,c='N',p='1']=r,A=T[ch],B=T[pa];
+const ai=A.f.findIndex(q=>q[1].replace('?','')===f),cy=A.y+HD+ai*H+H/2,py=B.y+HD+H/2,j=((i*7)%9-4)*4;let d,a,b;
+if(A.x+W<B.x){const sx=A.x+W,ex=B.x,mx=(sx+ex)/2+j;d=`M${sx} ${cy}H${mx}V${py}H${ex}`;a=lab(sx+3,cy-3,c,'start');b=lab(ex-3,py-3,p,'end')}
+else if(B.x+W<A.x){const sx=A.x,ex=B.x+W,mx=(sx+ex)/2+j;d=`M${sx} ${cy}H${mx}V${py}H${ex}`;a=lab(sx-3,cy-3,c,'end');b=lab(ex+3,py-3,p,'start')}
+else{const sx=A.x+W/2+j*2,ex=B.x+W/2+j*2,up=A.y>B.y,sy=up?A.y:A.y+A.h,ey=up?B.y+B.h:B.y,my=(sy+ey)/2+j;d=`M${sx} ${sy}V${my}H${ex}V${ey}`;a=lab(sx+3,sy+(up?-4:11),c,'start');b=lab(ex+3,ey+(up?11:-4),p,'start')}
+L+=`<g class="rel${pa==='usuario'?' u':''}" data-a="${ch}" data-b="${pa}"><path class="rel${pa==='usuario'?' u':''}" d="${d}"/>${a}${b}</g>`});
+s+=L.replace(/<g class="rel( u)?"/g,'<g class="rg"');
+let tb='';
+for(const k in T){const t=T[k],c=M[t[0]].c;
+tb+=`<g class="t" data-n="${k}"><rect x="${t.x}" y="${t.y}" width="${W}" height="${t.h}" rx="5" fill="var(--card)" stroke="${c}" stroke-width="1.5"/><path d="M${t.x} ${t.y+HD}V${t.y+5}a5 5 0 0 1 5-5H${t.x+W-5}a5 5 0 0 1 5 5V${t.y+HD}Z" fill="${c}"/><text x="${t.x+W/2}" y="${t.y+16}" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">${k}</text>`;
+t.f.forEach((q,i)=>{const y=t.y+HD+i*H+12,tag=({P:'PK',F:'FK',U:'UQ',PF:'PK/FK',FU:'FK/UQ','-':''})[q[0]];
+tb+=`<text x="${t.x+6}" y="${y}" font-size="8.5" font-weight="700" fill="${q[0][0]==='P'?c:q[0][0]==='F'?'#b3261e':'var(--sub)'}">${tag}</text><text x="${t.x+40}" y="${y}" font-size="10.5" fill="var(--txt)"${q[0][0]==='P'?' font-weight="700"':''}>${q[1]}</text>`});
+tb+='</g>'}
+const svg=document.getElementById('s');
+svg.innerHTML=s.replace(/class="rg"/g,'class="rg"')+tb;
+document.querySelectorAll('#s g.rg').forEach(g=>{const u=g.dataset.b==='usuario';g.querySelector('path').setAttribute('class','rel'+(u?' u':''))});
+document.querySelectorAll('#s .t').forEach(t=>{
+t.addEventListener('mouseenter',()=>{svg.classList.add('dim');svg.querySelectorAll('g.rg').forEach(g=>{const on=g.dataset.a===t.dataset.n||g.dataset.b===t.dataset.n;g.querySelector('path').classList.toggle('hl',on);g.style.opacity=on?1:.1;})});
+t.addEventListener('mouseleave',()=>{svg.classList.remove('dim');svg.querySelectorAll('g.rg').forEach(g=>{g.querySelector('path').classList.remove('hl');g.style.opacity=1})})});
+</script></body></html>

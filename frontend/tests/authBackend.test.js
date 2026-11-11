@@ -4,14 +4,14 @@ import { syncWithBackend } from '../src/services/authBackend.js';
 
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
-const ok = id => Response.json({ user: { id, email: 'prueba@example.com' } });
+const ok = id => Response.json({ usuario: { id, email: 'prueba@example.com' } });
 
 test('formulario y observador comparten una sola petición simultánea', async () => {
   let calls = 0;
   let complete;
   globalThis.fetch = async (url, options) => {
     calls++;
-    assert.equal(url, '/auth/callback');
+    assert.equal(url, '/auth/firebase-login');
     assert.equal(options.credentials, 'include');
     assert.deepEqual(JSON.parse(options.body), { id_token: 'same-token' });
     return new Promise(resolve => { complete = resolve; });

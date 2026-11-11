@@ -54,6 +54,11 @@ class Notificacion(db.Model):
 
 class Calificacion(db.Model):
     __tablename__ = 'calificacion'
+    __table_args__ = (
+        db.CheckConstraint(
+            'puntaje >= 1 AND puntaje <= 5', name='ck_calificacion_puntaje'
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     id_contrato = db.Column(db.Integer, db.ForeignKey('contrato.id'), nullable=False)
@@ -73,10 +78,17 @@ class Calificacion(db.Model):
 
 class Incidencia(db.Model):
     __tablename__ = 'incidencia'
+    __table_args__ = (
+        db.CheckConstraint(
+            "estado IN ('abierta', 'en_proceso', 'resuelta', 'cerrada')",
+            name='ck_incidencia_estado',
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     id_usuario = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     id_admin = db.Column(db.Integer, db.ForeignKey('usuario.id'))
+    id_contrato = db.Column(db.Integer, db.ForeignKey('contrato.id'))
     tipo = db.Column(db.String(50))
     descripcion = db.Column(db.Text)
     estado = db.Column(db.String(20), default='abierta')  # abierta, en_proceso, resuelta, cerrada
@@ -86,6 +98,7 @@ class Incidencia(db.Model):
 
     usuario = db.relationship('Usuario', foreign_keys=[id_usuario], back_populates='incidencias')
     admin = db.relationship('Usuario', foreign_keys=[id_admin], back_populates='incidencias_resueltas')
+    contrato = db.relationship('Contrato')
 
     def __repr__(self):
         return f'<Incidencia Usuario{self.id_usuario} - {self.estado}>'

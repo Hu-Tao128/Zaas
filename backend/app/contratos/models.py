@@ -16,12 +16,25 @@ class PlantillaContrato(db.Model):
 
 class Contrato(db.Model):
     __tablename__ = 'contrato'
+    __table_args__ = (
+        db.CheckConstraint(
+            "estado IN ('borrador', 'pendiente', 'aceptado', 'en_progreso', "
+            "'entregado', 'finalizado', 'cancelado')",
+            name='ck_contrato_estado',
+        ),
+        db.CheckConstraint('costo_acordado >= 0', name='ck_contrato_costo'),
+        db.CheckConstraint(
+            '(id_producto IS NOT NULL) + (id_encargo IS NOT NULL) = 1',
+            name='ck_contrato_producto_o_encargo',
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     id_cliente = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     id_desarrollador = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     id_producto = db.Column(db.Integer, db.ForeignKey('proyecto.id'))
     id_encargo = db.Column(db.Integer, db.ForeignKey('oferta_trabajo.id'))
+    id_plantilla = db.Column(db.Integer, db.ForeignKey('plantilla_contrato.id'))
     terminos_condiciones = db.Column(db.Text)
     costo_acordado = db.Column(db.Float, nullable=False)
     estado = db.Column(db.String(20), default='borrador')
@@ -34,6 +47,7 @@ class Contrato(db.Model):
     desarrollador = db.relationship('Usuario', foreign_keys=[id_desarrollador], back_populates='contratos_como_desarrollador')
     producto = db.relationship('Proyecto', back_populates='contratos')
     encargo = db.relationship('OfertaTrabajo', back_populates='contratos')
+    plantilla = db.relationship('PlantillaContrato')
     entregables = db.relationship('Entregable', back_populates='contrato', cascade='all, delete-orphan')
     aceptaciones = db.relationship('Aceptacion', back_populates='contrato', cascade='all, delete-orphan')
     conversaciones = db.relationship('Conversacion', back_populates='contrato', cascade='all, delete-orphan')
@@ -68,6 +82,12 @@ class Contrato(db.Model):
 
 class Entregable(db.Model):
     __tablename__ = 'entregable'
+    __table_args__ = (
+        db.CheckConstraint(
+            "estado IN ('pendiente', 'aprobado', 'rechazado')",
+            name='ck_entregable_estado',
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     id_contrato = db.Column(db.Integer, db.ForeignKey('contrato.id'), nullable=False)

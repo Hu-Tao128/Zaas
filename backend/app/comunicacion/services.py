@@ -5,6 +5,7 @@ from email_validator import EmailNotValidError, validate_email
 from app.extensions import db
 from app.auth.models import Usuario
 from app.catalogo.models import SolicitudDemo
+from app.contratos.models import Contrato
 from app.comunicacion.models import Conversacion, Mensaje, Notificacion, Calificacion, Incidencia
 
 
@@ -113,11 +114,18 @@ def registrar_solicitud_demo(proyecto, usuario, nombre, correo):
     return solicitud
 
 
-def registrar_incidencia(usuario, tipo, descripcion):
+def registrar_incidencia(usuario, tipo, descripcion, id_contrato=None):
     if tipo not in ('acoso', 'fraude', 'incumplimiento', 'bug', 'otro'):
         raise ErrorComunicacion('El tipo de incidencia no es válido.')
     descripcion = texto_requerido(descripcion, 'La descripción', 5000)
-    incidencia = Incidencia(id_usuario=usuario.id, tipo=tipo, descripcion=descripcion)
+    if id_contrato is not None:
+        if type(id_contrato) is not int or id_contrato < 1:
+            raise ErrorComunicacion('El contrato indicado no es válido.')
+        contrato = db.session.get(Contrato, id_contrato)
+        if contrato is None:
+            raise ErrorComunicacion('El contrato indicado no existe.', 404)
+        verificar_participante(contrato, usuario)
+    incidencia = Incidencia(id_usuario=usuario.id, tipo=tipo, descripcion=descripcion, id_contrato=id_contrato)
     db.session.add(incidencia)
     db.session.flush()
     admins = db.session.scalars(db.select(Usuario).filter_by(tipo_usuario='admin')).all()
