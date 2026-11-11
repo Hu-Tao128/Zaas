@@ -1,5 +1,6 @@
 import { Link, Navigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import AdminCatalogo from './AdminCatalogo';
 import { useComunicacionResource } from '../hooks/useComunicacionResource';
 import './catalogo/catalogo.css';
 import './admin.css';
@@ -10,7 +11,8 @@ const modules = [
   { icon: '02', title: 'Comunicación', description: 'Accede a tus mensajes, notificaciones y seguimiento de proyectos.',
     label: 'Disponible', to: '/comunicacion', action: 'Ir a Comunicación' },
   { icon: '03', title: 'Usuarios y permisos', description: 'Un espacio para la futura gestión de cuentas y roles del equipo.' },
-  { icon: '04', title: 'Catálogo y ofertas', description: 'La administración del catálogo se integrará con el módulo de proyectos.' },
+  { icon: '04', title: 'Catálogo y ofertas', description: 'Consulta los proyectos y ofertas de toda la plataforma.',
+    label: 'Disponible', to: '#catalogo-admin', action: 'Ver catálogo y ofertas' },
   { icon: '05', title: 'Contratos y entregables', description: 'Aquí se incorporará el seguimiento administrativo de los contratos.' },
   { icon: '06', title: 'Pagos y disputas', description: 'El control administrativo de pagos se habilitará al integrar ese módulo.' },
 ];
@@ -39,7 +41,6 @@ export default function AdminPage() {
             <h1>Panel administrativo</h1>
             <p>Hola, {summary.usuario.nombre}. Este es el estado de los reportes y los espacios de gestión.</p>
           </div>
-          <span className="admin-provisional">Vista provisional</span>
         </header>
         <section className="admin-stats" aria-label="Resumen de incidencias">
           {[['Reportes totales', summary.incidencias.total], ['Por atender', summary.incidencias.pendientes],
@@ -59,6 +60,7 @@ export default function AdminPage() {
                 : <button className="btn btn-secondary" type="button" disabled>Pendiente de integración</button>}
           </article>)}
         </section>
+        <AdminCatalogo />
         <section className="card admin-reports" id="incidencias" aria-labelledby="admin-reports-title">
           <div className="admin-reports-heading"><div><h2 id="admin-reports-title">Incidencias recientes</h2>
             <p>Últimos cinco reportes. La gestión completa se incorporará en una próxima etapa.</p></div>

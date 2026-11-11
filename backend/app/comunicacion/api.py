@@ -6,9 +6,10 @@ from flask_wtf.csrf import generate_csrf, validate_csrf
 from wtforms.validators import ValidationError
 from werkzeug.exceptions import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import selectinload
 from app.extensions import db
 from app.contratos.models import Contrato
-from app.catalogo.models import Proyecto, SolicitudDemo
+from app.catalogo.models import OfertaTrabajo, Proyecto, SolicitudDemo
 from app.comunicacion.models import Conversacion, Mensaje, Notificacion, Calificacion, Incidencia
 from app.comunicacion.services import (
     ErrorComunicacion, verificar_participante, obtener_conversacion, enviar_mensaje,
@@ -148,6 +149,48 @@ def resumen_admin():
         },
         'recientes': [incidencia_json(item) for item in recientes],
     })
+
+
+@comunicacion_api.get('/admin/catalogo')
+def catalogo_admin():
+    if current_user.tipo_usuario != 'admin':
+        raise ErrorComunicacion('Solo un administrador puede consultar este catálogo.', 403)
+
+    tipo = request.args.get('tipo', 'proyectos')
+    if tipo not in ('proyectos', 'ofertas'):
+        raise ErrorComunicacion('Elige proyectos u ofertas.')
+    es_proyecto = tipo == 'proyectos'
+    modelo = Proyecto if es_proyecto else OfertaTrabajo
+    estados = ('activo', 'cerrado') if es_proyecto else ('abierto', 'en_progreso', 'cerrado')
+    estado = request.args.get('estado', '')
+    if estado and estado not in estados:
+        raise ErrorComunicacion('El estado seleccionado no corresponde al tipo de publicación.')
+
+    conteos = {}
+    for nombre, tabla in (('proyectos', Proyecto), ('ofertas', OfertaTrabajo)):
+        por_estado = {estado or 'sin_estado': cantidad for estado, cantidad in db.session.execute(
+            db.select(tabla.estado, db.func.count(tabla.id)).group_by(tabla.estado)
+        )}
+        conteos[nombre] = {'total': sum(por_estado.values()), 'estados': por_estado}
+
+    relacion = Proyecto.autor if es_proyecto else OfertaTrabajo.cliente
+    query = db.select(modelo).options(selectinload(relacion))
+    if estado:
+        query = query.where(modelo.estado == estado)
+
+    def serializar(publicacion):
+        responsable = publicacion.autor if es_proyecto else publicacion.cliente
+        return {
+            'id': publicacion.id,
+            'titulo': publicacion.titulo,
+            'responsable': persona(responsable) if responsable else None,
+            'estado': publicacion.estado,
+            'monto': publicacion.precio if es_proyecto else publicacion.presupuesto,
+            'fecha_publicacion': fecha(publicacion.fecha_publicacion),
+        }
+
+    return paginar(query.order_by(modelo.fecha_publicacion.desc(), modelo.id.desc()),
+                   serializar, conteos=conteos)
 
 
 @comunicacion_api.get('/contratos')

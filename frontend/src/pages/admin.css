@@ -32,6 +32,15 @@
 .admin-empty { text-align: center; padding: 2.5rem 1rem; color: color-mix(in srgb, var(--zaas-text) 75%, var(--zaas-bg)); }
 .admin-empty strong { display: block; margin-bottom: .5rem; }
 .admin-access { max-width: 650px; margin: 3rem auto; }
+.admin-catalogo-filtros, .admin-catalogo-conteos, .admin-catalogo-paginacion {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin: 1rem 0;
+}
+.admin-catalogo-filtros label { display: grid; gap: .3rem; font-weight: 600; }
+.admin-catalogo-filtros select {
+  padding: .5rem; border: 1px solid var(--zaas-border-medium); border-radius: var(--zaas-radius);
+  background: var(--zaas-surface); color: var(--zaas-text); font: inherit;
+}
+.admin-catalogo-paginacion { justify-content: center; }
 @media (max-width: 900px) { .admin-modules { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) {
   .admin-heading, .admin-reports-heading { flex-direction: column; }
