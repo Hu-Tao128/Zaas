@@ -1,5 +1,7 @@
 """API JSON para React; usa la sesión Flask y CSRF en las escrituras."""
 
+from functools import wraps
+
 from flask import Blueprint, jsonify, request
 from flask_login import current_user
 from flask_wtf.csrf import generate_csrf, validate_csrf
@@ -7,10 +9,12 @@ from wtforms.validators import ValidationError
 from werkzeug.exceptions import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
+from app.auth.models import Usuario
 from app.extensions import db
-from app.contratos.models import Contrato
+from app.contratos.models import Contrato, Entregable
 from app.catalogo.models import OfertaTrabajo, Proyecto, SolicitudDemo
 from app.comunicacion.models import Conversacion, Mensaje, Notificacion, Calificacion, Incidencia
+from app.pagos.models import Disputa, Pago
 from app.comunicacion.services import (
     ErrorComunicacion, verificar_participante, obtener_conversacion, enviar_mensaje,
     registrar_calificacion, registrar_solicitud_demo, registrar_incidencia, resolver_incidencia,
@@ -129,6 +133,24 @@ def paginar(query, serializar, **extra):
                          'pages': pagina.pages, 'has_next': pagina.has_next}, **extra)
 
 
+def requiere_admin(vista):
+    @wraps(vista)
+    def verificar(*args, **kwargs):
+        if current_user.tipo_usuario != 'admin':
+            raise ErrorComunicacion('Solo un administrador puede ingresar a este panel.', 403)
+        return vista(*args, **kwargs)
+    return verificar
+
+
+def filtrar(query, parametro, columna, opciones):
+    valor = request.args.get(parametro, '')
+    if not valor:
+        return query
+    if valor not in opciones:
+        raise ErrorComunicacion('El filtro seleccionado no es válido.')
+    return query.where(columna == valor)
+
+
 @comunicacion_api.get('/sesion')
 def sesion():
     return jsonify(data=persona(current_user) | {'email': current_user.email,
@@ -136,9 +158,8 @@ def sesion():
 
 
 @comunicacion_api.get('/admin/resumen')
+@requiere_admin
 def resumen_admin():
-    if current_user.tipo_usuario != 'admin':
-        raise ErrorComunicacion('Solo un administrador puede ingresar a este panel.', 403)
     por_estado = dict(db.session.execute(db.select(
         Incidencia.estado, db.func.count(Incidencia.id)).group_by(Incidencia.estado)).all())
     recientes = db.session.scalars(db.select(Incidencia).order_by(Incidencia.id.desc()).limit(5)).all()
@@ -154,10 +175,8 @@ def resumen_admin():
 
 
 @comunicacion_api.get('/admin/catalogo')
+@requiere_admin
 def catalogo_admin():
-    if current_user.tipo_usuario != 'admin':
-        raise ErrorComunicacion('Solo un administrador puede consultar este catálogo.', 403)
-
     tipo = request.args.get('tipo', 'proyectos')
     if tipo not in ('proyectos', 'ofertas'):
         raise ErrorComunicacion('Elige proyectos u ofertas.')
@@ -193,6 +212,64 @@ def catalogo_admin():
 
     return paginar(query.order_by(modelo.fecha_publicacion.desc(), modelo.id.desc()),
                    serializar, conteos=conteos)
+
+
+@comunicacion_api.get('/admin/contratos')
+@requiere_admin
+def contratos_admin():
+    query = db.select(Contrato).options(
+        selectinload(Contrato.cliente), selectinload(Contrato.desarrollador),
+        selectinload(Contrato.producto), selectinload(Contrato.encargo),
+        selectinload(Contrato.entregables).load_only(Entregable.estado),
+    )
+    query = filtrar(query, 'estado', Contrato.estado, (
+        'borrador', 'pendiente', 'aceptado', 'en_progreso', 'entregado', 'finalizado', 'cancelado',
+    ))
+
+    def serializar(contrato):
+        return {
+            'id': contrato.id, 'objeto': contrato.objeto, 'estado': contrato.estado,
+            'cliente': contrato.nombre_cliente, 'desarrollador': contrato.nombre_desarrollador,
+            'fecha': fecha(contrato.fecha_creacion),
+            'entregables': len(contrato.entregables),
+            'aprobados': sum(item.estado == 'aprobado' for item in contrato.entregables),
+        }
+
+    return paginar(query.order_by(Contrato.id.desc()), serializar)
+
+
+@comunicacion_api.get('/admin/pagos')
+@requiere_admin
+def pagos_admin():
+    query = filtrar(db.select(Pago), 'estado', Pago.estado_escrow,
+                    ('retenido', 'liberado', 'reembolsado', 'dividido'))
+    return paginar(query.order_by(Pago.id.desc()), lambda pago: {
+        'id': pago.id, 'id_contrato': pago.id_contrato, 'monto': pago.monto,
+        'estado': pago.estado_escrow, 'metodo': pago.metodo_pago, 'fecha': fecha(pago.fecha_pago),
+    })
+
+
+@comunicacion_api.get('/admin/disputas')
+@requiere_admin
+def disputas_admin():
+    query = db.select(Disputa).options(selectinload(Disputa.reportante))
+    query = filtrar(query, 'estado', Disputa.estado, ('abierta', 'en_revision', 'resuelta', 'cerrada'))
+    return paginar(query.order_by(Disputa.id.desc()), lambda disputa: {
+        'id': disputa.id, 'id_contrato': disputa.id_contrato, 'tipo': disputa.tipo,
+        'estado': disputa.estado, 'fecha': fecha(disputa.fecha_hora_publicacion),
+        'reportante': disputa.reportante.nombre_completo if disputa.reportante else None,
+    })
+
+
+@comunicacion_api.get('/admin/usuarios')
+@requiere_admin
+def usuarios_admin():
+    query = filtrar(db.select(Usuario), 'rol', Usuario.tipo_usuario,
+                    ('cliente', 'desarrollador', 'admin'))
+    return paginar(query.order_by(Usuario.id.desc()), lambda usuario: {
+        'id': usuario.id, 'nombre': usuario.nombre_completo, 'email': usuario.email,
+        'rol': usuario.tipo_usuario, 'fecha': fecha(usuario.fecha_registro),
+    })
 
 
 @comunicacion_api.get('/contratos')
@@ -335,6 +412,10 @@ def incidencias():
     if request.args.get('todas') == 'true':
         if current_user.tipo_usuario != 'admin':
             raise ErrorComunicacion('Solo un administrador puede consultar todos los reportes.', 403)
+        query = filtrar(query, 'estado', Incidencia.estado, ('abierta', 'en_proceso', 'resuelta', 'cerrada'))
+        query = query.options(selectinload(Incidencia.contrato).options(
+            selectinload(Contrato.producto), selectinload(Contrato.encargo),
+        ))
     else:
         query = query.where(Incidencia.id_usuario == current_user.id)
     return paginar(query.order_by(Incidencia.id.desc()), incidencia_json)

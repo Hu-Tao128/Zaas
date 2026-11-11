@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { guardar } from '../services/comunicacionService';
 import { useComunicacionResource as useResource } from '../hooks/useComunicacionResource';
 import Navbar from '../components/Navbar';
@@ -7,8 +7,7 @@ import './catalogo/catalogo.css';
 import './comunicacion.css';
 
 const TABS = {
-  mensajes: 'Mensajes', notificaciones: 'Notificaciones', demos: 'Solicitudes de demo',
-  calificaciones: 'Calificaciones', incidencias: 'Incidencias',
+  mensajes: 'Mensajes', demos: 'Solicitudes de demo', calificaciones: 'Calificaciones',
 };
 const date = value => value ? new Date(value).toLocaleString('es-MX') : '';
 
@@ -157,37 +156,6 @@ function Messages({ me, initialContract }) {
   </>;
 }
 
-function Notifications() {
-  const [unread, setUnread] = useState(false);
-  return <NotificationsList key={String(unread)} unread={unread} setUnread={setUnread} />;
-}
-
-function NotificationsList({ unread, setUnread }) {
-  const resource = useList(`/notificaciones?solo_no_leidas=${unread}`);
-  const action = useAction();
-  return <section className="comm-panel">
-    <h2>Notificaciones <span className="comm-badge">{resource.result?.no_leidas ?? '…'} sin leer</span></h2>
-    <div className="comm-row">
-      <label className="comm-check"><input type="checkbox" checked={unread}
-        onChange={e => setUnread(e.target.checked)} />Solo sin leer</label>
-      <button type="button" disabled={action.pending || !resource.result?.no_leidas}
-        onClick={() => action.run(() => guardar('/notificaciones/leer'), 'Notificaciones marcadas como leídas.',
-          () => { resource.setPage(1); resource.reload(); })}>Marcar todas como leídas</button>
-    </div>
-    <Feedback action={action} />
-    <Collection resource={resource} empty="No hay notificaciones para mostrar.">
-      {items => <ul className="comm-records">{items.map(n => <li key={n.id} className={!n.leido ? 'unread' : ''}>
-        <div><strong>{n.asunto}</strong><p>{n.mensaje}</p><small>{date(n.fecha_hora_creacion)}</small>
-          {n.link?.startsWith('/comunicacion?') && <Link to={n.link}>Ver actividad</Link>}</div>
-        {!n.leido && <button type="button" disabled={action.pending} onClick={() => action.run(
-          () => guardar(`/notificaciones/${n.id}/leer`, {}, 'PATCH'), 'Notificación leída.',
-          () => { resource.setPage(1); resource.reload(); }
-        )}>Marcar leída</button>}
-      </li>)}</ul>}
-    </Collection>
-  </section>;
-}
-
 function DemoForm({ me, onSaved }) {
   const projects = useList('/proyectos-demo');
   const action = useAction();
@@ -277,69 +245,37 @@ function Ratings({ me, initialContract }) {
   </>;
 }
 
-function Incidents() {
-  const resource = useList('/incidencias');
-  const action = useAction();
-  const [type, setType] = useState('bug');
-  const [description, setDescription] = useState('');
-  function submit(e) {
-    e.preventDefault();
-    action.run(() => guardar('/incidencias', { tipo: type, descripcion: description }), 'Incidencia reportada.',
-      () => { setDescription(''); resource.setPage(1); resource.reload(); });
+export default function ComunicacionPage() {
+  const [params, setParams] = useSearchParams();
+  const requestedTab = params.get('tab');
+  if (requestedTab === 'incidencias' || requestedTab === 'notificaciones') {
+    return <Navigate to={`/${requestedTab}`} replace />;
   }
-  return <>
-    <section className="comm-panel">
-      <h2>Reportar una incidencia</h2>
-      <Feedback action={action} />
-      <form className="comm-form" onSubmit={submit}>
-        <label>Tipo<select value={type} onChange={e => setType(e.target.value)}>
-          {Object.entries({ bug: 'Error del sistema', acoso: 'Acoso', fraude: 'Fraude',
-            incumplimiento: 'Incumplimiento', otro: 'Otro' }).map(([id, label]) =>
-            <option key={id} value={id}>{label}</option>)}
-        </select></label>
-        <label>Descripción<textarea required rows={4} maxLength={5000} value={description}
-          onChange={e => setDescription(e.target.value)} /></label>
-        <button className="comm-primary" disabled={action.pending || !description.trim()}>Enviar reporte</button>
-      </form>
-    </section>
-    <section className="comm-panel">
-      <h2>Mis incidencias</h2>
-      <Collection resource={resource} empty="Todavía no has enviado reportes.">
-        {items => <ul className="comm-records">{items.map(i => <li key={i.id}><div>
-          <strong>#{i.id} · {i.tipo}</strong><span className="comm-badge">{i.estado}</span>
-          <p>{i.descripcion}</p><small>{date(i.fecha_hora)}</small>
-          {i.resolucion && <p className="comm-resolution"><strong>Resolución:</strong> {i.resolucion}</p>}
-        </div></li>)}</ul>}
-      </Collection>
-    </section>
-  </>;
+  const tab = Object.hasOwn(TABS, requestedTab) ? requestedTab : 'mensajes';
+  const contract = /^\d+$/.test(params.get('contrato') || '') ? params.get('contrato') : '';
+  return <Comunicacion tab={tab} contract={contract} onChangeTab={id => setParams({ tab: id })} />;
 }
 
-export default function ComunicacionPage() {
+function Comunicacion({ tab, contract, onChangeTab }) {
   const session = useResource('/sesion');
-  const [params, setParams] = useSearchParams();
-  const tab = Object.hasOwn(TABS, params.get('tab')) ? params.get('tab') : 'mensajes';
-  const contract = /^\d+$/.test(params.get('contrato') || '') ? params.get('contrato') : '';
   const me = session.result?.data;
   return <div className="catalogo-app comm-page">
     <Navbar usuario={me} />
     <header className="comm-header"><div><Link to="/">← Inicio de Zaas</Link>
-      <h1>Comunicación</h1><p>Mensajes, avisos y seguimiento de tus proyectos.</p></div>
+      <h1>Comunicación</h1><p>Mensajes, solicitudes de demo y calificaciones.</p></div>
       {me && <span className="comm-badge">{me.tipo_usuario === 'admin' ? 'Administrador' : me.tipo_usuario}</span>}
     </header>
     <nav className="comm-tabs" aria-label="Secciones de comunicación">{Object.entries(TABS).map(([id, label]) =>
       <button key={id} type="button" aria-current={tab === id ? 'page' : undefined}
-        onClick={() => setParams({ tab: id })}>{label}</button>)}</nav>
+        onClick={() => onChangeTab(id)}>{label}</button>)}</nav>
     <main className="comm-content">
       {session.loading && <p role="status">Cargando tu sesión…</p>}
       {session.error && <section className="comm-panel"><p className="comm-error" role="alert">{session.error}</p>
         <button type="button" onClick={session.reload}>Reintentar</button> <Link to="/login">Ir a iniciar sesión</Link></section>}
       {me && <div key={`${tab}-${contract}`}>
         {tab === 'mensajes' && <Messages me={me} initialContract={contract} />}
-        {tab === 'notificaciones' && <Notifications />}
         {tab === 'demos' && <Demos me={me} />}
         {tab === 'calificaciones' && <Ratings me={me} initialContract={contract} />}
-        {tab === 'incidencias' && <Incidents />}
       </div>}
     </main>
   </div>;

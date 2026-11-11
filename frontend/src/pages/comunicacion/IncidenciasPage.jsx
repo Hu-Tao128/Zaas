@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useApi } from '../../hooks/useApi';
 import { useCatalogo } from '../../context/CatalogoContext';
 import { comunicacionApi } from '../../services/comunicacionApi';
@@ -16,9 +17,11 @@ const TIPOS = [
 export default function IncidenciasPage() {
   const { usuario } = useCatalogo();
   const esAdmin = usuario.tipo_usuario === 'admin';
+  const [pagina, setPagina] = useState(1);
+  const [estado, setEstado] = useState('');
   const { data, loading, error, recargar } = useApi(
-    () => comunicacionApi.incidencias(esAdmin),
-    [esAdmin],
+    () => comunicacionApi.incidencias(esAdmin, pagina, estado),
+    [esAdmin, pagina, estado],
   );
 
   const [form, setForm] = useState({ tipo: 'otro', descripcion: '', id_contrato: '' });
@@ -80,13 +83,29 @@ export default function IncidenciasPage() {
         <div>
           <h1 className="catalogo-page-title">Incidencias</h1>
           <p className="catalogo-page-subtitle">
-            Reporta problemas de conducta, fraude, incumplimiento o bugs del sistema.
+            {esAdmin ? 'Revisa los reportes de los usuarios y registra su resolución.'
+              : 'Reporta problemas de conducta, fraude, incumplimiento o bugs del sistema.'}
           </p>
         </div>
+        {esAdmin && <Link to="/admin" className="btn btn-secondary">Volver al panel</Link>}
       </header>
 
       {mensaje && <div className="alert alert-success" role="status">{mensaje}</div>}
       {errorAccion && <div className="alert alert-danger" role="alert">{errorAccion}</div>}
+
+      {esAdmin && <div className="form-group">
+        <label htmlFor="incidencia-estado">Estado</label>
+        <select id="incidencia-estado" value={estado} onChange={event => {
+          setEstado(event.target.value);
+          setPagina(1);
+        }}>
+          <option value="">Todos los estados</option>
+          <option value="abierta">Abierta</option>
+          <option value="en_proceso">En proceso</option>
+          <option value="resuelta">Resuelta</option>
+          <option value="cerrada">Cerrada</option>
+        </select>
+      </div>}
 
       {!esAdmin && (
         <form className="card contrato-form-card" onSubmit={crearIncidencia}>
@@ -133,7 +152,8 @@ export default function IncidenciasPage() {
       {items.length === 0 ? (
         <div className="card contrato-empty">
           <h2 className="contrato-empty-title">Sin incidencias</h2>
-          <p className="contrato-empty-text">No hay incidencias registradas.</p>
+          <p className="contrato-empty-text">{esAdmin ? 'No hay incidencias en esta página para el filtro seleccionado.'
+            : 'No hay incidencias registradas.'}</p>
         </div>
       ) : (
         <div className="contratos-grid">
@@ -147,7 +167,8 @@ export default function IncidenciasPage() {
               <p className="contrato-card-party">{incidencia.descripcion}</p>
               {incidencia.contrato_objeto && (
                 <p className="contrato-card-party">
-                  Contrato: <strong>{incidencia.contrato_objeto}</strong>
+                  Contrato: {esAdmin ? <Link to={`/contratos/${incidencia.id_contrato}`}>{incidencia.contrato_objeto}</Link>
+                    : <strong>{incidencia.contrato_objeto}</strong>}
                 </p>
               )}
               <div className="contrato-card-meta">
@@ -160,9 +181,10 @@ export default function IncidenciasPage() {
               )}
               {esAdmin && ['abierta', 'en_proceso'].includes(incidencia.estado) && (
                 <div className="form-group">
+                  <label htmlFor={`resolucion-${incidencia.id}`}>Resolución</label>
                   <textarea
+                    id={`resolucion-${incidencia.id}`}
                     rows="2"
-                    placeholder="Resolución"
                     value={resoluciones[incidencia.id] || ''}
                     onChange={(e) => setResoluciones((actual) => ({
                       ...actual,
@@ -182,6 +204,15 @@ export default function IncidenciasPage() {
             </article>
           ))}
         </div>
+      )}
+      {esAdmin && (data?.meta?.pages > 1 || pagina > 1) && (
+        <nav className="contratos-header" aria-label="Páginas de incidencias">
+          <button className="btn btn-secondary" type="button" disabled={pagina === 1}
+            onClick={() => setPagina(pagina - 1)}>Anterior</button>
+          <span>Página {pagina}</span>
+          <button className="btn btn-secondary" type="button" disabled={!data?.meta?.has_next}
+            onClick={() => setPagina(pagina + 1)}>Siguiente</button>
+        </nav>
       )}
     </div>
   );

@@ -3,23 +3,17 @@
 .admin-eyebrow { display: block; margin-bottom: .6rem; color: var(--zaas-brand-dark); text-transform: uppercase; letter-spacing: .1em; font-size: .75rem; font-weight: 700; }
 .admin-heading h1 { font-size: 2rem; margin-bottom: .6rem; }
 .admin-heading p, .admin-section-heading p, .admin-reports-heading p { color: color-mix(in srgb, var(--zaas-text) 75%, var(--zaas-bg)); line-height: 1.6; }
-.admin-provisional { flex-shrink: 0; padding: .5rem .75rem; border: 1px solid #fecaca; border-radius: 4px; background: #fff1f2; color: var(--zaas-brand-dark); font-size: .8rem; }
 .admin-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1rem; }
 .admin-app .admin-stat { display: flex; flex-direction: column; gap: .6rem; border-top: 3px solid var(--zaas-primary); }
 .admin-stat strong { font-size: 2.25rem; line-height: 1.1; color: var(--zaas-brand-dark); }
-.admin-stat small { color: color-mix(in srgb, var(--zaas-text) 75%, var(--zaas-bg)); }
 .admin-section-heading { margin-bottom: 1.25rem; }
 .admin-section-heading h2 { margin-bottom: .5rem; }
 .admin-modules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1rem; }
 .admin-app .admin-module { display: flex; flex-direction: column; gap: .9rem; margin-bottom: 0; border: 1px solid #e5e5e5; }
-.admin-module-top { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
-.admin-module-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 6px; background: #fff1f2; color: var(--zaas-brand-dark); font-size: .85rem; font-weight: 700; }
 .admin-module h3 { font-size: 1.1rem; }
 .admin-app .admin-module p { color: color-mix(in srgb, var(--zaas-text) 75%, var(--zaas-bg)); margin-bottom: .25rem; flex: 1; }
 .admin-module .btn { align-self: flex-start; font-size: .85rem; }
-.admin-module .btn:disabled { cursor: not-allowed; background: #e5e5e5; color: #737373; }
 .admin-status { display: inline-block; padding: .3rem .6rem; border-radius: 4px; background: #f0f0f0; color: #525252; font-size: .75rem; text-transform: capitalize; white-space: nowrap; }
-.admin-status.available { background: #dcfce7; color: #166534; }
 .admin-reports { margin-top: 1.5rem; scroll-margin-top: 1.5rem; }
 .admin-reports-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
 .admin-reports-heading h2 { margin-bottom: .5rem; }

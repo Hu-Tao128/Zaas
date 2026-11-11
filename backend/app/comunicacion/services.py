@@ -131,7 +131,7 @@ def registrar_incidencia(usuario, tipo, descripcion, id_contrato=None):
     admins = db.session.scalars(db.select(Usuario).filter_by(tipo_usuario='admin')).all()
     for admin in admins:
         crear_notificacion(admin, f'Nueva incidencia #{incidencia.id}: {tipo}',
-                           '/comunicacion?tab=incidencias')
+                           '/incidencias')
     return incidencia
 
 
@@ -145,5 +145,5 @@ def resolver_incidencia(incidencia, usuario, resolucion):
     incidencia.fecha_resolucion = datetime.now(timezone.utc).replace(tzinfo=None)
     incidencia.id_admin = usuario.id
     crear_notificacion(incidencia.id_usuario, f'Tu incidencia #{incidencia.id} ha sido resuelta.',
-                       '/comunicacion?tab=incidencias')
+                       '/incidencias')
     return incidencia

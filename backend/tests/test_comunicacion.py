@@ -6,9 +6,10 @@ from app import create_app
 from app.extensions import db, login_manager
 from app.auth.models import Usuario
 from app.catalogo.models import Proyecto, SolicitudDemo
-from app.contratos.models import Contrato
+from app.contratos.models import Contrato, Entregable
 from app.comunicacion.models import Mensaje, Notificacion, Calificacion, Incidencia
 from app.comunicacion.services import crear_notificacion, ErrorComunicacion
+from app.pagos.models import Disputa, Pago
 
 
 class TestConfig:
@@ -74,14 +75,57 @@ class ComunicacionTest(unittest.TestCase):
         self.assertIn('error', response.json)
 
     def test_admin_panel_requires_server_role_and_session(self):
+        rutas = ['/admin/resumen', '/admin/contratos', '/admin/pagos', '/admin/disputas', '/admin/usuarios']
         for user in (1, 2, 3):
             self.login(user)
-            response = self.get('/admin/resumen?tipo_usuario=admin')
-            self.assertEqual(response.status_code, 403)
-            self.assertNotIn('data', response.json)
+            for ruta in rutas:
+                with self.subTest(usuario=user, ruta=ruta):
+                    response = self.get(f'{ruta}?tipo_usuario=admin')
+                    self.assertEqual(response.status_code, 403)
+                    self.assertNotIn('data', response.json)
         with self.client.session_transaction() as sesion:
             sesion.clear()
-        self.assertEqual(self.get('/admin/resumen').status_code, 401)
+        for ruta in rutas:
+            self.assertEqual(self.get(ruta).status_code, 401)
+
+    def test_admin_can_filter_contracts_deliverables_and_user_roles(self):
+        with self.app.app_context():
+            db.session.add_all([
+                Entregable(id_contrato=1, titulo='Prototipo', estado='aprobado'),
+                Entregable(id_contrato=1, titulo='Versión final', estado='pendiente'),
+            ])
+            db.session.commit()
+        self.login(4)
+        contratos = self.get('/admin/contratos?per_page=1').json
+        self.assertEqual(contratos['meta']['total'], 2)
+        self.assertTrue(contratos['meta']['has_next'])
+        contrato = self.get('/admin/contratos?estado=aceptado').json['data'][0]
+        self.assertEqual((contrato['objeto'], contrato['aprobados'], contrato['entregables']), ('Con demo', 1, 2))
+        usuarios = self.get('/admin/usuarios?rol=cliente').json
+        self.assertEqual([u['id'] for u in usuarios['data']], [3, 1])
+        self.assertNotIn('firebase_uid', usuarios['data'][0])
+        self.assertEqual(self.get('/admin/usuarios?rol=invalido').status_code, 400)
+
+    def test_admin_payment_and_dispute_lists_reflect_contract_arbitration(self):
+        with self.app.app_context():
+            db.session.add(Pago(id=1, id_contrato=1, monto=100, estado_escrow='retenido', metodo_pago='simulado'))
+            db.session.add(Disputa(id=1, id_contrato=1, id_pago=1, id_reportante=1, tipo='pago'))
+            db.session.commit()
+        self.login(4)
+        pago = self.get('/admin/pagos?estado=retenido').json['data'][0]
+        self.assertEqual((pago['id_contrato'], pago['metodo']), (1, 'simulado'))
+        disputa = self.get('/admin/disputas?estado=abierta').json['data'][0]
+        self.assertEqual((disputa['id_contrato'], disputa['reportante']), (1, 'Usuario 1 Prueba'))
+
+        detalle = self.client.get('/contratos/api/1').json['contrato']
+        self.assertTrue(detalle['acciones']['es_admin'])
+        self.assertFalse(detalle['acciones']['puede_liberar'])
+        resultado = self.client.post('/contratos/api/disputas/1/resolver',
+                                     json={'decision': 'reembolsar', 'notas': 'Prueba local'},
+                                     headers={'X-CSRFToken': self.csrf})
+        self.assertEqual(resultado.status_code, 200)
+        self.assertEqual(self.get('/admin/disputas?estado=abierta').json['data'], [])
+        self.assertEqual(self.get('/admin/pagos?estado=reembolsado').json['data'][0]['id'], 1)
 
     def test_admin_summary_contains_real_counts_and_only_five_recent_reports(self):
         with self.app.app_context():
@@ -95,6 +139,9 @@ class ComunicacionTest(unittest.TestCase):
         self.assertEqual(summary['usuario']['tipo_usuario'], 'admin')
         self.assertEqual(summary['incidencias'], {'total': 6, 'pendientes': 4, 'resueltas': 2})
         self.assertEqual([r['id'] for r in summary['recientes']], [6, 5, 4, 3, 2])
+        incidencias = self.get('/incidencias?todas=true&estado=abierta&per_page=1&page=2').json
+        self.assertEqual(incidencias['meta']['total'], 3)
+        self.assertEqual(incidencias['data'][0]['id'], 5)
 
     def test_public_registration_cannot_assign_admin_or_unknown_role(self):
         for role in ['admin', 'superadmin', None, ['admin']]:
@@ -272,7 +319,9 @@ class ComunicacionTest(unittest.TestCase):
         self.assertEqual(self.get(f'/incidencias/{id}').status_code, 403)
         self.login(4)
         self.assertEqual(self.get('/incidencias?todas=true').json['meta']['total'], 1)
-        self.assertEqual(self.get('/notificaciones').json['no_leidas'], 1)
+        notificaciones_admin = self.get('/notificaciones').json
+        self.assertEqual(notificaciones_admin['no_leidas'], 1)
+        self.assertEqual(notificaciones_admin['data'][0]['link'], '/incidencias')
         # El GET heredado ya no debe resolver el reporte.
         self.client.get(f'/comunicacion/incidencia/{id}/resolver')
         self.assertEqual(self.get(f'/incidencias/{id}').json['data']['estado'], 'abierta')
@@ -282,7 +331,9 @@ class ComunicacionTest(unittest.TestCase):
         self.assertEqual(response.json['data']['id_admin'], 4)
         self.assertEqual(self.write(f'/incidencias/{id}/resolver', {'resolucion': 'Otra vez'}, 'PATCH').status_code, 409)
         self.login(1)
-        self.assertEqual(self.get('/notificaciones').json['no_leidas'], 1)
+        notificaciones_cliente = self.get('/notificaciones').json
+        self.assertEqual(notificaciones_cliente['no_leidas'], 1)
+        self.assertEqual(notificaciones_cliente['data'][0]['link'], '/incidencias')
 
     def test_incident_validation_leaves_no_partial_records(self):
         for payload in [{'tipo': 'invalido', 'descripcion': 'Prueba'}, {'tipo': 'bug', 'descripcion': ' '},

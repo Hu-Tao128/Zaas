@@ -1,10 +1,12 @@
 import { consultar, guardar } from './comunicacionService';
 
 export const comunicacionApi = {
-  notificaciones: async () => {
-    const { data, no_leidas } = await consultar('/notificaciones?per_page=50');
-    return { items: data, no_leidas };
+  notificaciones: async (pagina = 1, soloNoLeidas = false) => {
+    const params = new URLSearchParams({ page: pagina, per_page: 20, solo_no_leidas: soloNoLeidas });
+    const { data, meta, no_leidas } = await consultar(`/notificaciones?${params}`);
+    return { items: data, meta, no_leidas };
   },
+  marcarNotificacionLeida: (id) => guardar(`/notificaciones/${id}/leer`, {}, 'PATCH'),
   marcarNotificacionesLeidas: () => guardar('/notificaciones/leer'),
 
   chat: async (idContrato) => {
@@ -19,9 +21,10 @@ export const comunicacionApi = {
   calificar: (idContrato, datos) =>
     guardar(`/contratos/${idContrato}/calificaciones`, { ...datos, puntaje: Number(datos.puntaje) }),
 
-  incidencias: async (todas) => {
-    const { data } = await consultar(`/incidencias?per_page=100&todas=${todas}`);
-    return { items: data };
+  incidencias: async (todas, pagina = 1, estado = '') => {
+    const params = new URLSearchParams({ todas, page: pagina, per_page: todas ? 12 : 100, estado });
+    const { data, meta } = await consultar(`/incidencias?${params}`);
+    return { items: data, meta };
   },
   crearIncidencia: (datos) => guardar('/incidencias', datos),
   resolverIncidencia: (id, resolucion) =>
