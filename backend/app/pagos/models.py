@@ -9,7 +9,7 @@ class Pago(db.Model):
             "estado_escrow IN ('retenido', 'liberado', 'reembolsado', 'dividido')",
             name='ck_pago_estado_escrow',
         ),
-        db.CheckConstraint('monto >= 0', name='ck_pago_monto'),
+        db.CheckConstraint('monto > 0', name='ck_pago_monto'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -34,7 +34,7 @@ class Pago(db.Model):
 class Liberacion(db.Model):
     __tablename__ = 'liberacion'
     __table_args__ = (
-        db.CheckConstraint('monto_liberado >= 0', name='ck_liberacion_monto'),
+        db.CheckConstraint('monto_liberado > 0', name='ck_liberacion_monto'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -92,8 +92,8 @@ class Disputa(db.Model):
     id_pago = db.Column(db.Integer, db.ForeignKey('pago.id'))
     id_entregable = db.Column(db.Integer, db.ForeignKey('entregable.id'))
     id_incidencia = db.Column(db.Integer, db.ForeignKey('incidencia.id'), unique=True)
-    tipo = db.Column(db.String(50))
-    descripcion = db.Column(db.Text)
+    tipo = db.Column(db.String(50), nullable=False)
+    descripcion = db.Column(db.Text, nullable=False)
     fecha_hora_publicacion = db.Column(db.DateTime, default=datetime.utcnow)
     estado = db.Column(db.String(20), default='abierta')
     # estados: abierta, en_revision, resuelta, cerrada
@@ -131,7 +131,7 @@ class Arbitraje(db.Model):
         db.Integer, db.ForeignKey('disputa.id'), nullable=False, unique=True
     )
     id_arbitro = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
-    decision = db.Column(db.String(20))  # liberar, reembolsar, dividir
+    decision = db.Column(db.String(20), nullable=False)  # liberar, reembolsar, dividir
     porcentaje_desarrollador = db.Column(db.Float)  # 0-100, solo si decision='dividir'
     notas = db.Column(db.Text)
     fecha_hora = db.Column(db.DateTime, default=datetime.utcnow)

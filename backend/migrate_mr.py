@@ -7,8 +7,8 @@ El script es idempotente:
 - crea las tablas nuevas (habilidad, perfil_habilidad, perfil_tecnologia),
 - agrega las columnas nuevas del MR a las tablas existentes,
 - migra las antiguas cadenas `perfil.habilidades` y `perfil.stack_tecnologico`
-  a las tablas intermedias,
-- crea los índices únicos que el MR exige.
+  a las tablas intermedias (solo si existen esas columnas legadas),
+- crea los indices unicos que el MR exige.
 
 Para una base nueva no es necesario: basta con `python seed.py`.
 """
@@ -71,7 +71,7 @@ def _columnas(conexion, tabla):
 def main():
     app = create_app()
     with app.app_context():
-        # Crea las tablas nuevas que aún no existen.
+        # Crea las tablas nuevas que aun no existen.
         db.create_all()
 
         conexion = db.session.connection()
@@ -83,28 +83,31 @@ def main():
                 conexion.execute(text(f'ALTER TABLE {tabla} ADD COLUMN {nombre} {tipo}'))
                 print(f'  + {tabla}.{nombre}')
 
-        # Migrar habilidades/tecnologías antiguas antes de que el ORM las ignore.
-        filas = conexion.execute(text(
-            'SELECT id, habilidades, stack_tecnologico FROM perfil'
-        )).mappings().all()
+        # Migrar habilidades/tecnologias antiguas solo si la base aun conserva
+        # las columnas legadas (bases ya migradas no las tienen).
+        columnas_perfil = _columnas(conexion, 'perfil')
+        columnas_legadas = [c for c in ('habilidades', 'stack_tecnologico') if c in columnas_perfil]
+        if columnas_legadas:
+            seleccion = ', '.join(['id'] + columnas_legadas)
+            filas = conexion.execute(text(f'SELECT {seleccion} FROM perfil')).mappings().all()
 
-        for fila in filas:
-            perfil = db.session.get(Perfil, fila['id'])
-            if perfil is None:
-                continue
-            if fila['habilidades']:
-                sincronizar_habilidades(perfil, fila['habilidades'])
-            if fila['stack_tecnologico']:
-                sincronizar_tecnologias(perfil, fila['stack_tecnologico'])
+            for fila in filas:
+                perfil = db.session.get(Perfil, fila['id'])
+                if perfil is None:
+                    continue
+                if 'habilidades' in fila and fila['habilidades']:
+                    sincronizar_habilidades(perfil, fila['habilidades'])
+                if 'stack_tecnologico' in fila and fila['stack_tecnologico']:
+                    sincronizar_tecnologias(perfil, fila['stack_tecnologico'])
 
         for sentencia in INDICES_UNICOS:
             try:
                 conexion.execute(text(sentencia))
             except Exception as error:
-                print(f'  ! No se pudo crear índice ({error}). Revisa datos duplicados.')
+                print(f'  ! No se pudo crear indice ({error}). Revisa datos duplicados.')
 
         db.session.commit()
-        print('Migración MR completada.')
+        print('Migracion MR completada.')
 
 
 if __name__ == '__main__':
