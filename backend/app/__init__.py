@@ -20,7 +20,7 @@ def create_app(config_class=None):
     app.config.from_object(config_class)
 
     # CORS abierto para desarrollo
-        CORS(
+    CORS(
         app,
         resources={r"/*": {"origins": [
             "http://localhost:3000",
