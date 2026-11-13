@@ -20,7 +20,14 @@ def create_app(config_class=None):
     app.config.from_object(config_class)
 
     # CORS abierto para desarrollo
-    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+        CORS(
+        app,
+        resources={r"/*": {"origins": [
+            "http://localhost:3000",
+            "https://zaas.shellycornet.com"
+        ]}},
+        supports_credentials=True
+    )
 
     # Extensiones
     db.init_app(app)

@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: true,
     port: 3000,
     allowedHosts: [
       'zaas.shellycornet.com',
@@ -19,7 +20,10 @@ export default defineConfig({
         target: 'http://localhost:5000',
         changeOrigin: true
       },
-      '/api': 'http://localhost:5000'
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true
+      }
     }
   }
 })
