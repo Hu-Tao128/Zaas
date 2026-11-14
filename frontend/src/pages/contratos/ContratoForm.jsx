@@ -33,6 +33,8 @@ function validar(valores, productos) {
 
   if (!valores.costo_acordado) {
     errores.costo_acordado = 'Indica el costo acordado.';
+  } else if (!/^\d+(\.\d{1,2})?$/.test(String(valores.costo_acordado).trim())) {
+    errores.costo_acordado = 'El costo debe ser un número válido (hasta 2 decimales).';
   } else if (!Number.isFinite(Number(valores.costo_acordado)) || Number(valores.costo_acordado) <= 0) {
     errores.costo_acordado = 'El costo debe ser mayor a cero.';
   }
@@ -310,13 +312,14 @@ export default function ContratoForm() {
               </label>
               <input
                 id="contrato-costo"
-                type="number"
-                min="0.01"
-                step="0.01"
+                type="text"
                 inputMode="decimal"
                 placeholder="15000.00"
                 value={valores.costo_acordado}
-                onChange={(e) => actualizar('costo_acordado', e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (/^\d*\.?\d{0,2}$/.test(v)) actualizar('costo_acordado', v);
+                }}
                 onBlur={() => marcarTocado('costo_acordado')}
                 aria-invalid={Boolean(mostrarError('costo_acordado'))}
                 aria-describedby={`contrato-costo-hint${mostrarError('costo_acordado') ? ' contrato-costo-error' : ''}`}

@@ -16,6 +16,10 @@ export default defineConfig({
         target: 'http://localhost:5000',
         changeOrigin: true
       },
+      '/pagos/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true
+      },
       '/api': 'http://localhost:5000'
     }
   }

@@ -51,7 +51,13 @@ function OfertaForm({ oferta }) {
     if (datos.titulo.trim().length < 3) nuevosErrores.titulo = 'El título debe tener al menos 3 caracteres.';
     if (datos.titulo.trim().length > 200) nuevosErrores.titulo = 'El título no puede superar 200 caracteres.';
     if (datos.descripcion.trim().length < 10) nuevosErrores.descripcion = 'La descripción debe tener al menos 10 caracteres.';
-    if (datos.presupuesto && Number(datos.presupuesto) <= 0) nuevosErrores.presupuesto = 'El presupuesto debe ser mayor que 0.';
+    if (datos.presupuesto) {
+      if (!/^\d+(\.\d{1,2})?$/.test(String(datos.presupuesto).trim())) {
+        nuevosErrores.presupuesto = 'El presupuesto debe ser un número válido (hasta 2 decimales).';
+      } else if (Number(datos.presupuesto) <= 0) {
+        nuevosErrores.presupuesto = 'El presupuesto debe ser mayor que 0.';
+      }
+    }
     if (datos.fecha_entrega && new Date(datos.fecha_entrega) <= new Date()) {
       nuevosErrores.fecha_entrega = 'La fecha de entrega debe ser futura.';
     }
@@ -85,7 +91,18 @@ function OfertaForm({ oferta }) {
           <textarea id="descripcion" name="descripcion" value={datos.descripcion} onChange={actualizarCampo} required />
         </FormField>
         <FormField label="Presupuesto" name="presupuesto" error={errores.presupuesto}>
-          <input id="presupuesto" name="presupuesto" type="number" min="0.01" step="0.01" value={datos.presupuesto} onChange={actualizarCampo} />
+          <input
+            id="presupuesto"
+            name="presupuesto"
+            type="text"
+            inputMode="decimal"
+            placeholder="0.00"
+            value={datos.presupuesto}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (/^\d*\.?\d{0,2}$/.test(v)) actualizarCampo({ target: { name: 'presupuesto', value: v } });
+            }}
+          />
         </FormField>
         <FormField label="Fecha de Entrega" name="fecha_entrega" error={errores.fecha_entrega}>
           <input id="fecha_entrega" name="fecha_entrega" type="datetime-local" min={fechaMinimaLocal()} value={datos.fecha_entrega} onChange={actualizarCampo} />

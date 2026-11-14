@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useApi } from '../../hooks/useApi';
 import { contratosApi } from '../../services/contratosApi';
 import { comunicacionApi } from '../../services/comunicacionApi';
+import { pagosApi } from '../../services/pagosApi';
 import { CalendarIcon, ShieldCheckIcon } from '../../components/icons';
 import { formatDinero, formatFecha, formatFechaHora } from '../catalogo/catalogoUtils';
 import {
@@ -39,6 +40,7 @@ export default function ContratoDetalle() {
 
   const [chat, setChat] = useState({ mensajes: [], cargando: true, error: null });
   const [nuevoMensaje, setNuevoMensaje] = useState('');
+  const [resumenPagos, setResumenPagos] = useState(null);
 
   const esParte = Boolean(contrato?.acciones?.es_parte);
   const esAdmin = Boolean(contrato?.acciones?.es_admin);
@@ -60,6 +62,22 @@ export default function ContratoDetalle() {
     return () => { vigente = false; };
   }, [id, contrato, esParte, esAdmin]);
 
+  useEffect(() => {
+    if (!contrato || (!esParte && !esAdmin)) {
+      setResumenPagos(null);
+      return undefined;
+    }
+    let vigente = true;
+    pagosApi.resumenContrato(id)
+      .then((respuesta) => {
+        if (vigente) setResumenPagos(respuesta.resumen || null);
+      })
+      .catch(() => {
+        if (vigente) setResumenPagos(null);
+      });
+    return () => { vigente = false; };
+  }, [id, contrato, esParte, esAdmin]);
+
   if (loading) return <CargandoContratos mensaje="Cargando contrato..." />;
   if (error) {
     return (
@@ -71,9 +89,18 @@ export default function ContratoDetalle() {
   }
 
   const acciones = contrato.acciones;
-  const etiquetaAceptar = acciones.soy_cliente && contrato.escrow.estado === 'sin_deposito'
-    ? 'Aceptar y Depositar en Escrow'
-    : 'Aceptar y Firmar Contrato';
+  const etiquetaAceptar = 'Aceptar contrato';
+  const porDepositar = Number(resumenPagos?.por_depositar ?? NaN);
+  const puedeDepositar = Boolean(
+    acciones.soy_cliente
+      && ['aceptado', 'en_progreso', 'entregado'].includes(contrato.estado)
+      && (Number.isFinite(porDepositar) ? porDepositar > 0 : Boolean(acciones.puede_depositar_escrow)),
+  );
+  const mostrarFaltaFirmaParaDepositar = Boolean(
+    acciones.soy_cliente
+      && contrato.estado === 'pendiente'
+      && !acciones.ya_firme,
+  );
 
   async function ejecutar(accion, mensajeExito) {
     setEnviando(true);
@@ -204,7 +231,7 @@ export default function ContratoDetalle() {
       <nav aria-label="Migas de pan" className="proyecto-breadcrumbs">
         <Link to="/contratos">Contratos</Link>
         <span aria-hidden="true">/</span>
-        <span className="current" aria-current="page">Contrato #{contrato.id}</span>
+        <span className="current" aria-current="page">Detalle del contrato</span>
       </nav>
 
       {mensajeAccion && <div className="alert alert-success" role="status">{mensajeAccion}</div>}
@@ -222,7 +249,7 @@ export default function ContratoDetalle() {
           </button>
         </div>
 
-        <h1 className="proyecto-detalle-title">Contrato #{contrato.id}</h1>
+        <h1 className="proyecto-detalle-title">{contrato.proyecto?.nombre || contrato.proyecto?.titulo || 'Detalle del contrato'}</h1>
         <p className="contrato-header-object">{contrato.objeto}</p>
 
         <div className="contrato-header-meta">
@@ -386,26 +413,23 @@ export default function ContratoDetalle() {
           <section className="card contrato-section" aria-label="Pagos y liberaciones">
             <h2 className="contrato-section-title">Pagos y liberaciones</h2>
             {(contrato.pagos || []).length === 0 ? (
-              <p className="catalogo-muted">Aún no se ha depositado dinero en Escrow.</p>
+              <p className="catalogo-muted">Aún no se han depositado fondos en garantía.</p>
             ) : (
               <div className="contrato-entregables-list">
-                {contrato.pagos.map((pago) => (
-                  <article key={pago.id} className="contrato-entregable">
+                {(contrato.pagos || []).map((pago, idx) => (
+                  <article key={pago.id || idx} className="contrato-entregable">
                     <div className="contrato-entregable-top">
-                      <strong>{formatDinero(pago.monto)} MXN</strong>
+                      <strong>Depósito {idx + 1}: {formatDinero(pago.monto)} {pago.moneda || 'MXN'}</strong>
                       <EscrowBadge estado={pago.estado_escrow} />
                     </div>
-                    <p className="contrato-entregable-desc">
-                      Método: {pago.metodo_pago || 'no especificado'} · Transacción: {pago.transaccion_id || '—'}
-                    </p>
                     {pago.recibo && (
                       <p className="contrato-entregable-desc">
-                        Recibo <strong>{pago.recibo.folio}</strong> · Total {formatDinero(pago.recibo.total)} MXN
+                        Recibo emitido · Total {formatDinero(pago.recibo.total)} {pago.recibo.moneda || pago.moneda || 'MXN'}
                       </p>
                     )}
-                    {(pago.liberaciones || []).map((liberacion) => (
-                      <p key={liberacion.id} className="contrato-entregable-comment">
-                        Liberación: {formatDinero(liberacion.monto_liberado)} MXN — {liberacion.motivo || 'sin motivo'} — {formatFechaHora(liberacion.fecha_hora)}
+                    {(pago.liberaciones || []).map((liberacion, i) => (
+                      <p key={liberacion.id || i} className="contrato-entregable-comment">
+                        Liberación: {formatDinero(liberacion.monto_liberado)} {pago.moneda || 'MXN'} — {liberacion.motivo || 'Sin motivo especificado'} — {formatFechaHora(liberacion.fecha_hora)}
                       </p>
                     ))}
                   </article>
@@ -458,8 +482,18 @@ export default function ContratoDetalle() {
                 {contrato.disputas.map((disputa) => (
                   <article key={disputa.id} className="contrato-entregable">
                     <div className="contrato-entregable-top">
-                      <strong>Disputa #{disputa.id} — {disputa.tipo}</strong>
-                      <span className="contrato-badge contrato-badge--neutral">{disputa.estado}</span>
+                      <strong>
+                        {{
+                          pago: 'Disputa de pago',
+                          entregable: 'Disputa de entregable',
+                          incumplimiento: 'Disputa por incumplimiento',
+                          contrato: 'Disputa del contrato',
+                          otro: 'Disputa',
+                        }[disputa.tipo] || 'Disputa'}
+                      </strong>
+                      <span className="contrato-badge contrato-badge--neutral">
+                        {{ abierta: 'Abierta', en_revision: 'En revisión', resuelta: 'Resuelta', cerrada: 'Cerrada' }[disputa.estado] || disputa.estado}
+                      </span>
                     </div>
                     <p className="contrato-entregable-desc">{disputa.descripcion}</p>
                     <small className="contrato-entregable-date">
@@ -467,7 +501,12 @@ export default function ContratoDetalle() {
                     </small>
                     {disputa.arbitraje && (
                       <p className="contrato-entregable-comment">
-                        <strong>Decisión:</strong> {disputa.arbitraje.decision} · {disputa.arbitraje.notas || 'sin notas'}
+                        <strong>Resolución:</strong> {{
+                          liberar: 'Fondos liberados al desarrollador',
+                          reembolsar: 'Fondos devueltos al cliente',
+                          dividir: 'Fondos divididos',
+                        }[disputa.arbitraje.decision] || disputa.arbitraje.decision}
+                        {disputa.arbitraje.notas ? ` · ${disputa.arbitraje.notas}` : ''}
                       </p>
                     )}
                     {esAdmin && ['abierta', 'en_revision'].includes(disputa.estado) && (
@@ -560,18 +599,26 @@ export default function ContratoDetalle() {
 
         <aside className="contrato-detalle-sidebar" aria-label="Estado Escrow y acciones del contrato">
           <div className="card contrato-escrow-card">
-            <span className="contrato-summary-label">Monto en custodia</span>
-            <strong className="contrato-escrow-total">{formatDinero(contrato.costo_acordado)}</strong>
-            <EscrowBadge estado={contrato.escrow.estado} />
+            <span className="contrato-summary-label">Fondos en garantía</span>
+            <strong className="contrato-escrow-total">{formatDinero(resumenPagos?.en_custodia ?? 0)}</strong>
+            <EscrowBadge estado={contrato.escrow?.estado || 'sin_deposito'} />
 
             <div className="contrato-escrow-breakdown">
               <div>
-                <span>Retenido</span>
-                <strong>{formatDinero(contrato.escrow.monto_retenido)}</strong>
+                <span>Depositado</span>
+                <strong>{formatDinero(resumenPagos?.depositado ?? 0)}</strong>
+              </div>
+              <div>
+                <span>En custodia</span>
+                <strong>{formatDinero(resumenPagos?.en_custodia ?? 0)}</strong>
               </div>
               <div>
                 <span>Liberado</span>
-                <strong>{formatDinero(contrato.escrow.monto_liberado)}</strong>
+                <strong>{formatDinero(resumenPagos?.liberado ?? 0)}</strong>
+              </div>
+              <div>
+                <span>Por depositar</span>
+                <strong>{formatDinero(resumenPagos?.por_depositar ?? contrato.costo_acordado)}</strong>
               </div>
             </div>
 
@@ -613,11 +660,22 @@ export default function ContratoDetalle() {
               </div>
             )}
 
-            {acciones.puede_liberar && (
-              <button type="button" className="btn btn-primary contrato-main-cta" onClick={handleLiberar} disabled={enviando}>
+            {puedeDepositar && (
+              <Link to={`/contratos/${contrato.id}/pagos`} className="btn btn-primary contrato-main-cta">
                 <ShieldCheckIcon size={17} />
-                <span>{enviando ? 'Liberando...' : 'Liberar fondos al desarrollador'}</span>
-              </button>
+                <span>Depositar fondos</span>
+              </Link>
+            )}
+
+            {!puedeDepositar && !['cancelado', 'finalizado'].includes(contrato.estado) && (
+              <Link to={`/contratos/${contrato.id}/pagos`} className="btn btn-secondary contrato-main-cta">
+                <ShieldCheckIcon size={17} />
+                <span>Ver pagos y garantía</span>
+              </Link>
+            )}
+
+            {mostrarFaltaFirmaParaDepositar && contrato.estado === 'pendiente' && (
+              <p className="contrato-accion-nota">Falta la firma del desarrollador para poder depositar.</p>
             )}
 
             {acciones.puede_calificar && (

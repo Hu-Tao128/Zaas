@@ -4,10 +4,11 @@ const BASE = '/pagos/api';
 let csrfToken = null;
 
 export class PagoApiError extends Error {
-  constructor(mensaje, status, errores = {}) {
+  constructor(mensaje, status, errores = {}, codigo = null) {
     super(mensaje);
     this.status = status;
-    this.errores = errores;
+    this.errores = errores || {};
+    this.codigo = codigo || null;
   }
 }
 
@@ -15,15 +16,15 @@ async function obtenerCsrf() {
   if (!csrfToken) {
     const respuesta = await fetch(`${BASE}/csrf`, { credentials: 'include' });
     if (!respuesta.ok) {
-      throw new PagoApiError('No se pudo iniciar la sesión con el servidor.', respuesta.status);
+      throw new PagoApiError('No se pudo iniciar la sesión con el servidor.', respuesta.status, {}, 'error_interno');
     }
     csrfToken = (await respuesta.json()).csrf_token;
   }
   return csrfToken;
 }
 
-async function peticion(metodo, ruta, cuerpo, puedeReintentar = true) {
-  const opciones = { method: metodo, credentials: 'include', headers: {} };
+async function peticion(metodo, ruta, cuerpo, puedeReintentar = true, headersExtra = {}) {
+  const opciones = { method: metodo, credentials: 'include', headers: { ...headersExtra } };
 
   if (metodo !== 'GET') {
     opciones.headers['Content-Type'] = 'application/json';
@@ -35,20 +36,21 @@ async function peticion(metodo, ruta, cuerpo, puedeReintentar = true) {
   try {
     respuesta = await fetch(`${BASE}${ruta}`, opciones);
   } catch {
-    throw new PagoApiError('No se pudo conectar con el servidor.', 0);
+    throw new PagoApiError('No se pudo conectar con el servidor.', 0, {}, 'sin_conexion');
   }
 
   const datos = await respuesta.json().catch(() => ({}));
 
   if (!respuesta.ok) {
-    if (metodo !== 'GET' && respuesta.status === 400 && puedeReintentar && !datos.mensaje) {
+    if (metodo !== 'GET' && respuesta.status === 400 && puedeReintentar && !datos.mensaje && !datos.codigo) {
       csrfToken = null;
       return peticion(metodo, ruta, cuerpo, false);
     }
     throw new PagoApiError(
-      datos.mensaje || `Error del servidor (${respuesta.status}).`,
+      datos.mensaje || 'No se pudo completar la operación.',
       respuesta.status,
       datos.errores || {},
+      datos.codigo || null,
     );
   }
 
@@ -58,8 +60,10 @@ async function peticion(metodo, ruta, cuerpo, puedeReintentar = true) {
 export const pagosApi = {
   csrf: () => peticion('GET', '/csrf'),
   listarPorContrato: (idContrato) => peticion('GET', `/contrato/${idContrato}`),
+  resumenContrato: (idContrato) => peticion('GET', `/contrato/${idContrato}/resumen`),
   obtener: (id) => peticion('GET', `/${id}`),
-  crear: (datos) => peticion('POST', '/crear', datos),
+  crear: (datos, idempotencyKey) => peticion('POST', '/crear', datos, true, idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+  verificar: (id, codigo) => peticion('POST', `/pagos/${id}/verificar`, { codigo }),
 
   liberaciones: (idPago) => peticion('GET', `/pagos/${idPago}/liberaciones`),
   crearLiberacion: (datos) => peticion('POST', '/liberaciones/crear', datos),

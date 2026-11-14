@@ -175,6 +175,17 @@ export default function Navbar() {
                 Incidencias
               </NavLink>
             </li>
+            <li>
+              <NavLink
+                to="/disputas"
+                onClick={cerrarMenu}
+                className={({ isActive }) =>
+                  `catalogo-nav-link ${isActive ? 'catalogo-nav-link--active' : ''}`
+                }
+              >
+                Disputas
+              </NavLink>
+            </li>
           </ul>
 
           <div className="catalogo-nav-user">

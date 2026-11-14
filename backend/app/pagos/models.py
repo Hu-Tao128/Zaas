@@ -6,21 +6,33 @@ class Pago(db.Model):
     __tablename__ = 'pago'
     __table_args__ = (
         db.CheckConstraint(
-            "estado_escrow IN ('retenido', 'liberado', 'reembolsado', 'dividido')",
+            "estado_escrow IN ('pendiente', 'fallido', 'retenido', 'liberado', 'reembolsado', 'dividido')",
             name='ck_pago_estado_escrow',
         ),
         db.CheckConstraint('monto > 0', name='ck_pago_monto'),
+        db.UniqueConstraint('idempotency_key', name='uq_pago_idempotency_key'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
     id_contrato = db.Column(db.Integer, db.ForeignKey('contrato.id'), nullable=False)
     monto = db.Column(db.Float, nullable=False)
-    estado_escrow = db.Column(db.String(20), default='retenido')
+    estado_escrow = db.Column(db.String(20), default='pendiente')
     # estados: retenido, liberado, reembolsado, dividido
     fecha_pago = db.Column(db.DateTime, default=datetime.utcnow)
     fecha_liberacion = db.Column(db.DateTime)
     metodo_pago = db.Column(db.String(50))
     transaccion_id = db.Column(db.String(100), unique=True)
+    moneda = db.Column(db.String(3), nullable=False, default='MXN')
+    proveedor = db.Column(db.String(30))
+    marca_tarjeta = db.Column(db.String(20))
+    ultimos4 = db.Column(db.String(4))
+    codigo_fallo = db.Column(db.String(50))
+    mensaje_fallo = db.Column(db.String(200))
+    idempotency_key = db.Column(db.String(64), unique=True)
+    fecha_confirmacion = db.Column(db.DateTime)
+    reembolso_id = db.Column(db.String(100))
+    fecha_reembolso = db.Column(db.DateTime)
+    intentos_verificacion = db.Column(db.Integer, nullable=False, default=0)
 
     contrato = db.relationship('Contrato', back_populates='pagos')
     liberaciones = db.relationship('Liberacion', back_populates='pago', cascade='all, delete-orphan')

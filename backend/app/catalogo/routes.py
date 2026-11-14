@@ -496,7 +496,16 @@ def solicitar_demo(id):
             correo_contacto=form.correo_contacto.data
         )
         db.session.add(solicitud)
+        db.session.flush()
+        if producto.autor and producto.autor.id != current_user.id:
+            from app.comunicacion.models import Notificacion
+            db.session.add(Notificacion(
+                id_usuario=producto.autor.id,
+                asunto=f'Nueva solicitud sobre tu proyecto: {producto.titulo}',
+                mensaje=f'{current_user.nombre_completo} solicitó información o una demostración de tu proyecto "{producto.titulo}".',
+                link=url_for('catalogo.detalle_proyecto', id=producto.id),
+            ))
         db.session.commit()
-        flash('Solicitud de demo enviada.', 'success')
+        flash('Solicitud enviada al desarrollador.', 'success')
         return redirect(url_for('catalogo.detalle_proyecto', id=id))
     return render_template('catalogo/demo_form.html', form=form, producto=producto)

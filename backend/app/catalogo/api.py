@@ -297,14 +297,24 @@ def solicitar_demo(id):
     form = DemoForm(formdata=_formdata(_datos_json()), meta={'csrf': False})
     if not form.validate():
         return _form_invalido(form)
-    db.session.add(SolicitudDemo(
+    solicitud = SolicitudDemo(
         id_producto=id,
         id_cliente=current_user.id,
         nombre_contacto=form.nombre_contacto.data,
         correo_contacto=form.correo_contacto.data,
-    ))
+    )
+    db.session.add(solicitud)
+    db.session.flush()
+    if proyecto.autor and proyecto.autor.id != current_user.id:
+        from app.comunicacion.models import Notificacion
+        db.session.add(Notificacion(
+            id_usuario=proyecto.autor.id,
+            asunto=f'Nueva solicitud para tu proyecto: {proyecto.titulo}',
+            mensaje=f'{current_user.nombre_completo} solicitó información o una demostración de tu proyecto "{proyecto.titulo}".',
+            link=f'/proyecto/{proyecto.id}',
+        ))
     db.session.commit()
-    return _ok('Solicitud de demo enviada.', 201)
+    return _ok('Solicitud enviada al desarrollador.', 201)
 
 
 # ---------------------------------------------------------------------- ofertas

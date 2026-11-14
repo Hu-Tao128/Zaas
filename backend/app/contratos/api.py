@@ -31,6 +31,7 @@ from app.contratos.plantillas import (
 )
 from app.extensions import db
 from app.pagos.models import Arbitraje, Disputa, Liberacion, Pago, Recibo
+from app.pagos import services as pagos_services
 
 contratos_api_bp = Blueprint('contratos_api', __name__, url_prefix='/contratos/api')
 
@@ -315,7 +316,7 @@ def _acciones(contrato):
             soy_desarrollador and contrato.estado in ('aceptado', 'en_progreso')
         ),
         'puede_revisar_entregables': soy_cliente,
-        'puede_depositar_escrow': soy_cliente and not (contrato.pagos or []),
+        'puede_depositar_escrow': soy_cliente and contrato.estado in ('aceptado', 'en_progreso', 'entregado'),
         'puede_liberar': soy_cliente and bool(pagos_retenidos),
         'puede_disputar': es_parte and contrato.estado not in ('finalizado', 'cancelado') and not disputa_abierta,
         'puede_calificar': es_parte and contrato.estado == 'finalizado' and not ya_califico,
@@ -575,10 +576,21 @@ def crear_contrato():
         _contexto_plantilla(contrato, form.notas.data),
         claves_html={'notas_html'},
     )
+    db.session.flush()
+
+    from app.comunicacion.models import Notificacion
+    if desarrollador.id != current_user.id:
+        db.session.add(Notificacion(
+            id_usuario=desarrollador.id,
+            asunto='Nuevo contrato pendiente de revisión',
+            mensaje=f'{current_user.nombre_completo} creó el contrato #{contrato.id}. Revisa los términos y continúa con el proceso.',
+            link=f'/contratos/{contrato.id}',
+        ))
+
     db.session.commit()
 
     return _ok(
-        'Contrato creado como borrador. Revisa y firma para formalizarlo.',
+        'Contrato creado. El desarrollador fue notificado para continuar con el proceso.',
         201,
         contrato=_contrato_detalle(contrato),
     )
@@ -599,29 +611,12 @@ def _html_recibo(pago, contrato, folio=None):
 
 
 def _depositar_escrow(contrato):
-    existente = db.session.execute(
-        db.select(Pago).filter_by(id_contrato=contrato.id)
-    ).scalars().first()
-    if existente:
-        return existente
-
-    pago = Pago(
-        id_contrato=contrato.id,
-        monto=contrato.costo_acordado,
-        estado_escrow='retenido',
-        metodo_pago='simulado',
-        transaccion_id=f'TX-{uuid.uuid4().hex[:12].upper()}',
-    )
-    db.session.add(pago)
-    db.session.flush()
-
-    folio = f'ZAS-{datetime.utcnow():%Y%m%d}-{uuid.uuid4().hex[:8].upper()}'
-    db.session.add(Recibo(
-        id_pago=pago.id,
-        folio=folio,
-        total=pago.monto,
-        contenido_html=_html_recibo(pago, contrato, folio),
-    ))
+    pago = pagos_services.depositar_escrow(contrato)
+    recibo = db.session.execute(
+        db.select(Recibo).filter_by(id_pago=pago.id)
+    ).scalar_one_or_none()
+    if recibo is not None and not recibo.contenido_html:
+        recibo.contenido_html = _html_recibo(pago, contrato, recibo.folio)
     return pago
 
 
@@ -673,16 +668,10 @@ def aceptar_contrato(id):
 
     contrato.estado = 'aceptado' if contrato.firmas_completas else 'pendiente'
 
-    deposito = None
-    if current_user.id == contrato.id_cliente and not contrato.pagos:
-        deposito = _depositar_escrow(contrato)
-
     db.session.commit()
 
-    if deposito is not None:
-        mensaje = 'Contrato aceptado y fondos retenidos en Escrow.'
-    elif contrato.estado == 'aceptado':
-        mensaje = 'Contrato aceptado por ambas partes. Ya pueden comenzar.'
+    if contrato.estado == 'aceptado':
+        mensaje = 'Contrato aceptado por ambas partes.'
     else:
         mensaje = 'Tu aceptación fue registrada. Falta la firma de la otra parte.'
 
@@ -803,19 +792,52 @@ def liberar_fondos(id):
     aprobados = [e for e in (contrato.entregables or []) if e.estado == 'aprobado']
     entregable = max(aprobados, key=lambda e: e.fecha_subida or datetime.min, default=None)
 
-    pago.estado_escrow = 'liberado'
-    pago.fecha_liberacion = datetime.utcnow()
-    contrato.estado = 'finalizado'
-    db.session.add(Liberacion(
-        id_pago=pago.id,
-        id_usuario=current_user.id,
-        id_entregable=entregable.id if entregable else None,
-        monto_liberado=pago.monto,
-        motivo='Entregable aprobado por el cliente',
-    ))
+    def _d(v):
+        return Decimal(str(v or 0)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    ya_liberado_pago = sum((_d(l.monto_liberado) for l in (pago.liberaciones or [])), Decimal('0.00'))
+    saldo_pendiente = _d(pago.monto) - ya_liberado_pago
+    if saldo_pendiente <= 0:
+        return _error('No hay saldo pendiente por liberar en este pago.', 409)
+
+    try:
+        pagos_services.crear_liberacion(
+            pago,
+            current_user,
+            float(saldo_pendiente),
+            entregable.id if entregable else None,
+            'Entregable aprobado por el cliente',
+        )
+    except (PermissionError, ValueError) as exc:
+        db.session.rollback()
+        return _error(str(exc), 403 if isinstance(exc, PermissionError) else 400)
+
+    db.session.flush()
+    contrato_actualizado = db.session.get(type(contrato), contrato.id)
+
+    total_liberado_contrato = Decimal('0.00')
+    custodia_restante = Decimal('0.00')
+    for p in (contrato_actualizado.pagos or []):
+        lib_p = sum((_d(l.monto_liberado) for l in (p.liberaciones or [])), Decimal('0.00'))
+        total_liberado_contrato += lib_p
+        if p.estado_escrow == 'retenido':
+            saldo_p = _d(p.monto) - lib_p
+            if saldo_p > 0:
+                custodia_restante += saldo_p
+
+    costo = _d(contrato_actualizado.costo_acordado)
+    if custodia_restante == Decimal('0.00') and total_liberado_contrato >= costo:
+        contrato_actualizado.estado = 'finalizado'
+        db.session.commit()
+        db.session.refresh(contrato_actualizado)
+        return _ok(f'Fondos liberados: ${saldo_pendiente:,.2f} al desarrollador. Contrato finalizado.', contrato=_contrato_detalle(contrato_actualizado))
+
     db.session.commit()
-    db.session.refresh(contrato)
-    return _ok(f'Fondos liberados: ${pago.monto:,.2f} al desarrollador.', contrato=_contrato_detalle(contrato))
+    db.session.refresh(contrato_actualizado)
+    return _ok(
+        f'Fondos liberados: ${saldo_pendiente:,.2f} al desarrollador. El contrato no se finalizó porque aún hay fondos en custodia o no se ha liberado el total acordado.',
+        contrato=_contrato_detalle(contrato_actualizado),
+    )
 
 
 @contratos_api_bp.post('/<int:id>/disputa')
@@ -853,16 +875,19 @@ def abrir_disputa(id):
     else:
         id_pago, id_entregable = None, (entregable.id if entregable else None)
 
-    disputa = Disputa(
-        id_contrato=contrato.id,
-        id_reportante=current_user.id,
-        id_pago=id_pago,
-        id_entregable=id_entregable,
-        tipo=tipo,
-        descripcion=descripcion,
-        estado='abierta',
-    )
-    db.session.add(disputa)
+    try:
+        pagos_services.abrir_disputa(
+            contrato,
+            current_user,
+            tipo,
+            descripcion,
+            id_pago=id_pago,
+            id_entregable=id_entregable,
+        )
+    except (PermissionError, ValueError) as exc:
+        db.session.rollback()
+        return _error(str(exc), 403 if isinstance(exc, PermissionError) else 400)
+
     db.session.commit()
     db.session.refresh(contrato)
     return _ok('Disputa creada. Un administrador la revisará.', 201, contrato=_contrato_detalle(contrato))
@@ -894,27 +919,18 @@ def resolver_disputa(id):
             'porcentaje_desarrollador': 'El porcentaje debe estar entre 0 y 100.',
         })
 
-    arbitraje = Arbitraje(
-        id_disputa=disputa.id,
-        id_arbitro=current_user.id,
-        decision=decision,
-        porcentaje_desarrollador=porcentaje,
-        notas=str(datos.get('notas', '')).strip() or None,
-    )
-    db.session.add(arbitraje)
+    try:
+        pagos_services.crear_arbitraje(
+            disputa,
+            current_user,
+            decision,
+            porcentaje if porcentaje else None,
+            str(datos.get('notas', '')).strip() or None,
+        )
+    except (PermissionError, ValueError) as exc:
+        db.session.rollback()
+        return _error(str(exc), 403 if isinstance(exc, PermissionError) else 400)
 
-    pago = disputa.pago or (disputa.contrato.pagos[0] if disputa.contrato.pagos else None)
-    if pago:
-        pago.fecha_liberacion = datetime.utcnow()
-        pago.estado_escrow = {
-            'liberar': 'liberado',
-            'reembolsar': 'reembolsado',
-            'dividir': 'dividido',
-        }[decision]
-
-    disputa.estado = 'resuelta'
-    disputa.fecha_hora_resolucion = datetime.utcnow()
-    disputa.resolucion = str(datos.get('notas', '')).strip() or None
     db.session.commit()
     db.session.refresh(disputa.contrato)
     return _ok('Disputa resuelta.', contrato=_contrato_detalle(disputa.contrato))
