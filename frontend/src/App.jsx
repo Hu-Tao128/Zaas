@@ -22,6 +22,7 @@ import ContratoForm from './pages/contratos/ContratoForm';
 import ContratoDetalle from './pages/contratos/ContratoDetalle';
 import NotificacionesPage from './pages/comunicacion/NotificacionesPage';
 import IncidenciasPage from './pages/comunicacion/IncidenciasPage';
+import IncidenciaFormPage from './pages/comunicacion/IncidenciaFormPage';
 import PagosContratoPage from './pages/pagos/PagosContratoPage';
 import DisputasPage from './pages/pagos/DisputasPage';
 import './pages/catalogo/catalogo.css';
@@ -89,6 +90,7 @@ export default function App() {
             <Route path="disputas" element={<DisputasPage />} />
             <Route path="notificaciones" element={<NotificacionesPage />} />
             <Route path="incidencias" element={<IncidenciasPage />} />
+            <Route path="incidencias/nueva" element={<IncidenciaFormPage />} />
             <Route path="perfil" element={<PerfilPage />} />
             <Route path="perfil/:id" element={<PerfilPage />} />
           </Route>

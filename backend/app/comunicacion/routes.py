@@ -2,8 +2,10 @@ from flask import render_template, redirect, url_for, request, flash, abort
 from flask_login import login_required, current_user
 from sqlalchemy import or_
 from app.comunicacion import comunicacion_bp
+from app.comunicacion.errors import IncidenciaError
 from app.comunicacion.models import Conversacion, Mensaje, Notificacion, Calificacion, Incidencia
 from app.comunicacion.forms import MensajeForm, CalificacionForm, IncidenciaForm
+from app.comunicacion import services as comunicacion_services
 from app.contratos.models import Contrato
 from app.auth.models import Usuario
 from app.extensions import db
@@ -158,32 +160,28 @@ def calificar_contrato(id):
 @login_required
 def nueva_incidencia():
     form = IncidenciaForm()
-    contratos = db.session.execute(
-        db.select(Contrato).filter(or_(
-            Contrato.id_cliente == current_user.id,
-            Contrato.id_desarrollador == current_user.id,
-        )).order_by(Contrato.fecha_creacion.desc())
-    ).scalars().all()
+    contratos_items = comunicacion_services.listar_contratos_usuario(current_user)
     form.id_contrato.choices = [(0, 'Sin contrato relacionado')] + [
-        (c.id, f'Contrato #{c.id} — {c.objeto}') for c in contratos
+        (c['id'], c['etiqueta']) for c in contratos_items
     ]
     if form.validate_on_submit():
-        incidencia = Incidencia(
-            id_usuario=current_user.id,
-            id_contrato=form.id_contrato.data or None,
-            tipo=form.tipo.data,
-            descripcion=form.descripcion.data
-        )
-        db.session.add(incidencia)
-        # Notificar a admins
-        admins = db.session.execute(
-            db.select(Usuario).filter_by(tipo_usuario='admin')
-        ).scalars().all()
-        for admin in admins:
-            crear_notificacion(admin.id, f'Nueva incidencia de {current_user.nombres}: {form.tipo.data}', link=url_for('comunicacion.ver_incidencia', id=incidencia.id))
-        db.session.commit()
-        flash('Incidencia reportada.', 'success')
-        return redirect(url_for('comunicacion.lista_incidencias'))
+        datos = {
+            'tipo': form.tipo.data,
+            'tipo_detalle': form.tipo_detalle.data,
+            'descripcion': form.descripcion.data,
+            'id_contrato': form.id_contrato.data or None,
+        }
+        try:
+            comunicacion_services.crear_incidencia(current_user, datos)
+            db.session.commit()
+            flash('Incidencia reportada.', 'success')
+            return redirect(url_for('comunicacion.lista_incidencias'))
+        except IncidenciaError as exc:
+            db.session.rollback()
+            flash(exc.mensaje, 'danger')
+        except Exception:
+            db.session.rollback()
+            flash('No se pudo reportar la incidencia. Inténtalo de nuevo más tarde.', 'danger')
     return render_template('comunicacion/incidencia_form.html', form=form)
 
 
