@@ -66,7 +66,7 @@ def main():
         # Recrear la tabla para actualizar el CHECK de estado_escrow SOLO si no está actualizado.
         if not _check_estado_escrow_actualizado(conexion):
             conexion.execute(text('PRAGMA foreign_keys=OFF'))
-            conexion.execute(text(\'\'\'
+            conexion.execute(text('''
                 CREATE TABLE IF NOT EXISTS pago_new (
                     id INTEGER PRIMARY KEY,
                     id_contrato INTEGER NOT NULL,
@@ -87,13 +87,13 @@ def main():
                     reembolso_id VARCHAR(100),
                     fecha_reembolso DATETIME
                 )
-            \'\'\'))
-            conexion.execute(text(\'\'\'
+            '''))
+            conexion.execute(text('''
                 INSERT INTO pago_new (id, id_contrato, monto, estado_escrow, fecha_pago, fecha_liberacion, metodo_pago, transaccion_id, moneda, proveedor, marca_tarjeta, ultimos4, codigo_fallo, mensaje_fallo, idempotency_key, fecha_confirmacion, reembolso_id, fecha_reembolso)
                 SELECT id, id_contrato, monto, estado_escrow, fecha_pago, fecha_liberacion, metodo_pago, transaccion_id,
                        COALESCE(moneda, 'MXN'), proveedor, marca_tarjeta, ultimos4, codigo_fallo, mensaje_fallo, idempotency_key, fecha_confirmacion, reembolso_id, fecha_reembolso
                 FROM pago
-            \'\'\'))
+            '''))
             conexion.execute(text('DROP TABLE pago'))
             conexion.execute(text('ALTER TABLE pago_new RENAME TO pago'))
             print('  ~ tabla pago recreada para actualizar CHECK de estado_escrow')
