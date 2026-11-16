@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useApi } from '../../hooks/useApi';
 import { useCatalogo } from '../../context/CatalogoContext';
-import { comunicacionApi } from '../../services/comunicacionApi';
+import { comunicacionApi, mensajeErrorIncidencia } from '../../services/comunicacionApi';
 import { Cargando, ErrorCard } from '../../components/catalogo/CatalogoUI';
 import { formatFechaHora } from '../catalogo/catalogoUtils';
 
@@ -13,66 +14,47 @@ const TIPOS = [
   { value: 'otro', label: 'Otro' },
 ];
 
+function etiquetaTipo(tipo) {
+  return TIPOS.find((item) => item.value === tipo)?.label || 'Incidencia';
+}
+
 export default function IncidenciasPage() {
   const { usuario } = useCatalogo();
-  const esAdmin = usuario.tipo_usuario === 'admin';
+  const esAdmin = usuario?.tipo_usuario === 'admin';
+  const location = useLocation();
   const { data, loading, error, recargar } = useApi(
     () => comunicacionApi.incidencias(),
     [],
   );
 
-  const [form, setForm] = useState({ tipo: 'otro', descripcion: '', id_contrato: '' });
-  const [resoluciones, setResoluciones] = useState({});
+  const [mensaje, setMensaje] = useState(location.state?.mensaje || '');
+  const [errorGeneral, setErrorGeneral] = useState('');
   const [enviando, setEnviando] = useState(false);
-  const [mensaje, setMensaje] = useState('');
-  const [errorAccion, setErrorAccion] = useState('');
+  const [resoluciones, setResoluciones] = useState({});
 
-  async function crearIncidencia(event) {
-    event.preventDefault();
-    if (enviando) return;
-    setEnviando(true);
-    setMensaje('');
-    setErrorAccion('');
-    try {
-      const payload = {
-        tipo: form.tipo,
-        descripcion: form.descripcion.trim(),
-      };
-      if (form.id_contrato) payload.id_contrato = Number(form.id_contrato);
-      await comunicacionApi.crearIncidencia(payload);
-      setMensaje('Incidencia reportada.');
-      setForm({ tipo: 'otro', descripcion: '', id_contrato: '' });
-      recargar();
-    } catch (err) {
-      setErrorAccion(err.message || 'No se pudo reportar la incidencia.');
-    } finally {
-      setEnviando(false);
-    }
+  if (loading) return <Cargando />;
+  if (error) {
+    return <ErrorCard error={{ message: mensajeErrorIncidencia(error) }} volverA="/" volverTexto="Volver al catálogo" />;
   }
+
+  const items = data?.items || [];
 
   async function resolverIncidencia(id) {
     if (enviando) return;
     setEnviando(true);
     setMensaje('');
-    setErrorAccion('');
+    setErrorGeneral('');
     try {
       await comunicacionApi.resolverIncidencia(id, resoluciones[id] || '');
       setMensaje('Incidencia resuelta.');
       setResoluciones((actual) => ({ ...actual, [id]: '' }));
       recargar();
     } catch (err) {
-      setErrorAccion(err.message || 'No se pudo resolver la incidencia.');
+      setErrorGeneral(mensajeErrorIncidencia(err));
     } finally {
       setEnviando(false);
     }
   }
-
-  if (loading) return <Cargando />;
-  if (error) {
-    return <ErrorCard error={error} volverA="/" volverTexto="Volver al catálogo" />;
-  }
-
-  const items = data?.items || [];
 
   return (
     <div className="contratos-page">
@@ -83,72 +65,42 @@ export default function IncidenciasPage() {
             Reporta problemas de conducta, fraude, incumplimiento o bugs del sistema.
           </p>
         </div>
+        <div className="catalogo-actions-group">
+          <Link to="/incidencias/nueva" className="btn btn-primary">
+            Reportar incidencia
+          </Link>
+        </div>
       </header>
 
       {mensaje && <div className="alert alert-success" role="status">{mensaje}</div>}
-      {errorAccion && <div className="alert alert-danger" role="alert">{errorAccion}</div>}
-
-      {!esAdmin && (
-        <form className="card contrato-form-card" onSubmit={crearIncidencia}>
-          <h2 className="contrato-form-title">Nueva incidencia</h2>
-          <div className="form-group">
-            <label htmlFor="incidencia-tipo">Tipo</label>
-            <select
-              id="incidencia-tipo"
-              value={form.tipo}
-              onChange={(e) => setForm({ ...form, tipo: e.target.value })}
-            >
-              {TIPOS.map((tipo) => (
-                <option key={tipo.value} value={tipo.value}>{tipo.label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group">
-            <label htmlFor="incidencia-contrato">ID de contrato relacionado (opcional)</label>
-            <input
-              id="incidencia-contrato"
-              type="number"
-              min="1"
-              value={form.id_contrato}
-              onChange={(e) => setForm({ ...form, id_contrato: e.target.value })}
-              placeholder="Ej. 12"
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="incidencia-descripcion">Descripción *</label>
-            <textarea
-              id="incidencia-descripcion"
-              rows="3"
-              value={form.descripcion}
-              onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-              required
-            />
-          </div>
-          <button type="submit" className="btn btn-primary" disabled={enviando}>
-            {enviando ? 'Enviando...' : 'Reportar incidencia'}
-          </button>
-        </form>
-      )}
+      {errorGeneral && <div className="alert alert-danger" role="alert">{errorGeneral}</div>}
 
       {items.length === 0 ? (
         <div className="card contrato-empty">
           <h2 className="contrato-empty-title">Sin incidencias</h2>
-          <p className="contrato-empty-text">No hay incidencias registradas.</p>
+          <p className="contrato-empty-text">
+            No hay incidencias registradas. Si necesitas reportar un problema, usa el botón
+            &quot;Reportar incidencia&quot;.
+          </p>
+          <Link to="/incidencias/nueva" className="btn btn-primary">
+            Reportar incidencia
+          </Link>
         </div>
       ) : (
         <div className="contratos-grid">
           {items.map((incidencia) => (
             <article key={incidencia.id} className="card contrato-card">
               <div className="contrato-card-top">
-                <span className="contrato-id">Incidencia #{incidencia.id}</span>
-                <span className="contrato-badge contrato-badge--neutral">{incidencia.estado}</span>
+                <span className="contrato-badge contrato-badge--neutral">
+                  {incidencia.tipo_etiqueta || etiquetaTipo(incidencia.tipo)}
+                </span>
+                <span className="contrato-badge contrato-badge--neutral">
+                  {incidencia.estado_etiqueta || incidencia.estado}
+                </span>
               </div>
-              <h2 className="contrato-card-title">{incidencia.tipo}</h2>
-              <p className="contrato-card-party">{incidencia.descripcion}</p>
-              {incidencia.contrato_objeto && (
-                <p className="contrato-card-party">
-                  Contrato: <strong>{incidencia.contrato_objeto}</strong>
-                </p>
+              <h2 className="contrato-card-title">{incidencia.descripcion}</h2>
+              {incidencia.contrato_etiqueta && (
+                <p className="contrato-card-party">{incidencia.contrato_etiqueta}</p>
               )}
               <div className="contrato-card-meta">
                 <span>{formatFechaHora(incidencia.fecha_hora)}</span>

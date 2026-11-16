@@ -13,11 +13,34 @@ from flask_login import current_user
 from sqlalchemy import or_, update
 
 from app.auth.models import Usuario
+from app.comunicacion.errors import (
+    IncidenciaContratoAjenoError,
+    IncidenciaContratoRequeridoError,
+    IncidenciaDescripcionInvalidaError,
+    IncidenciaDetalleRequeridoError,
+    IncidenciaError,
+    IncidenciaTipoInvalidoError,
+)
 from app.comunicacion.models import (
     Calificacion, Conversacion, Incidencia, Mensaje, Notificacion,
 )
+from app.comunicacion import services as comunicacion_services
 from app.contratos.models import Contrato
 from app.extensions import db
+
+ESTADOS_INCIDENCIA_LABEL = {
+    'abierta': 'Abierta',
+    'en_proceso': 'En proceso',
+    'resuelta': 'Resuelta',
+    'cerrada': 'Cerrada',
+}
+TIPOS_INCIDENCIA_LABEL = {
+    'acoso': 'Acoso',
+    'fraude': 'Fraude',
+    'incumplimiento': 'Incumplimiento',
+    'bug': 'Bug del sistema',
+    'otro': 'Otro',
+}
 
 comunicacion_api_bp = Blueprint(
     'comunicacion_api', __name__, url_prefix='/api/comunicacion'
@@ -30,8 +53,11 @@ def _ok(mensaje=None, status=200, **datos):
     return jsonify({'ok': True, 'mensaje': mensaje, **datos}), status
 
 
-def _error(mensaje, status=400, errores=None):
-    return jsonify({'ok': False, 'mensaje': mensaje, 'errores': errores or {}}), status
+def _error(mensaje, status=400, errores=None, codigo=None):
+    payload = {'ok': False, 'mensaje': mensaje, 'errores': errores or {}}
+    if codigo:
+        payload['codigo'] = codigo
+    return jsonify(payload), status
 
 
 def _requiere(*roles):
@@ -337,20 +363,37 @@ def calificar_contrato(id):
 # --------------------------------------------------------------- incidencias
 
 def _incidencia(item):
+    tipo = (item.tipo or '').strip().lower()
+    tipo_detalle = (getattr(item, 'tipo_detalle', None) or '').strip() or None
+    if tipo == 'otro' and tipo_detalle:
+        tipo_etiqueta = f'Otro: {tipo_detalle}'
+    else:
+        tipo_etiqueta = TIPOS_INCIDENCIA_LABEL.get(tipo, TIPOS_INCIDENCIA_LABEL.get('otro', 'Otro') if tipo == 'otro' else (tipo or 'Incidencia'))
+    contrato_etiqueta = None
+    if item.contrato is not None:
+        try:
+            contrato_etiqueta = comunicacion_services.contrato_legible(item.contrato, current_user)
+        except Exception:
+            contrato_etiqueta = getattr(item.contrato, 'objeto', None)
+    estado = item.estado or 'abierta'
     return {
         'id': item.id,
         'id_usuario': item.id_usuario,
         'id_admin': item.id_admin,
         'id_contrato': item.id_contrato,
-        'tipo': item.tipo,
+        'tipo': tipo or item.tipo,
+        'tipo_detalle': tipo_detalle,
+        'tipo_etiqueta': tipo_etiqueta,
         'descripcion': item.descripcion,
-        'estado': item.estado,
+        'estado': estado,
+        'estado_etiqueta': ESTADOS_INCIDENCIA_LABEL.get(estado, estado),
         'fecha_hora': _iso(item.fecha_hora, utc=True),
         'resolucion': item.resolucion,
         'fecha_resolucion': _iso(item.fecha_resolucion, utc=True),
         'usuario': _usuario_publico(item.usuario),
         'admin': _usuario_publico(item.admin),
         'contrato_objeto': item.contrato.objeto if item.contrato else None,
+        'contrato_etiqueta': contrato_etiqueta,
     }
 
 
@@ -364,56 +407,43 @@ def listar_incidencias():
     return jsonify({'items': [_incidencia(item) for item in items]})
 
 
+@comunicacion_api_bp.get('/incidencias/contratos')
+@_requiere()
+def contratos_para_incidencias():
+    items = comunicacion_services.listar_contratos_usuario(current_user)
+    return jsonify({'ok': True, 'items': items})
+
+
 @comunicacion_api_bp.post('/incidencias')
 @_requiere()
 def crear_incidencia():
     datos = _datos_json()
-    tipo = str(datos.get('tipo', '')).strip() or 'otro'
-    descripcion = str(datos.get('descripcion', '')).strip()
-    if not descripcion:
-        return _error('La descripción es obligatoria.', 422, {
-            'descripcion': 'La descripción es obligatoria.',
-        })
-
-    id_contrato = datos.get('id_contrato')
-    if id_contrato:
-        try:
-            id_contrato = int(id_contrato)
-        except (TypeError, ValueError):
-            return _error('El contrato indicado no es válido.', 422, {
-                'id_contrato': 'El contrato indicado no es válido.',
-            })
-        contrato = _contrato_de_usuario(id_contrato)
-        if contrato is None:
-            return _error('El contrato indicado no existe o no te pertenece.', 422, {
-                'id_contrato': 'El contrato indicado no existe o no te pertenece.',
-            })
-        id_contrato = contrato.id
-    else:
-        id_contrato = None
-
-    incidencia = Incidencia(
-        id_usuario=current_user.id,
-        id_contrato=id_contrato,
-        tipo=tipo,
-        descripcion=descripcion,
-        estado='abierta',
-    )
-    db.session.add(incidencia)
-    db.session.flush()
-
-    admins = db.session.execute(
-        db.select(Usuario).filter_by(tipo_usuario='admin')
-    ).scalars().all()
-    for admin in admins:
-        _crear_notificacion(
-            admin.id,
-            f'Nueva incidencia de {current_user.nombres}: {tipo}',
-            link='/incidencias',
-        )
-
-    db.session.commit()
-    return _ok('Incidencia reportada.', 201, incidencia=_incidencia(incidencia))
+    try:
+        incidencia = comunicacion_services.crear_incidencia(current_user, datos)
+        db.session.commit()
+        db.session.refresh(incidencia)
+        return _ok('Incidencia reportada.', 201, incidencia=_incidencia(incidencia))
+    except IncidenciaTipoInvalidoError as exc:
+        db.session.rollback()
+        return _error(exc.mensaje, 422, {'tipo': exc.mensaje}, codigo=exc.codigo)
+    except IncidenciaContratoRequeridoError as exc:
+        db.session.rollback()
+        return _error(exc.mensaje, 422, {'id_contrato': exc.mensaje}, codigo=exc.codigo)
+    except IncidenciaContratoAjenoError as exc:
+        db.session.rollback()
+        return _error(exc.mensaje, 422, {'id_contrato': exc.mensaje}, codigo=exc.codigo)
+    except IncidenciaDetalleRequeridoError as exc:
+        db.session.rollback()
+        return _error(exc.mensaje, 422, {'tipo_detalle': exc.mensaje}, codigo=exc.codigo)
+    except IncidenciaDescripcionInvalidaError as exc:
+        db.session.rollback()
+        return _error(exc.mensaje, 422, {'descripcion': exc.mensaje}, codigo=exc.codigo)
+    except IncidenciaError as exc:
+        db.session.rollback()
+        return _error(exc.mensaje, 400, codigo=exc.codigo)
+    except Exception:
+        db.session.rollback()
+        return _error('No se pudo reportar la incidencia. Inténtalo de nuevo más tarde.', 500, codigo='error_interno')
 
 
 @comunicacion_api_bp.get('/incidencias/<int:id>')

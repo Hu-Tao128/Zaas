@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Liberar fondos - Zaas{% endblock %}
+{% block content %}
+<div class="card" style="max-width:600px;margin:2rem auto;">
+    <h2>Liberar fondos — Contrato #{{ contrato.id }}</h2>
+    <p><strong>Pago retenido:</strong> ${{ pago.monto }} {{ pago.moneda }}</p>
+    <form method="POST">
+        <div class="form-group">
+            <label>Monto a liberar</label>
+            <input type="text" name="monto_liberado" inputmode="decimal" pattern="^\d+(\.\d{1,2})?$" value="{{ pago.monto }}" class="form-control" placeholder="0.00" required>
+        </div>
+        <div class="form-group">
+            <label>Entregable aprobado (opcional)</label>
+            <select name="id_entregable" class="form-control">
+                <option value="">Sin entregable</option>
+                {% for e in entregables %}
+                <option value="{{ e.id }}">{{ e.titulo }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Motivo</label>
+            <input type="text" name="motivo" class="form-control">
+        </div>
+        <button type="submit" class="btn btn-primary">Liberar</button>
+    </form>
+    <a href="{{ url_for('contratos.ver_contrato', id=contrato.id) }}" class="btn btn-secondary mt-1">Cancelar</a>
+</div>
+{% endblock %}

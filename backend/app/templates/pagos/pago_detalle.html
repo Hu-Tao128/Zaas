@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Pago #{{ pago.id }} - Zaas{% endblock %}
+{% block content %}
+<div class="card" style="max-width:600px;margin:2rem auto;">
+    {% if refrescar %}
+    <meta http-equiv="refresh" content="2">
+    {% endif %}
+    <h2>Pago #{{ pago.id }}</h2>
+    <div class="alert alert-warning" role="status">
+        <strong>Modo demostración:</strong> no se realizan cargos reales.
+        <details style="margin-top:0.5rem;">
+            <summary>Tarjetas de prueba admitidas</summary>
+            <ul style="margin:0.5rem 0 0 1.25rem;">
+                <li><code>4242 4242 4242 4242</code> — Aprobada (simulación de depósito en garantía).</li>
+                <li><code>4000 0000 0000 0002</code> — Rechazada (simulación de pago no completado).</li>
+                <li><code>4000 0000 0000 3220</code> — Requiere verificación (código de prueba: <code>123456</code>).</li>
+            </ul>
+        </details>
+    </div>
+    <p><strong>Estado:</strong> {{ pago.estado_escrow }}</p>
+    <p><strong>Monto:</strong> ${{ pago.monto }} {{ pago.moneda }}</p>
+    <p><strong>Método:</strong> {{ pago.metodo_pago or 'Garantía (simulación)' }}</p>
+    {% if pago.codigo_fallo %}
+    <p class="alert alert-danger"><strong>{{ pago.codigo_fallo }}:</strong> {{ pago.mensaje_fallo }}</p>
+    {% endif %}
+    {% if pago.estado_escrow == 'pendiente' %}
+    <form method="POST" action="{{ url_for('pagos.verificar_pago', id=pago.id) }}">
+        <div class="form-group">
+            <label>Código de verificación</label>
+            <input type="text" name="codigo" class="form-control" placeholder="123456">
+        </div>
+        <button type="submit" class="btn btn-primary">Verificar</button>
+    </form>
+    {% endif %}
+    {% if pago.recibo %}
+    <p><strong>Recibo:</strong> {{ pago.recibo.folio }}</p>
+    {% endif %}
+    <a href="{{ url_for('contratos.ver_contrato', id=contrato.id) }}" class="btn btn-secondary mt-1">Volver</a>
+</div>
+{% endblock %}

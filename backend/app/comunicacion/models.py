@@ -90,6 +90,7 @@ class Incidencia(db.Model):
     id_admin = db.Column(db.Integer, db.ForeignKey('usuario.id'))
     id_contrato = db.Column(db.Integer, db.ForeignKey('contrato.id'))
     tipo = db.Column(db.String(50))
+    tipo_detalle = db.Column(db.String(100))
     descripcion = db.Column(db.Text)
     estado = db.Column(db.String(20), default='abierta')  # abierta, en_proceso, resuelta, cerrada
     fecha_hora = db.Column(db.DateTime, default=datetime.utcnow)
