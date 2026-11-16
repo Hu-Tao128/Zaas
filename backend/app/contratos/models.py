@@ -24,7 +24,8 @@ class Contrato(db.Model):
         ),
         db.CheckConstraint('costo_acordado >= 0', name='ck_contrato_costo'),
         db.CheckConstraint(
-            '(id_producto IS NOT NULL) + (id_encargo IS NOT NULL) = 1',
+            "(CASE WHEN id_producto IS NOT NULL THEN 1 ELSE 0 END + "
+            "CASE WHEN id_encargo IS NOT NULL THEN 1 ELSE 0 END) = 1",
             name='ck_contrato_producto_o_encargo',
         ),
     )

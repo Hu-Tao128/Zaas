@@ -92,7 +92,8 @@ class Disputa(db.Model):
             name='ck_disputa_estado',
         ),
         db.CheckConstraint(
-            '(id_pago IS NOT NULL) + (id_entregable IS NOT NULL) <= 1',
+            "(CASE WHEN id_pago IS NOT NULL THEN 1 ELSE 0 END + "
+            "CASE WHEN id_entregable IS NOT NULL THEN 1 ELSE 0 END) <= 1",
             name='ck_disputa_pago_o_entregable',
         ),
     )

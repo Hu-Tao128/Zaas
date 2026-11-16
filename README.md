@@ -87,7 +87,7 @@ source venv/bin/activate  # En Windows: venv\Scripts\activate
 pip install -r requirements.txt
 python seed.py            # Base nueva + datos de prueba
 # Si ya tienes una base local con el esquema anterior:
-python migrate_mr.py      # Migra al Modelo Relacional corregido sin borrar datos
+python migrate_mr.py      # Ejecuta las migraciones consolidadas (SQLite o Supabase/PostgreSQL)
 python run.py             # Servidor en http://localhost:5000
 ```
 

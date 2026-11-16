@@ -23,30 +23,22 @@ Asegúrate de tener en el entorno los archivos modificados/creados del backend, 
 - `backend/app/contratos/api.py`
 - `backend/app/pagos/api.py`, `services.py`, `models.py`, `routes.py`, `errors.py`
 - `backend/app/templates/pagos/*` (vistas legacy)
-- `backend/migrate_pagos.py`, `backend/migrate_pagos_realista.py`, `backend/migrate_pagos_integridad.py`, `backend/migrate_pagos_all.py`
+- `backend/migrate_mr.py` (migración consolidada compatible con PostgreSQL/Supabase y SQLite)
 - `backend/tests/*` (si se incluyen pruebas)
 
 > Limpieza aplicada en módulo pagos: se eliminó `backend/app/pagos/service.py` (alias sin usos). No se eliminó `pagos.services.depositar_escrow` ni el helper en contratos, aunque no tengan llamadores activos.
 
-### 2.2 Migraciones de base de datos (pagos)
-Ejecutar en orden desde el directorio `backend/` (con el intérprete/entorno correcto):
+### 2.2 Migración consolidada de base de datos
+Configura `DATABASE_URL` con la conexión PostgreSQL de Supabase o conserva la URL SQLite local. Ejecuta desde el directorio `backend/`:
 
 ```bash
-# Opción recomendada: ejecutar todas en orden e idempotente
-python migrate_pagos_all.py
-```
-
-O de forma individual, en este orden:
-```bash
-python migrate_pagos.py
-python migrate_pagos_realista.py
-python migrate_pagos_integridad.py
+# Aplica las migraciones consolidadas
+python migrate_mr.py
 ```
 
 Notas:
-- `migrate_pagos_realista.py` recrea la tabla `pago` solo si el `CHECK` de `estado_escrow` no está actualizado (re-ejecuciones idempotentes en ese caso).
-- `migrate_pagos_integridad.py` es aditiva (columnas/validaciones/índices, p. ej. `intentos_verificacion` e índices parciales para disputa abierta por origen). Puede **abortar con listado** si detecta datos que incumplen las restricciones; corregir datos antes de reintentar.
-- Verificar que el motor de BD soporte las características usadas (p. ej. índices parciales en SQLite 3.45+ / PostgreSQL). Validar en el motor objetivo.
+- La migración es idempotente y valida datos antes de crear índices únicos. Si encuentra duplicados o valores inválidos, aborta con un listado; corrige esos registros y vuelve a ejecutarla.
+- Para Supabase, `DATABASE_URL` apunta a PostgreSQL. `SUPABASE_URL` y `SUPABASE_KEY` son para las llamadas de la aplicación y no sustituyen la conexión PostgreSQL de la migración.
 
 ### 2.3 Variables de entorno (opcional/revisar)
 Valores por defecto preservados; ajustar solo si es necesario:
