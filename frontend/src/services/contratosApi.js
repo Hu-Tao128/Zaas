@@ -58,7 +58,13 @@ async function peticion(metodo, ruta, cuerpo, puedeReintentar = true) {
 }
 
 export const contratosApi = {
-  opciones: () => peticion('GET', '/opciones'),
+  opciones: ({ id_producto, id_encargo } = {}) => {
+    const params = new URLSearchParams();
+    if (id_producto) params.set('id_producto', id_producto);
+    if (id_encargo) params.set('id_encargo', id_encargo);
+    const query = params.toString();
+    return peticion('GET', query ? `/opciones?${query}` : '/opciones');
+  },
   listar: ({ estado } = {}) => {
     const params = new URLSearchParams();
     if (estado) params.set('estado', estado);
@@ -66,6 +72,7 @@ export const contratosApi = {
     return peticion('GET', query ? `/?${query}` : '/');
   },
   detalle: (id) => peticion('GET', `/${id}`),
+  pdfUrl: (id) => `${BASE}/${id}/pdf`,
   crear: (datos) => peticion('POST', '/crear', datos),
   aceptar: (id) => peticion('POST', `/${id}/aceptar`, { acepto: true }),
   cancelar: (id) => peticion('POST', `/${id}/cancelar`, { confirmar: true }),

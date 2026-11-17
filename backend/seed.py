@@ -15,8 +15,7 @@ from app.auth.models import (
     Usuario, Perfil, Habilidad, PerfilHabilidad, PerfilTecnologia,
 )
 from app.catalogo.models import Proyecto, OfertaTrabajo, Categoria, Tecnologia
-from app.contratos.models import Contrato, PlantillaContrato
-from app.contratos.plantillas import NOMBRE_PLANTILLA_BASE, PLANTILLA_BASE_V1
+from app.contratos.plantillas import ensure_plantillas
 from app.comunicacion.models import Notificacion
 
 
@@ -102,12 +101,8 @@ def seed():
         o2 = OfertaTrabajo(id_cliente=cliente1.id, titulo='App de Tareas', descripcion_requerimientos='Aplicación de gestión de tareas con notificaciones.', presupuesto=5000, estado='abierto')
         db.session.add_all([o1, o2])
 
-        # ── Plantilla de contrato ──
-        plantilla = PlantillaContrato(
-            nombre=NOMBRE_PLANTILLA_BASE,
-            contenido_html=PLANTILLA_BASE_V1
-        )
-        db.session.add(plantilla)
+        # ── Plantillas de contrato por tipo de operación ──
+        ensure_plantillas()
 
         db.session.commit()
 

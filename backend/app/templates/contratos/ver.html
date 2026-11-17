@@ -9,7 +9,10 @@
             Contrato #{{ contrato.id }}
             <span class="badge badge-{{ badge }}">{{ contrato.estado }}</span>
         </h1>
-        <button type="button" class="btn btn-secondary btn-sm no-print" onclick="window.print()">Imprimir</button>
+        <div class="flex" style="gap:0.5rem;">
+            <a href="{{ url_for('contratos_api.descargar_contrato_pdf', id=contrato.id) }}" class="btn btn-primary btn-sm no-print">Descargar PDF</a>
+            <button type="button" class="btn btn-secondary btn-sm no-print" onclick="window.print()">Imprimir</button>
+        </div>
     </div>
 
     <p>

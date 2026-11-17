@@ -64,8 +64,8 @@ def create_app(config_class=None):
 
     with app.app_context():
         db.create_all()
-        # Garantiza que siempre exista la plantilla base de contratos v1.0.
-        from app.contratos.plantillas import ensure_default_plantilla
-        ensure_default_plantilla()
+        # Garantiza que existan las plantillas base de cada tipo de contrato.
+        from app.contratos.plantillas import ensure_plantillas
+        ensure_plantillas()
 
     return app

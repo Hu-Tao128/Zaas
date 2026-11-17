@@ -19,6 +19,7 @@ from app.contratos.models import Aceptacion, Contrato, Entregable, PlantillaCont
 from app.contratos.plantillas import (
     NOMBRE_PLANTILLA_BASE,
     ensure_default_plantilla,
+    ensure_plantillas,
     render_plantilla,
 )
 from app.extensions import db
@@ -151,7 +152,7 @@ def _cargar_opciones_formulario(form):
         db.select(PlantillaContrato).order_by(PlantillaContrato.id)
     ).scalars().all()
     if not plantillas:
-        plantillas = [ensure_default_plantilla()]
+        plantillas = ensure_plantillas()
     # La plantilla base v1.0 aparece primero para que sea la opción por defecto.
     plantillas = sorted(
         plantillas,

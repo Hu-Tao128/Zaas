@@ -13,20 +13,22 @@ import hashlib
 import html
 import uuid
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 from functools import wraps
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request
 from flask_login import current_user
 from sqlalchemy import or_
 from werkzeug.datastructures import MultiDict
 
-from app.auth.models import Usuario
-from app.catalogo.models import OfertaTrabajo, Proyecto
+from app.catalogo.models import OfertaTrabajo, Postulacion, Proyecto
 from app.contratos.forms import AceptacionForm, ContratoForm
 from app.contratos.models import Aceptacion, Contrato, Entregable, PlantillaContrato
 from app.contratos.plantillas import (
     NOMBRE_PLANTILLA_BASE,
     ensure_default_plantilla,
+    ensure_plantillas,
+    info_plantilla,
     render_plantilla,
 )
 from app.extensions import db
@@ -251,6 +253,19 @@ def _aceptacion(aceptacion):
     }
 
 
+def _plantilla_publica(plantilla):
+    if plantilla is None:
+        return None
+    info = info_plantilla(plantilla.nombre)
+    return {
+        'id': plantilla.id,
+        'nombre': plantilla.nombre,
+        'tipo': info['tipo'],
+        'etiqueta': info['etiqueta'],
+        'descripcion': info['descripcion'],
+    }
+
+
 def _contrato_resumen(contrato):
     soy_cliente = current_user.id == contrato.id_cliente
     contraparte = contrato.desarrollador if soy_cliente else contrato.cliente
@@ -273,10 +288,7 @@ def _contrato_resumen(contrato):
             {'id': contrato.encargo.id, 'titulo': contrato.encargo.titulo}
             if contrato.encargo else None
         ),
-        'plantilla': (
-            {'id': contrato.plantilla.id, 'nombre': contrato.plantilla.nombre}
-            if contrato.plantilla else None
-        ),
+        'plantilla': _plantilla_publica(contrato.plantilla),
         'firmas': {
             'cliente': bool(contrato.firma_cliente),
             'desarrollador': bool(contrato.firma_desarrollador),
@@ -345,33 +357,123 @@ def _contrato_detalle(contrato):
 
 # ------------------------------------------------------------------ opciones
 
-def _opciones_contrato():
-    desarrolladores = db.session.execute(
-        db.select(Usuario)
-        .filter(
-            Usuario.tipo_usuario == 'desarrollador',
-            Usuario.id != current_user.id,
+def _entero(valor):
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        return None
+
+
+def _resolver_contexto_contrato(id_producto, id_encargo):
+    """Resuelve el objeto y el desarrollador sin confiar en datos del navegador.
+
+    El contrato nace siempre de un producto del catálogo o de una oferta con
+    una postulación aceptada. El cliente es el usuario autenticado y el
+    desarrollador se deduce del producto o de la postulación.
+    """
+    if bool(id_producto) == bool(id_encargo):
+        return (
+            None, None, None, None, None,
+            'Selecciona un producto o una oferta para el contrato.',
         )
-        .order_by(Usuario.nombres, Usuario.apellido_paterno)
-    ).scalars().all()
 
-    proyectos = db.session.execute(
-        db.select(Proyecto)
-        .filter(Proyecto.estado == 'activo')
-        .order_by(Proyecto.titulo)
-    ).scalars().all()
+    if id_producto:
+        producto = db.session.get(Proyecto, id_producto)
+        if producto is None:
+            return (
+                None, None, None, None, None,
+                'El producto seleccionado no existe.',
+            )
+        if producto.estado != 'activo':
+            return (
+                None, None, None, None, None,
+                'El producto seleccionado no está disponible.',
+            )
+        desarrollador = producto.autor
+        if desarrollador is None or desarrollador.tipo_usuario != 'desarrollador':
+            return (
+                None, None, None, None, None,
+                'El producto no tiene un desarrollador válido.',
+            )
+        if desarrollador.id == current_user.id:
+            return (
+                None, None, None, None, None,
+                'No puedes crear un contrato contigo mismo.',
+            )
+        return producto, None, desarrollador, None, producto.precio, None
 
-    ofertas = db.session.execute(
-        db.select(OfertaTrabajo)
-        .filter(OfertaTrabajo.id_cliente == current_user.id)
-        .order_by(OfertaTrabajo.titulo)
-    ).scalars().all()
+    encargo = db.session.get(OfertaTrabajo, id_encargo)
+    if encargo is None:
+        return (
+            None, None, None, None, None,
+            'La oferta seleccionada no existe.',
+        )
+    if encargo.id_cliente != current_user.id:
+        return (
+            None, None, None, None, None,
+            'La oferta no pertenece a tu cuenta.',
+        )
 
+    postulacion = db.session.execute(
+        db.select(Postulacion)
+        .filter(
+            Postulacion.id_oferta == encargo.id,
+            Postulacion.estado == 'aceptada',
+        )
+        .order_by(Postulacion.id)
+    ).scalars().first()
+    if postulacion is None:
+        return (
+            None, None, None, None, None,
+            'La oferta todavía no tiene un desarrollador aceptado.',
+        )
+
+    desarrollador = postulacion.desarrollador
+    if desarrollador is None or desarrollador.tipo_usuario != 'desarrollador':
+        return (
+            None, None, None, None, None,
+            'La postulación aceptada no tiene un desarrollador válido.',
+        )
+    if desarrollador.id == current_user.id:
+        return (
+            None, None, None, None, None,
+            'No puedes crear un contrato contigo mismo.',
+        )
+
+    costo_sugerido = (
+        postulacion.costo_propuesto
+        if postulacion.costo_propuesto is not None
+        else encargo.presupuesto
+    )
+    return None, encargo, desarrollador, postulacion, costo_sugerido, None
+
+
+def _producto_contexto(producto):
+    return {
+        'id': producto.id,
+        'titulo': producto.titulo,
+        'precio': producto.precio,
+        'estado': producto.estado,
+        'id_usuario': producto.id_usuario,
+    }
+
+
+def _oferta_contexto(encargo, postulacion):
+    return {
+        'id': encargo.id,
+        'titulo': encargo.titulo,
+        'presupuesto': encargo.presupuesto,
+        'estado': encargo.estado,
+        'costo_postulado': postulacion.costo_propuesto if postulacion else None,
+    }
+
+
+def _opciones_contrato(id_producto=None, id_encargo=None):
     plantillas = db.session.execute(
         db.select(PlantillaContrato).order_by(PlantillaContrato.id)
     ).scalars().all()
     if not plantillas:
-        plantillas = [ensure_default_plantilla()]
+        plantillas = ensure_plantillas()
     plantillas = sorted(
         plantillas,
         key=lambda p: (p.nombre != NOMBRE_PLANTILLA_BASE, p.id),
@@ -380,31 +482,29 @@ def _opciones_contrato():
     usuario_actual = _usuario_publico(current_user)
     usuario_actual['email'] = current_user.email
 
+    contexto = None
+    mensaje = None
+    if id_producto or id_encargo:
+        producto, encargo, desarrollador, postulacion, costo_sugerido, error = (
+            _resolver_contexto_contrato(id_producto, id_encargo)
+        )
+        if error:
+            mensaje = error
+        else:
+            contexto = {
+                'producto': _producto_contexto(producto) if producto else None,
+                'oferta': _oferta_contexto(encargo, postulacion) if encargo else None,
+                'desarrollador': _usuario_publico(desarrollador),
+                'costo_sugerido': costo_sugerido,
+            }
+
     return {
         'usuario': usuario_actual,
-        'desarrolladores': [_usuario_publico(u) for u in desarrolladores],
-        'productos': [
-            {
-                'id': p.id,
-                'titulo': p.titulo,
-                'id_usuario': p.id_usuario,
-                'precio': p.precio,
-            }
-            for p in proyectos
-        ],
-        'ofertas': [
-            {
-                'id': o.id,
-                'titulo': o.titulo,
-                'presupuesto': o.presupuesto,
-                'estado': o.estado,
-            }
-            for o in ofertas
-        ],
+        'contexto': contexto,
+        'mensaje': mensaje,
         'plantillas': [
             {
-                'id': p.id,
-                'nombre': p.nombre,
+                **_plantilla_publica(p),
                 'es_base': p.nombre == NOMBRE_PLANTILLA_BASE,
             }
             for p in plantillas
@@ -422,7 +522,9 @@ def csrf():
 @contratos_api_bp.get('/opciones')
 @_requiere()
 def opciones():
-    return jsonify(_opciones_contrato())
+    id_producto = _entero(request.args.get('id_producto'))
+    id_encargo = _entero(request.args.get('id_encargo'))
+    return jsonify(_opciones_contrato(id_producto, id_encargo))
 
 
 # -------------------------------------------------------------------- rutas
@@ -449,24 +551,58 @@ def listar_contratos():
     })
 
 
+def _asegurar_documento(contrato):
+    """Genera los términos de contratos antiguos que aún no tienen documento."""
+    if contrato.terminos_condiciones:
+        return
+    plantilla = contrato.plantilla or ensure_default_plantilla()
+    if not contrato.id_plantilla:
+        contrato.id_plantilla = plantilla.id
+    contrato.terminos_condiciones = render_plantilla(
+        plantilla.contenido_html,
+        _contexto_plantilla(contrato),
+        claves_html={'notas_html'},
+    )
+    db.session.commit()
+
+
 @contratos_api_bp.get('/<int:id>')
 @_requiere()
 def detalle_contrato(id):
     contrato, error = _contrato_o_error(id)
     if error:
         return error
-    if not contrato.terminos_condiciones:
-        # Contratos antiguos sin documento: generarlo con la plantilla base.
-        plantilla = ensure_default_plantilla()
-        if not contrato.id_plantilla:
-            contrato.id_plantilla = plantilla.id
-        contrato.terminos_condiciones = render_plantilla(
-            plantilla.contenido_html,
-            _contexto_plantilla(contrato),
-            claves_html={'notas_html'},
-        )
-        db.session.commit()
+    _asegurar_documento(contrato)
     return jsonify({'ok': True, 'contrato': _contrato_detalle(contrato)})
+
+
+@contratos_api_bp.get('/<int:id>/pdf')
+@_requiere()
+def descargar_contrato_pdf(id):
+    """Descarga el contrato en PDF para las partes, sin importar su estado."""
+    contrato, error = _contrato_o_error(id)
+    if error:
+        return error
+
+    _asegurar_documento(contrato)
+
+    try:
+        from app.contratos.pdf import generar_pdf_contrato
+        contenido = generar_pdf_contrato(contrato)
+    except Exception:
+        current_app.logger.exception(
+            'No se pudo generar el PDF del contrato %s', contrato.id
+        )
+        return _error('No se pudo generar el PDF del contrato.', 500)
+
+    return Response(
+        contenido,
+        mimetype='application/pdf',
+        headers={
+            'Content-Disposition': f'attachment; filename="contrato-{contrato.id}.pdf"',
+            'Cache-Control': 'private, no-store',
+        },
+    )
 
 
 def _contexto_plantilla(contrato, notas=''):
@@ -499,65 +635,40 @@ def _contexto_plantilla(contrato, notas=''):
 
 
 @contratos_api_bp.post('/crear')
-@_requiere()
+@_requiere('cliente')
 def crear_contrato():
     datos = _datos_json()
-    form = ContratoForm(formdata=_formdata(datos), meta={'csrf': False})
+    id_producto = _entero(datos.get('id_producto'))
+    id_encargo = _entero(datos.get('id_encargo'))
+
+    producto, encargo, desarrollador, _, _, error_contexto = (
+        _resolver_contexto_contrato(id_producto, id_encargo)
+    )
+    if error_contexto:
+        campo = 'id_producto' if id_producto else 'id_encargo'
+        return _error(error_contexto, 400, {campo: error_contexto})
+
+    # El desarrollador y el objeto se deducen del contexto; nunca se aceptan
+    # identificadores arbitrarios enviados por el navegador.
+    datos_validacion = dict(datos)
+    datos_validacion['id_desarrollador'] = desarrollador.id
+    datos_validacion['id_producto'] = producto.id if producto else None
+    datos_validacion['id_encargo'] = encargo.id if encargo else None
+    form = ContratoForm(
+        formdata=_formdata(datos_validacion),
+        meta={'csrf': False},
+    )
 
     if not form.validate():
         return _form_invalido(form)
 
-    valido = True
-
-    desarrollador = db.session.get(Usuario, form.id_desarrollador.data)
-    if not desarrollador or desarrollador.tipo_usuario != 'desarrollador':
-        form.id_desarrollador.errors.append('Selecciona un desarrollador válido.')
-        valido = False
-    elif desarrollador.id == current_user.id:
-        form.id_desarrollador.errors.append('No puedes crear un contrato contigo mismo.')
-        valido = False
-
-    producto = None
-    if form.id_producto.data:
-        producto = db.session.get(Proyecto, form.id_producto.data)
-        if producto is None:
-            form.id_producto.errors.append('El producto seleccionado no existe.')
-            valido = False
-        elif desarrollador and producto.id_usuario != desarrollador.id:
-            form.id_producto.errors.append(
-                'El producto no pertenece al desarrollador seleccionado.'
-            )
-            valido = False
-
-    encargo = None
-    if form.id_encargo.data:
-        encargo = db.session.get(OfertaTrabajo, form.id_encargo.data)
-        if encargo is None:
-            form.id_encargo.errors.append('La oferta seleccionada no existe.')
-            valido = False
-        elif encargo.id_cliente != current_user.id:
-            form.id_encargo.errors.append('La oferta no pertenece a tu cuenta.')
-            valido = False
-
     plantilla = db.session.get(PlantillaContrato, form.plantilla_id.data)
     if plantilla is None:
-        form.plantilla_id.errors.append('La plantilla seleccionada no existe.')
-        valido = False
-
-    # Regla del MR: exactamente uno de producto / encargo.
-    if not producto and not encargo:
-        mensaje = 'Selecciona un producto o una oferta para el contrato.'
-        form.id_producto.errors.append(mensaje)
-        form.id_encargo.errors.append(mensaje)
-        valido = False
-    elif producto and encargo:
-        mensaje = 'Selecciona solo un producto o una oferta, no ambos.'
-        form.id_producto.errors.append(mensaje)
-        form.id_encargo.errors.append(mensaje)
-        valido = False
-
-    if not valido:
-        return _form_invalido(form)
+        return _error(
+            'La plantilla seleccionada no existe.',
+            400,
+            {'plantilla_id': 'La plantilla seleccionada no existe.'},
+        )
 
     contrato = Contrato(
         id_cliente=current_user.id,
@@ -579,13 +690,12 @@ def crear_contrato():
     db.session.flush()
 
     from app.comunicacion.models import Notificacion
-    if desarrollador.id != current_user.id:
-        db.session.add(Notificacion(
-            id_usuario=desarrollador.id,
-            asunto='Nuevo contrato pendiente de revisión',
-            mensaje=f'{current_user.nombre_completo} creó el contrato #{contrato.id}. Revisa los términos y continúa con el proceso.',
-            link=f'/contratos/{contrato.id}',
-        ))
+    db.session.add(Notificacion(
+        id_usuario=desarrollador.id,
+        asunto='Nuevo contrato pendiente de revisión',
+        mensaje=f'{current_user.nombre_completo} creó el contrato #{contrato.id}. Revisa los términos y continúa con el proceso.',
+        link=f'/contratos/{contrato.id}',
+    ))
 
     db.session.commit()
 
@@ -813,6 +923,9 @@ def liberar_fondos(id):
         return _error(str(exc), 403 if isinstance(exc, PermissionError) else 400)
 
     db.session.flush()
+    # La colección de liberaciones se cargó antes de crear la nueva; hay que
+    # refrescarla para calcular la custodia restante con el estado real.
+    db.session.expire_all()
     contrato_actualizado = db.session.get(type(contrato), contrato.id)
 
     total_liberado_contrato = Decimal('0.00')

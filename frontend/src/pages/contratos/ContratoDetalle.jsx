@@ -244,9 +244,20 @@ export default function ContratoDetalle() {
             <RolBadge rol={contrato.rol} />
             <EscrowBadge estado={contrato.escrow.estado} />
           </div>
-          <button type="button" className="btn btn-secondary btn-sm no-print" onClick={() => window.print()}>
-            Imprimir documento
-          </button>
+          <div className="contrato-header-actions">
+            {(esParte || esAdmin) && (
+              <a
+                className="btn btn-primary btn-sm no-print"
+                href={contratosApi.pdfUrl(contrato.id)}
+                download={`contrato-${contrato.id}.pdf`}
+              >
+                Descargar PDF
+              </a>
+            )}
+            <button type="button" className="btn btn-secondary btn-sm no-print" onClick={() => window.print()}>
+              Imprimir documento
+            </button>
+          </div>
         </div>
 
         <h1 className="proyecto-detalle-title">{contrato.proyecto?.nombre || contrato.proyecto?.titulo || 'Detalle del contrato'}</h1>
@@ -261,7 +272,10 @@ export default function ContratoDetalle() {
             <strong>Creado:</strong> {formatFecha(contrato.fecha_creacion)}
           </span>
           {contrato.plantilla && (
-            <span><strong>Plantilla:</strong> {contrato.plantilla.nombre}</span>
+            <span>
+              <strong>Tipo de contrato:</strong>{' '}
+              {contrato.plantilla.etiqueta || contrato.plantilla.nombre}
+            </span>
           )}
         </div>
       </header>
