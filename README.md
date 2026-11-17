@@ -85,11 +85,17 @@ cd backend
 python -m venv venv
 source venv/bin/activate  # En Windows: venv\Scripts\activate
 pip install -r requirements.txt
-python seed.py            # Base nueva + datos de prueba
 # Si ya tienes una base local con el esquema anterior:
 python migrate_mr.py      # Migra al Modelo Relacional corregido sin borrar datos
+python seed.py            # Agrega datos de prueba sin borrar registros
 python run.py             # Servidor en http://localhost:5000
 ```
+
+En SQLite local, el seed carga cuentas, publicaciones, contratos, entregables,
+pagos simulados, disputas e incidencias para probar el panel administrativo.
+Puedes volver a ejecutarlo para conservar los datos y estados existentes.
+Las cuentas añadidas por el seed son registros locales y requieren una cuenta
+en Firebase Auth para iniciar sesión.
 
 ## Frontend (React)
 
