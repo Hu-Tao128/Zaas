@@ -49,7 +49,13 @@ function ProyectoForm({ proyecto }) {
     if (datos.titulo.trim().length < 3) nuevosErrores.titulo = 'El título debe tener al menos 3 caracteres.';
     if (datos.titulo.trim().length > 200) nuevosErrores.titulo = 'El título no puede superar 200 caracteres.';
     if (datos.descripcion.trim().length < 10) nuevosErrores.descripcion = 'La descripción debe tener al menos 10 caracteres.';
-    if (!datos.precio || Number(datos.precio) <= 0) nuevosErrores.precio = 'El precio debe ser mayor que 0.';
+    if (!datos.precio || !String(datos.precio).trim()) {
+      nuevosErrores.precio = 'El precio es obligatorio.';
+    } else if (!/^\d+(\.\d{1,2})?$/.test(String(datos.precio).trim())) {
+      nuevosErrores.precio = 'El precio debe ser un número válido (hasta 2 decimales).';
+    } else if (Number(datos.precio) <= 0) {
+      nuevosErrores.precio = 'El precio debe ser mayor que 0.';
+    }
     setErrores(nuevosErrores);
     return Object.keys(nuevosErrores).length === 0;
   }
@@ -83,7 +89,19 @@ function ProyectoForm({ proyecto }) {
           <textarea id="descripcion" name="descripcion" value={datos.descripcion} onChange={actualizarCampo} required />
         </FormField>
         <FormField label="Precio" name="precio" error={errores.precio}>
-          <input id="precio" name="precio" type="number" min="0.01" step="0.01" value={datos.precio} onChange={actualizarCampo} required />
+          <input
+            id="precio"
+            name="precio"
+            type="text"
+            inputMode="decimal"
+            placeholder="0.00"
+            value={datos.precio}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (/^\d*\.?\d{0,2}$/.test(v)) actualizarCampo({ target: { name: 'precio', value: v } });
+            }}
+            required
+          />
         </FormField>
         <FormField
           label="Categorías"

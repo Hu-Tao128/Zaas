@@ -1,21 +1,14 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useApi } from '../../hooks/useApi';
 import { useCatalogo } from '../../context/CatalogoContext';
 import { comunicacionApi } from '../../services/comunicacionApi';
 import { Cargando, ErrorCard } from '../../components/catalogo/CatalogoUI';
 import { formatFechaHora } from '../catalogo/catalogoUtils';
 
-const TIPOS = [
-  { value: 'acoso', label: 'Acoso' },
-  { value: 'fraude', label: 'Fraude' },
-  { value: 'incumplimiento', label: 'Incumplimiento' },
-  { value: 'bug', label: 'Bug del sistema' },
-  { value: 'otro', label: 'Otro' },
-];
-
 export default function IncidenciasPage() {
   const { usuario } = useCatalogo();
+  const { state } = useLocation();
   const esAdmin = usuario.tipo_usuario === 'admin';
   const [pagina, setPagina] = useState(1);
   const [estado, setEstado] = useState('');
@@ -24,34 +17,10 @@ export default function IncidenciasPage() {
     [esAdmin, pagina, estado],
   );
 
-  const [form, setForm] = useState({ tipo: 'otro', descripcion: '', id_contrato: '' });
   const [resoluciones, setResoluciones] = useState({});
   const [enviando, setEnviando] = useState(false);
-  const [mensaje, setMensaje] = useState('');
+  const [mensaje, setMensaje] = useState(state?.mensaje || '');
   const [errorAccion, setErrorAccion] = useState('');
-
-  async function crearIncidencia(event) {
-    event.preventDefault();
-    if (enviando) return;
-    setEnviando(true);
-    setMensaje('');
-    setErrorAccion('');
-    try {
-      const payload = {
-        tipo: form.tipo,
-        descripcion: form.descripcion.trim(),
-      };
-      if (form.id_contrato) payload.id_contrato = Number(form.id_contrato);
-      await comunicacionApi.crearIncidencia(payload);
-      setMensaje('Incidencia reportada.');
-      setForm({ tipo: 'otro', descripcion: '', id_contrato: '' });
-      recargar();
-    } catch (err) {
-      setErrorAccion(err.message || 'No se pudo reportar la incidencia.');
-    } finally {
-      setEnviando(false);
-    }
-  }
 
   async function resolverIncidencia(id) {
     if (enviando) return;
@@ -87,7 +56,8 @@ export default function IncidenciasPage() {
               : 'Reporta problemas de conducta, fraude, incumplimiento o bugs del sistema.'}
           </p>
         </div>
-        {esAdmin && <Link to="/admin" className="btn btn-secondary">Volver al panel</Link>}
+        {esAdmin ? <Link to="/admin" className="btn btn-secondary">Volver al panel</Link>
+          : <Link to="/incidencias/nueva" className="btn btn-primary">Reportar incidencia</Link>}
       </header>
 
       {mensaje && <div className="alert alert-success" role="status">{mensaje}</div>}
@@ -107,48 +77,6 @@ export default function IncidenciasPage() {
         </select>
       </div>}
 
-      {!esAdmin && (
-        <form className="card contrato-form-card" onSubmit={crearIncidencia}>
-          <h2 className="contrato-form-title">Nueva incidencia</h2>
-          <div className="form-group">
-            <label htmlFor="incidencia-tipo">Tipo</label>
-            <select
-              id="incidencia-tipo"
-              value={form.tipo}
-              onChange={(e) => setForm({ ...form, tipo: e.target.value })}
-            >
-              {TIPOS.map((tipo) => (
-                <option key={tipo.value} value={tipo.value}>{tipo.label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group">
-            <label htmlFor="incidencia-contrato">ID de contrato relacionado (opcional)</label>
-            <input
-              id="incidencia-contrato"
-              type="number"
-              min="1"
-              value={form.id_contrato}
-              onChange={(e) => setForm({ ...form, id_contrato: e.target.value })}
-              placeholder="Ej. 12"
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="incidencia-descripcion">Descripción *</label>
-            <textarea
-              id="incidencia-descripcion"
-              rows="3"
-              value={form.descripcion}
-              onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-              required
-            />
-          </div>
-          <button type="submit" className="btn btn-primary" disabled={enviando}>
-            {enviando ? 'Enviando...' : 'Reportar incidencia'}
-          </button>
-        </form>
-      )}
-
       {items.length === 0 ? (
         <div className="card contrato-empty">
           <h2 className="contrato-empty-title">Sin incidencias</h2>
@@ -163,7 +91,7 @@ export default function IncidenciasPage() {
                 <span className="contrato-id">Incidencia #{incidencia.id}</span>
                 <span className="contrato-badge contrato-badge--neutral">{incidencia.estado}</span>
               </div>
-              <h2 className="contrato-card-title">{incidencia.tipo}</h2>
+              <h2 className="contrato-card-title">{incidencia.tipo_etiqueta}</h2>
               <p className="contrato-card-party">{incidencia.descripcion}</p>
               {incidencia.contrato_objeto && (
                 <p className="contrato-card-party">

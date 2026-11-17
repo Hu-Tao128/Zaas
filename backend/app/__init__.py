@@ -8,6 +8,7 @@ from app.catalogo import catalogo_bp
 from app.contratos import contratos_bp
 from app.contratos.api import contratos_api_bp
 from app.pagos import pagos_bp
+from app.pagos.api import pagos_api_bp
 from app.comunicacion import comunicacion_bp
 from app.comunicacion.api import comunicacion_api
 from app.supabase_api import supabase_bp
@@ -21,7 +22,14 @@ def create_app(config_class=None):
     app.config.from_object(config_class)
 
     # CORS abierto para desarrollo
-    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+    CORS(
+        app,
+        resources={r"/*": {"origins": [
+            "http://localhost:3000",
+            "https://zaas.shellycornet.com"
+        ]}},
+        supports_credentials=True
+    )
 
     # Extensiones
     db.init_app(app)
@@ -42,6 +50,9 @@ def create_app(config_class=None):
     app.register_blueprint(contratos_bp)
     app.register_blueprint(contratos_api_bp)
     app.register_blueprint(pagos_bp)
+    app.register_blueprint(pagos_api_bp)
+    # Alias para compatibilidad con la convención /api/<modulo>.
+    app.register_blueprint(pagos_api_bp, url_prefix='/api/pagos', name='pagos_api_alt')
     app.register_blueprint(comunicacion_bp)
     app.register_blueprint(comunicacion_api)
     app.register_blueprint(supabase_bp)

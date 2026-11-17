@@ -109,7 +109,8 @@ class ComunicacionTest(unittest.TestCase):
     def test_admin_payment_and_dispute_lists_reflect_contract_arbitration(self):
         with self.app.app_context():
             db.session.add(Pago(id=1, id_contrato=1, monto=100, estado_escrow='retenido', metodo_pago='simulado'))
-            db.session.add(Disputa(id=1, id_contrato=1, id_pago=1, id_reportante=1, tipo='pago'))
+            db.session.add(Disputa(id=1, id_contrato=1, id_pago=1, id_reportante=1,
+                                   tipo='pago', descripcion='Revisión del depósito'))
             db.session.commit()
         self.login(4)
         pago = self.get('/admin/pagos?estado=retenido').json['data'][0]
@@ -223,7 +224,7 @@ class ComunicacionTest(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 201)
         self.assertEqual(respuesta.json['data']['id_contrato'], 1)
         self.login(3)
-        self.assertEqual(self.write('/incidencias', datos).status_code, 403)
+        self.assertEqual(self.write('/incidencias', datos).json['codigo'], 'incidencia_contrato_ajeno')
 
     def test_message_validation_and_pagination(self):
         id = self.conversation()
@@ -338,7 +339,7 @@ class ComunicacionTest(unittest.TestCase):
     def test_incident_validation_leaves_no_partial_records(self):
         for payload in [{'tipo': 'invalido', 'descripcion': 'Prueba'}, {'tipo': 'bug', 'descripcion': ' '},
                         {'tipo': 'bug', 'descripcion': 'x' * 5001}]:
-            self.assertEqual(self.write('/incidencias', payload).status_code, 400)
+            self.assertEqual(self.write('/incidencias', payload).status_code, 422)
         with self.app.app_context():
             self.assertEqual(db.session.query(Incidencia).count(), 0)
             self.assertEqual(db.session.query(Notificacion).count(), 0)

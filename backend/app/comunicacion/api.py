@@ -2,7 +2,7 @@
 
 from functools import wraps
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from flask_login import current_user
 from flask_wtf.csrf import generate_csrf, validate_csrf
 from wtforms.validators import ValidationError
@@ -14,10 +14,12 @@ from app.extensions import db
 from app.contratos.models import Contrato, Entregable
 from app.catalogo.models import OfertaTrabajo, Proyecto, SolicitudDemo
 from app.comunicacion.models import Conversacion, Mensaje, Notificacion, Calificacion, Incidencia
+from app.comunicacion.errors import IncidenciaError
 from app.pagos.models import Disputa, Pago
 from app.comunicacion.services import (
     ErrorComunicacion, verificar_participante, obtener_conversacion, enviar_mensaje,
     registrar_calificacion, registrar_solicitud_demo, registrar_incidencia, resolver_incidencia,
+    listar_contratos_usuario,
 )
 
 comunicacion_api = Blueprint('comunicacion_api', __name__, url_prefix='/api/comunicacion')
@@ -29,7 +31,7 @@ def proteger_api():
         return None
     if not current_user.is_authenticated:
         raise ErrorComunicacion('Debes iniciar sesión.', 401)
-    if request.method not in ('GET', 'HEAD'):
+    if current_app.config.get('WTF_CSRF_ENABLED', True) and request.method not in ('GET', 'HEAD'):
         try:
             validate_csrf(request.headers.get('X-CSRFToken'))
         except ValidationError:
@@ -42,6 +44,20 @@ def error_comunicacion(error):
     return jsonify(error=str(error)), error.status
 
 
+@comunicacion_api.errorhandler(IncidenciaError)
+def error_incidencia(error):
+    db.session.rollback()
+    campo = {
+        'incidencia_tipo_invalido': 'tipo',
+        'incidencia_contrato_requerido': 'id_contrato',
+        'incidencia_contrato_ajeno': 'id_contrato',
+        'incidencia_detalle_requerido': 'tipo_detalle',
+        'incidencia_descripcion_invalida': 'descripcion',
+    }.get(error.codigo)
+    return jsonify(error=error.mensaje, codigo=error.codigo,
+                   errores={campo: error.mensaje} if campo else {}), 422
+
+
 @comunicacion_api.errorhandler(HTTPException)
 def error_http(error):
     db.session.rollback()
@@ -50,7 +66,6 @@ def error_http(error):
 
 @comunicacion_api.errorhandler(SQLAlchemyError)
 def error_db(error):
-    from flask import current_app
     db.session.rollback()
     current_app.logger.exception('Error de persistencia en comunicación')
     return jsonify(error='No se pudieron guardar o consultar los datos.'), 500
@@ -112,10 +127,15 @@ def calificacion_json(calificacion):
 
 
 def incidencia_json(incidencia):
+    detalle = incidencia.tipo_detalle
+    tipo_etiqueta = (incidencia.tipo or 'otro').capitalize()
+    if incidencia.tipo == 'otro' and detalle:
+        tipo_etiqueta = f'Otro: {detalle}'
     return {campo: getattr(incidencia, campo) for campo in
             ('id', 'id_usuario', 'tipo', 'descripcion', 'estado', 'resolucion', 'id_admin', 'id_contrato')} | {
                 'fecha_hora': fecha(incidencia.fecha_hora),
                 'fecha_resolucion': fecha(incidencia.fecha_resolucion),
+                'tipo_detalle': detalle, 'tipo_etiqueta': tipo_etiqueta,
                 'contrato_objeto': incidencia.contrato.objeto if incidencia.contrato else None}
 
 
@@ -242,7 +262,7 @@ def contratos_admin():
 @requiere_admin
 def pagos_admin():
     query = filtrar(db.select(Pago), 'estado', Pago.estado_escrow,
-                    ('retenido', 'liberado', 'reembolsado', 'dividido'))
+                    ('pendiente', 'fallido', 'retenido', 'liberado', 'reembolsado', 'dividido'))
     return paginar(query.order_by(Pago.id.desc()), lambda pago: {
         'id': pago.id, 'id_contrato': pago.id_contrato, 'monto': pago.monto,
         'estado': pago.estado_escrow, 'metodo': pago.metodo_pago, 'fecha': fecha(pago.fecha_pago),
@@ -404,7 +424,7 @@ def incidencias():
     if request.method == 'POST':
         data = datos_json()
         incidencia = registrar_incidencia(current_user, data.get('tipo'), data.get('descripcion'),
-                                          data.get('id_contrato'))
+                                          data.get('id_contrato'), data.get('tipo_detalle'))
         db.session.commit()
         return jsonify(data=incidencia_json(incidencia)), 201
     query = db.select(Incidencia)
@@ -419,6 +439,11 @@ def incidencias():
     else:
         query = query.where(Incidencia.id_usuario == current_user.id)
     return paginar(query.order_by(Incidencia.id.desc()), incidencia_json)
+
+
+@comunicacion_api.get('/incidencias/contratos')
+def contratos_para_incidencias():
+    return jsonify(items=listar_contratos_usuario(current_user))
 
 
 @comunicacion_api.get('/incidencias/<int:id>')

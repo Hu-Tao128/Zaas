@@ -86,7 +86,7 @@ python -m venv venv
 source venv/bin/activate  # En Windows: venv\Scripts\activate
 pip install -r requirements.txt
 # Si ya tienes una base local con el esquema anterior:
-python migrate_mr.py      # Migra al Modelo Relacional corregido sin borrar datos
+python migrate_mr.py      # Ejecuta las migraciones consolidadas (SQLite o PostgreSQL)
 python seed.py            # Agrega datos de prueba sin borrar registros
 python run.py             # Servidor en http://localhost:5000
 ```
@@ -96,6 +96,9 @@ pagos simulados, disputas e incidencias para probar el panel administrativo.
 Puedes volver a ejecutarlo para conservar los datos y estados existentes.
 Las cuentas añadidas por el seed son registros locales y requieren una cuenta
 en Firebase Auth para iniciar sesión.
+
+Para el despliegue HTTPS entre subdominios, configura `SESSION_COOKIE_DOMAIN`
+con el dominio compartido. En localhost se deja sin configurar.
 
 ## Frontend (React)
 

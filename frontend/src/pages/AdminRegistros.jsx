@@ -33,7 +33,7 @@ const vistas = {
     titulo: 'Pagos y disputas',
     descripcion: 'Consulta los pagos en Escrow y los recibos desde el detalle de cada contrato.',
     filtro: 'Estado',
-    opciones: ['retenido', 'liberado', 'reembolsado', 'dividido'],
+    opciones: ['pendiente', 'fallido', 'retenido', 'liberado', 'reembolsado', 'dividido'],
     columnas: [
       ['Pago', item => `#${item.id}`],
       ['Contrato', (item, regreso) => contrato(item.id_contrato, `#${item.id_contrato}`, regreso, '#pagos')],

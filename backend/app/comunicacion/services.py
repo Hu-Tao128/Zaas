@@ -2,8 +2,14 @@
 
 from datetime import datetime, timezone
 from email_validator import EmailNotValidError, validate_email
+from sqlalchemy.orm import selectinload
 from app.extensions import db
 from app.auth.models import Usuario
+from app.comunicacion.errors import (
+    IncidenciaContratoAjenoError, IncidenciaContratoRequeridoError,
+    IncidenciaDescripcionInvalidaError, IncidenciaDetalleRequeridoError,
+    IncidenciaTipoInvalidoError,
+)
 from app.catalogo.models import SolicitudDemo
 from app.contratos.models import Contrato
 from app.comunicacion.models import Conversacion, Mensaje, Notificacion, Calificacion, Incidencia
@@ -114,23 +120,49 @@ def registrar_solicitud_demo(proyecto, usuario, nombre, correo):
     return solicitud
 
 
-def registrar_incidencia(usuario, tipo, descripcion, id_contrato=None):
+def listar_contratos_usuario(usuario):
+    query = db.select(Contrato).where(
+        (Contrato.id_cliente == usuario.id) | (Contrato.id_desarrollador == usuario.id)
+    ).options(
+        selectinload(Contrato.producto), selectinload(Contrato.encargo),
+        selectinload(Contrato.cliente), selectinload(Contrato.desarrollador),
+    ).order_by(Contrato.fecha_creacion.desc(), Contrato.id.desc())
+    items = []
+    for contrato in db.session.scalars(query):
+        contraparte = contrato.nombre_desarrollador if usuario.id == contrato.id_cliente else contrato.nombre_cliente
+        estado = (contrato.estado or 'desconocido').replace('_', ' ')
+        items.append({'id': contrato.id, 'etiqueta':
+                      f'{contrato.objeto} · {contraparte} · ${contrato.costo_acordado:,.2f} MXN · {estado}'})
+    return items
+
+
+def registrar_incidencia(usuario, tipo, descripcion, id_contrato=None, tipo_detalle=None):
     if tipo not in ('acoso', 'fraude', 'incumplimiento', 'bug', 'otro'):
-        raise ErrorComunicacion('El tipo de incidencia no es válido.')
-    descripcion = texto_requerido(descripcion, 'La descripción', 5000)
+        raise IncidenciaTipoInvalidoError()
+    if not isinstance(descripcion, str) or not 10 <= len(descripcion.strip()) <= 1000:
+        raise IncidenciaDescripcionInvalidaError()
+    if id_contrato is None and tipo in ('fraude', 'incumplimiento'):
+        raise IncidenciaContratoRequeridoError()
     if id_contrato is not None:
         if type(id_contrato) is not int or id_contrato < 1:
-            raise ErrorComunicacion('El contrato indicado no es válido.')
+            raise IncidenciaContratoAjenoError()
         contrato = db.session.get(Contrato, id_contrato)
-        if contrato is None:
-            raise ErrorComunicacion('El contrato indicado no existe.', 404)
-        verificar_participante(contrato, usuario)
-    incidencia = Incidencia(id_usuario=usuario.id, tipo=tipo, descripcion=descripcion, id_contrato=id_contrato)
+        if contrato is None or usuario.id not in (contrato.id_cliente, contrato.id_desarrollador):
+            raise IncidenciaContratoAjenoError()
+    detalle = None
+    if tipo == 'otro':
+        detalle = tipo_detalle.strip() if isinstance(tipo_detalle, str) else ''
+        if not detalle:
+            raise IncidenciaDetalleRequeridoError()
+        if len(detalle) > 100:
+            raise IncidenciaDetalleRequeridoError('El detalle del tipo de incidencia no puede superar 100 caracteres.')
+    incidencia = Incidencia(id_usuario=usuario.id, tipo=tipo, tipo_detalle=detalle,
+                            descripcion=descripcion.strip(), id_contrato=id_contrato)
     db.session.add(incidencia)
     db.session.flush()
     admins = db.session.scalars(db.select(Usuario).filter_by(tipo_usuario='admin')).all()
     for admin in admins:
-        crear_notificacion(admin, f'Nueva incidencia #{incidencia.id}: {tipo}',
+        crear_notificacion(admin, f'Nueva incidencia #{incidencia.id}: {detalle or tipo}',
                            '/incidencias')
     return incidencia
 
