@@ -13,7 +13,7 @@ from flask import Blueprint, current_app, jsonify, request
 from flask_login import current_user
 from sqlalchemy import or_
 
-from app.contratos.models import Contrato
+from app.contratos.models import Contrato, Entregable
 from app.extensions import db
 from app.pagos import services
 from app.pagos.errors import PagoError, PagoPermisoError, PagoValidacionError
@@ -115,6 +115,49 @@ def _usuario_publico(usuario):
     }
 
 
+def _usuario_legible_sin_id(usuario):
+    """Datos públicos de una persona sin exponer su identificador interno."""
+    datos = _usuario_publico(usuario)
+    if datos is not None:
+        datos.pop("id", None)
+    return datos
+
+
+def _contrato_legible(contrato):
+    """Versión legible del contrato para listas y detalle de disputas (solo lectura)."""
+    if contrato is None:
+        return None
+    return {
+        "id": contrato.id,
+        "titulo": contrato.objeto,
+        "cliente": _usuario_publico(getattr(contrato, "cliente", None)),
+        "desarrollador": _usuario_publico(getattr(contrato, "desarrollador", None)),
+    }
+
+
+def _incidencia_legible(id_incidencia):
+    """Resumen legible de la incidencia asociada a una disputa (solo lectura)."""
+    from app.comunicacion.models import Incidencia
+
+    incidencia = db.session.get(Incidencia, id_incidencia)
+    if incidencia is None:
+        return None
+    # Se reutiliza el diccionario único de etiquetas de incidencia del módulo de comunicación.
+    from app.comunicacion.api import TIPOS_INCIDENCIA_LABEL
+
+    tipo = (incidencia.tipo or "").strip().lower()
+    tipo_detalle = (getattr(incidencia, "tipo_detalle", None) or "").strip() or None
+    if tipo == "otro" and tipo_detalle:
+        etiqueta = f"Otro: {tipo_detalle}"
+    else:
+        etiqueta = TIPOS_INCIDENCIA_LABEL.get(tipo, tipo or "Incidencia")
+    return {
+        "etiqueta": etiqueta,
+        "resumen": incidencia.descripcion,
+        "estado": incidencia.estado,
+    }
+
+
 def _liberacion(item):
     return {
         "id": item.id,
@@ -167,7 +210,77 @@ def _disputa(item):
         "resolucion": item.resolucion,
         "reportante": _usuario_publico(getattr(item, "reportante", None)),
         "arbitraje": arbitraje,
+        "contrato": _contrato_legible(getattr(item, "contrato", None)),
     }
+
+
+def _detalle_disputa(item, usuario):
+    """Serialización de solo lectura para el detalle de una disputa.
+
+    Incluye campos legibles del contrato y del origen, y evita exponer
+    identificadores técnicos que la interfaz no necesita.
+    """
+    contrato = getattr(item, "contrato", None)
+    reportante = getattr(item, "reportante", None)
+    es_admin = getattr(usuario, "tipo_usuario", None) == "admin"
+    arbitraje = item.arbitrajes[0] if getattr(item, "arbitrajes", None) else None
+
+    pago = None
+    entregable = None
+    incidencia = None
+    if item.id_pago is not None:
+        origen_tipo = "pago"
+        pago_db = db.session.get(Pago, item.id_pago)
+        if pago_db is not None:
+            pago = {
+                "monto": _money_str(pago_db.monto),
+                "moneda": pago_db.moneda,
+                "fecha": _iso(pago_db.fecha_pago, utc=True),
+            }
+    elif item.id_entregable is not None:
+        origen_tipo = "entregable"
+        entregable_db = db.session.get(Entregable, item.id_entregable)
+        if entregable_db is not None:
+            entregable = {"titulo": entregable_db.titulo}
+    elif item.id_incidencia is not None:
+        origen_tipo = "incidencia"
+        incidencia = _incidencia_legible(item.id_incidencia)
+    else:
+        origen_tipo = "contrato"
+
+    datos = {
+        "id": item.id,
+        "id_contrato": item.id_contrato,
+        "tipo": item.tipo,
+        "estado": item.estado,
+        "descripcion": item.descripcion,
+        "fecha_hora_publicacion": _iso(item.fecha_hora_publicacion, utc=True),
+        "fecha_hora_resolucion": _iso(item.fecha_hora_resolucion, utc=True),
+        "resolucion": item.resolucion,
+        "contrato": _contrato_legible(contrato),
+        "origen": {
+            "tipo": origen_tipo,
+            "pago": pago,
+            "entregable": entregable,
+            "incidencia": incidencia,
+        },
+        "reportante": _usuario_legible_sin_id(reportante),
+        "es_mia": bool(reportante is not None and reportante.id == usuario.id),
+        "arbitraje": (
+            {
+                "decision": arbitraje.decision,
+                "porcentaje_desarrollador": arbitraje.porcentaje_desarrollador,
+                "notas": arbitraje.notas,
+                "fecha_hora": _iso(arbitraje.fecha_hora, utc=True),
+            }
+            if arbitraje is not None
+            else None
+        ),
+    }
+    if es_admin:
+        datos["sin_atender"] = item.estado == "abierta" and item.id_admin is None
+        datos["tiene_arbitraje"] = arbitraje is not None
+    return datos
 
 
 def _pago(item):
@@ -514,7 +627,7 @@ def obtener_disputa(id):
         disputa = services.obtener_disputa(id, current_user)
         if disputa is None:
             return _error("No se encontró la disputa solicitada.", 404, codigo="disputa_no_encontrada")
-        return jsonify({"ok": True, "disputa": _disputa(disputa)})
+        return jsonify({"ok": True, "disputa": _detalle_disputa(disputa, current_user)})
     except Exception as exc:
         db.session.rollback()
         return _error_desde_exc(exc)
