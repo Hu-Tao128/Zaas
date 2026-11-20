@@ -27,7 +27,17 @@ from app.extensions import db
 # Columnas que fueron agregadas en migraciones previas. Los tipos son válidos
 # tanto en PostgreSQL como SQLite.
 COLUMNAS_NUEVAS = {
-    "contrato": {"id_plantilla": "INTEGER"},
+    "contrato": {
+        "id_plantilla": "INTEGER",
+        "notas": "TEXT",
+        "monto_negociable": "BOOLEAN NOT NULL DEFAULT FALSE",
+        "rechazado": "BOOLEAN NOT NULL DEFAULT FALSE",
+        "motivo_rechazo": "TEXT",
+        "fecha_rechazo": "TIMESTAMP",
+        "id_rechazado_por": "INTEGER",
+    },
+    "proyecto": {"precio_negociable": "BOOLEAN NOT NULL DEFAULT FALSE"},
+    "postulacion": {"costo_negociable": "BOOLEAN NOT NULL DEFAULT FALSE"},
     "pago": {
         "metodo_pago": "VARCHAR(50)",
         "transaccion_id": "VARCHAR(100)",

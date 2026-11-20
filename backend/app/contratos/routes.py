@@ -6,7 +6,7 @@ from flask import abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.auth.models import Usuario
-from app.catalogo.models import OfertaTrabajo, Proyecto
+from app.catalogo.models import OfertaTrabajo, Postulacion, Proyecto
 from app.contratos import contratos_bp
 from app.contratos.forms import (
     AceptacionForm,
@@ -169,7 +169,8 @@ def listar_contratos():
     contratos = db.session.execute(
         db.select(Contrato).filter(
             (Contrato.id_cliente == current_user.id) |
-            (Contrato.id_desarrollador == current_user.id)
+            (Contrato.id_desarrollador == current_user.id),
+            Contrato.rechazado.is_(False),
         ).order_by(Contrato.fecha_creacion.desc())
     ).scalars().all()
     return render_template('contratos/listar.html', contratos=contratos)
@@ -248,13 +249,64 @@ def nuevo_contrato():
             valido = False
 
         if valido:
+            filtro_duplicado = [
+                Contrato.id_cliente == current_user.id,
+                Contrato.estado != 'cancelado',
+            ]
+            if producto:
+                filtro_duplicado.append(Contrato.id_producto == producto.id)
+                campo_duplicado = form.id_producto
+                mensaje_duplicado = (
+                    'Ya tienes un contrato activo para este producto. '
+                    'Revisa tu menú de contratos o cancélalo antes de crear uno nuevo.'
+                )
+            else:
+                filtro_duplicado.append(Contrato.id_encargo == encargo.id)
+                campo_duplicado = form.id_encargo
+                mensaje_duplicado = (
+                    'Ya existe un contrato activo para esta oferta. '
+                    'Revisa tu menú de contratos antes de crear uno nuevo.'
+                )
+            existente = db.session.execute(
+                db.select(Contrato.id).filter(*filtro_duplicado).limit(1)
+            ).scalar_one_or_none()
+            if existente is not None:
+                campo_duplicado.errors.append(mensaje_duplicado)
+                valido = False
+
+        if valido:
+            if producto:
+                negociable = bool(producto.precio_negociable)
+                costo_sugerido = producto.precio
+            else:
+                postulacion = db.session.execute(
+                    db.select(Postulacion).filter(
+                        Postulacion.id_oferta == encargo.id,
+                        Postulacion.id_desarrollador == desarrollador.id,
+                        Postulacion.estado == 'aceptada',
+                    ).order_by(Postulacion.id)
+                ).scalars().first()
+                negociable = bool(postulacion.costo_negociable) if postulacion else False
+                if postulacion and postulacion.costo_propuesto is not None:
+                    costo_sugerido = postulacion.costo_propuesto
+                else:
+                    costo_sugerido = encargo.presupuesto
+
+            # Con monto fijo el cliente no puede alterar el costo publicado.
+            costo_acordado = (
+                form.costo_acordado.data if negociable else costo_sugerido
+            )
+            notas = (form.notas.data or '').strip()
+
             contrato = Contrato(
                 id_cliente=current_user.id,
                 id_desarrollador=desarrollador.id,
                 id_producto=producto.id if producto else None,
                 id_encargo=encargo.id if encargo else None,
                 id_plantilla=plantilla.id,
-                costo_acordado=form.costo_acordado.data,
+                costo_acordado=float(costo_acordado),
+                monto_negociable=negociable,
+                notas=notas or None,
                 estado='borrador',
             )
             db.session.add(contrato)
@@ -264,7 +316,7 @@ def nuevo_contrato():
             # Así, si luego se edita la plantilla, este contrato no cambia.
             contrato.terminos_condiciones = render_plantilla(
                 plantilla.contenido_html,
-                _contexto_plantilla(contrato, form.notas.data),
+                _contexto_plantilla(contrato, notas),
                 claves_html={'notas_html'},
             )
             db.session.commit()

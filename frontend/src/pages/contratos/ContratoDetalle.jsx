@@ -31,6 +31,11 @@ export default function ContratoDetalle() {
   const [entregableForm, setEntregableForm] = useState({ titulo: '', descripcion: '', url_archivo: '' });
   const [comentariosRevision, setComentariosRevision] = useState({});
 
+  const [mostrarRechazo, setMostrarRechazo] = useState(false);
+  const [motivoRechazo, setMotivoRechazo] = useState('');
+  const [negociableSeleccion, setNegociableSeleccion] = useState(false);
+  const [ofertaMonto, setOfertaMonto] = useState('');
+
   const [mostrarDisputa, setMostrarDisputa] = useState(false);
   const [disputaForm, setDisputaForm] = useState({ tipo: 'pago', descripcion: '' });
   const [resolucionForm, setResolucionForm] = useState({ decision: 'liberar', porcentaje_desarrollador: 50, notas: '' });
@@ -86,6 +91,12 @@ export default function ContratoDetalle() {
       });
     return () => { vigente = false; };
   }, [id, contrato, esParte, esAdmin]);
+
+  useEffect(() => {
+    if (!contrato) return;
+    setNegociableSeleccion(Boolean(contrato.monto_negociable));
+    setOfertaMonto(contrato.costo_acordado != null ? String(contrato.costo_acordado) : '');
+  }, [contrato?.id, contrato?.monto_negociable, contrato?.costo_acordado]);
 
   if (loading) return <CargandoContratos mensaje="Cargando contrato..." />;
   if (error) {
@@ -203,6 +214,47 @@ export default function ContratoDetalle() {
     if (respuesta) setMostrarCalificar(false);
   }
 
+  async function handleRechazar(event) {
+    event.preventDefault();
+    if (enviando) return;
+    if (motivoRechazo.trim().length < 10) {
+      setErrorAccion('Explica el motivo del rechazo (mínimo 10 caracteres).');
+      return;
+    }
+    const respuesta = await ejecutar(
+      () => contratosApi.rechazar(contrato.id, { motivo: motivoRechazo.trim() }),
+      'Contrato rechazado.',
+    );
+    if (respuesta) {
+      setMostrarRechazo(false);
+      setMotivoRechazo('');
+    }
+  }
+
+  async function handleNegociacion(event) {
+    event.preventDefault();
+    if (enviando) return;
+    await ejecutar(
+      () => contratosApi.actualizarNegociacion(contrato.id, { negociable: negociableSeleccion }),
+      'Condición de negociación actualizada.',
+    );
+  }
+
+  async function handleOferta(event) {
+    event.preventDefault();
+    if (enviando) return;
+    const monto = String(ofertaMonto).trim();
+    if (!/^\d+(\.\d{1,2})?$/.test(monto) || Number(monto) <= 0) {
+      setErrorAccion('Indica una oferta válida mayor a cero (hasta 2 decimales).');
+      return;
+    }
+    const respuesta = await ejecutar(
+      () => contratosApi.enviarOferta(contrato.id, { costo_acordado: Number(monto) }),
+      'Oferta enviada.',
+    );
+    if (respuesta) setOfertaMonto(monto);
+  }
+
   async function handleMensaje(event) {
     event.preventDefault();
     const contenido = nuevoMensaje.trim();
@@ -246,10 +298,24 @@ export default function ContratoDetalle() {
       {mensajeAccion && <div className="alert alert-success" role="status">{mensajeAccion}</div>}
       {errorAccion && <div className="alert alert-danger" role="alert">{errorAccion}</div>}
 
+      {contrato.rechazado && (
+        <section className="alert alert-danger" role="alert" aria-label="Contrato rechazado">
+          <strong>Contrato rechazado por el desarrollador.</strong>
+          <p style={{ margin: '.35rem 0 0' }}>
+            Motivo: {contrato.motivo_rechazo || 'No especificado'}
+          </p>
+          {contrato.fecha_rechazo && (
+            <p style={{ margin: '.2rem 0 0' }}>
+              Fecha del rechazo: {formatFechaHora(contrato.fecha_rechazo)}
+            </p>
+          )}
+        </section>
+      )}
+
       <header className="card contrato-header-card">
         <div className="contrato-header-top">
           <div className="contrato-header-tags">
-            <EstadoContratoBadge estado={contrato.estado} />
+            <EstadoContratoBadge estado={contrato.estado_visible || contrato.estado} />
             <RolBadge rol={contrato.rol} />
             <EscrowBadge estado={contrato.escrow.estado} />
           </div>
@@ -275,7 +341,10 @@ export default function ContratoDetalle() {
         <div className="contrato-header-meta">
           <span><strong>Cliente:</strong> {contrato.cliente?.nombre_completo}</span>
           <span><strong>Desarrollador:</strong> {contrato.desarrollador?.nombre_completo}</span>
-          <span><strong>Monto:</strong> {formatDinero(contrato.costo_acordado)} MXN</span>
+          <span>
+            <strong>{contrato.monto_negociable ? 'Oferta:' : 'Monto acordado:'}</strong>{' '}
+            {formatDinero(contrato.costo_acordado)} MXN
+          </span>
           <span>
             <CalendarIcon size={14} />
             <strong>Creado:</strong> {formatFecha(contrato.fecha_creacion)}
@@ -681,6 +750,100 @@ export default function ContratoDetalle() {
                   </button>
                 </div>
               </div>
+            )}
+
+            {acciones.puede_definir_negociacion && (
+              <form className="contrato-negociacion-box" onSubmit={handleNegociacion}>
+                <label className="contrato-confirm-check">
+                  <input
+                    type="checkbox"
+                    checked={negociableSeleccion}
+                    onChange={(e) => setNegociableSeleccion(e.target.checked)}
+                  />
+                  <span>Permitir que el cliente proponga otro monto</span>
+                </label>
+                <p className="contrato-accion-nota">
+                  {negociableSeleccion
+                    ? 'El cliente verá el monto como “oferta” y podrá proponer otro valor antes de firmar.'
+                    : 'El cliente no podrá modificar el monto del contrato.'}
+                </p>
+                <button type="submit" className="btn btn-secondary btn-sm" disabled={enviando}>
+                  {enviando ? 'Guardando...' : 'Guardar condición'}
+                </button>
+              </form>
+            )}
+
+            {acciones.puede_ofertar && (
+              <form className="contrato-negociacion-box" onSubmit={handleOferta}>
+                <label htmlFor="contrato-oferta">Tu oferta (MXN)</label>
+                <input
+                  id="contrato-oferta"
+                  type="text"
+                  inputMode="decimal"
+                  value={ofertaMonto}
+                  onChange={(e) => {
+                    const valor = e.target.value;
+                    if (/^\d*\.?\d{0,2}$/.test(valor)) setOfertaMonto(valor);
+                  }}
+                  required
+                />
+                <p className="contrato-accion-nota">
+                  El desarrollador marcó el monto como negociable. La oferta queda sujeta a la firma de ambas partes.
+                </p>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={enviando}>
+                  {enviando ? 'Enviando...' : 'Enviar oferta'}
+                </button>
+              </form>
+            )}
+
+            {acciones.soy_cliente
+              && !contrato.monto_negociable
+              && !contrato.rechazado
+              && ['borrador', 'pendiente'].includes(contrato.estado) && (
+                <p className="contrato-accion-nota">
+                  El desarrollador fijó este monto como no negociable; no puede cambiarse.
+                </p>
+              )}
+
+            {acciones.puede_rechazar && !mostrarRechazo && (
+              <button
+                type="button"
+                className="btn btn-secondary contrato-main-cta"
+                onClick={() => setMostrarRechazo(true)}
+              >
+                Rechazar contrato
+              </button>
+            )}
+
+            {acciones.puede_rechazar && mostrarRechazo && (
+              <form className="contrato-negociacion-box" onSubmit={handleRechazar}>
+                <label htmlFor="contrato-motivo-rechazo">Motivo del rechazo *</label>
+                <textarea
+                  id="contrato-motivo-rechazo"
+                  rows="3"
+                  maxLength={1000}
+                  value={motivoRechazo}
+                  onChange={(e) => setMotivoRechazo(e.target.value)}
+                  placeholder="Explica al cliente por qué no puedes aceptar este contrato."
+                  required
+                />
+                <p className="contrato-accion-nota">
+                  El contrato se ocultará de los menús de ambas partes y el cliente recibirá una notificación.
+                </p>
+                <div className="catalogo-actions-group">
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={enviando}>
+                    {enviando ? 'Rechazando...' : 'Confirmar rechazo'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => { setMostrarRechazo(false); setMotivoRechazo(''); }}
+                    disabled={enviando}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
             )}
 
             {puedeDepositar && (

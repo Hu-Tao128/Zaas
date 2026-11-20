@@ -15,6 +15,7 @@ class Proyecto(db.Model):
     titulo = db.Column(db.String(200), nullable=False)
     descripcion = db.Column(db.Text)
     precio = db.Column(db.Float, nullable=False)
+    precio_negociable = db.Column(db.Boolean, nullable=False, default=False)
     demo_habilitada = db.Column(db.Boolean, default=False)
     fecha_publicacion = db.Column(db.DateTime, default=datetime.utcnow)
     estado = db.Column(db.String(20), default='activo')  # activo, cerrado
@@ -132,6 +133,7 @@ class Postulacion(db.Model):
     id_oferta = db.Column(db.Integer, db.ForeignKey('oferta_trabajo.id'), nullable=False)
     detalles = db.Column(db.Text)
     costo_propuesto = db.Column(db.Float)
+    costo_negociable = db.Column(db.Boolean, nullable=False, default=False)
     estado = db.Column(db.String(20), default='pendiente')  # pendiente, aceptada, rechazada
     fecha_hora = db.Column(db.DateTime, default=datetime.utcnow)
 

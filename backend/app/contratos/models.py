@@ -37,15 +37,26 @@ class Contrato(db.Model):
     id_encargo = db.Column(db.Integer, db.ForeignKey('oferta_trabajo.id'))
     id_plantilla = db.Column(db.Integer, db.ForeignKey('plantilla_contrato.id'))
     terminos_condiciones = db.Column(db.Text)
+    notas = db.Column(db.Text)
     costo_acordado = db.Column(db.Float, nullable=False)
+    # Snapshot de la negociación acordada para el contrato. Si es False, el
+    # cliente no puede modificar el monto después de crear el contrato.
+    monto_negociable = db.Column(db.Boolean, nullable=False, default=False)
     estado = db.Column(db.String(20), default='borrador')
     # estados: borrador, pendiente, aceptado, en_progreso, entregado, finalizado, cancelado
     firma_cliente = db.Column(db.String(64))  # hash de aceptación
     firma_desarrollador = db.Column(db.String(64))
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    # Rechazo del desarrollador antes de firmar. El contrato se conserva para
+    # auditoría, pero se oculta de los menús de ambas partes.
+    rechazado = db.Column(db.Boolean, nullable=False, default=False)
+    motivo_rechazo = db.Column(db.Text)
+    fecha_rechazo = db.Column(db.DateTime)
+    id_rechazado_por = db.Column(db.Integer, db.ForeignKey('usuario.id'))
 
     cliente = db.relationship('Usuario', foreign_keys=[id_cliente], back_populates='contratos_como_cliente')
     desarrollador = db.relationship('Usuario', foreign_keys=[id_desarrollador], back_populates='contratos_como_desarrollador')
+    rechazado_por = db.relationship('Usuario', foreign_keys=[id_rechazado_por])
     producto = db.relationship('Proyecto', back_populates='contratos')
     encargo = db.relationship('OfertaTrabajo', back_populates='contratos')
     plantilla = db.relationship('PlantillaContrato')
@@ -76,6 +87,11 @@ class Contrato(db.Model):
     @property
     def firmas_completas(self):
         return bool(self.firma_cliente and self.firma_desarrollador)
+
+    @property
+    def estado_visible(self):
+        """Estado para la interfaz: distingue un rechazo de una cancelación."""
+        return 'rechazado' if self.rechazado else self.estado
 
     def __repr__(self):
         return f'<Contrato {self.id} - {self.estado}>'

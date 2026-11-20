@@ -15,6 +15,7 @@ class ProyectoForm(FlaskForm):
     precio = FloatField('Precio', validators=[
         DataRequired(message='Ingresa un precio válido.'),
         NumberRange(min=0.01, message='El precio debe ser mayor que 0.')])
+    precio_negociable = BooleanField('Precio negociable')
     demo_habilitada = BooleanField('Habilitar demo')
     categorias_ids = SelectMultipleField('Categorías', coerce=int, validators=[Optional()])
     tecnologias_ids = SelectMultipleField('Tecnologías', coerce=int, validators=[Optional()])
@@ -38,6 +39,7 @@ class PostulacionForm(FlaskForm):
     costo_propuesto = FloatField('Costo Propuesto', validators=[
         DataRequired(message='Ingresa un costo válido.'),
         NumberRange(min=0.01, message='El costo debe ser mayor que 0.')])
+    costo_negociable = BooleanField('Costo negociable')
 
 
 class DemoForm(FlaskForm):

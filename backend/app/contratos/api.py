@@ -19,6 +19,7 @@ from functools import wraps
 from flask import Blueprint, Response, current_app, jsonify, request
 from flask_login import current_user
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 from werkzeug.datastructures import MultiDict
 
 from app.catalogo.models import OfertaTrabajo, Postulacion, Proyecto
@@ -273,6 +274,12 @@ def _contrato_resumen(contrato):
         'id': contrato.id,
         'rol': 'cliente' if soy_cliente else 'desarrollador',
         'estado': contrato.estado,
+        'estado_visible': contrato.estado_visible,
+        'rechazado': bool(contrato.rechazado),
+        'motivo_rechazo': contrato.motivo_rechazo,
+        'fecha_rechazo': _iso(contrato.fecha_rechazo, utc=True),
+        'rechazado_por': _usuario_publico(contrato.rechazado_por),
+        'monto_negociable': bool(contrato.monto_negociable),
         'objeto': contrato.objeto,
         'costo_acordado': contrato.costo_acordado,
         'moneda': 'MXN',
@@ -304,9 +311,13 @@ def _acciones(contrato):
     es_parte = soy_cliente or soy_desarrollador
     es_admin = current_user.tipo_usuario == 'admin'
     ya_firme = _ya_firmo(contrato, current_user.id)
+    abierto_para_negociar = (
+        contrato.estado in ('borrador', 'pendiente')
+        and not contrato.rechazado
+    )
     puede_firmar = (
         es_parte
-        and contrato.estado in ('borrador', 'pendiente')
+        and abierto_para_negociar
         and not ya_firme
     )
     pagos_retenidos = [p for p in (contrato.pagos or []) if p.estado_escrow == 'retenido']
@@ -323,7 +334,28 @@ def _acciones(contrato):
         'soy_desarrollador': soy_desarrollador,
         'ya_firme': ya_firme,
         'puede_firmar': puede_firmar,
-        'puede_cancelar': es_parte and contrato.estado not in ('finalizado', 'cancelado'),
+        'puede_rechazar': (
+            soy_desarrollador
+            and abierto_para_negociar
+            and not contrato.firma_desarrollador
+        ),
+        'puede_definir_negociacion': (
+            soy_desarrollador
+            and abierto_para_negociar
+            and not contrato.firma_desarrollador
+        ),
+        'puede_ofertar': (
+            soy_cliente
+            and bool(contrato.monto_negociable)
+            and abierto_para_negociar
+            and not contrato.firma_cliente
+            and not contrato.firma_desarrollador
+        ),
+        'puede_cancelar': (
+            es_parte
+            and not contrato.rechazado
+            and contrato.estado not in ('finalizado', 'cancelado')
+        ),
         'puede_subir_entregable': (
             soy_desarrollador and contrato.estado in ('aceptado', 'en_progreso')
         ),
@@ -365,52 +397,58 @@ def _entero(valor):
 
 
 def _resolver_contexto_contrato(id_producto, id_encargo):
-    """Resuelve el objeto y el desarrollador sin confiar en datos del navegador.
+    """Resuelve el objeto, el desarrollador y la negociación del monto.
 
     El contrato nace siempre de un producto del catálogo o de una oferta con
     una postulación aceptada. El cliente es el usuario autenticado y el
-    desarrollador se deduce del producto o de la postulación.
+    desarrollador se deduce del producto o de la postulación. La decisión de
+    si el monto es negociable la define el desarrollador al publicar el
+    producto o al postularse a una oferta.
     """
+    error_contexto = (
+        None, None, None, None, None, None,
+        'Selecciona un producto o una oferta para el contrato.',
+    )
     if bool(id_producto) == bool(id_encargo):
-        return (
-            None, None, None, None, None,
-            'Selecciona un producto o una oferta para el contrato.',
-        )
+        return error_contexto
 
     if id_producto:
         producto = db.session.get(Proyecto, id_producto)
         if producto is None:
             return (
-                None, None, None, None, None,
+                None, None, None, None, None, None,
                 'El producto seleccionado no existe.',
             )
         if producto.estado != 'activo':
             return (
-                None, None, None, None, None,
+                None, None, None, None, None, None,
                 'El producto seleccionado no está disponible.',
             )
         desarrollador = producto.autor
         if desarrollador is None or desarrollador.tipo_usuario != 'desarrollador':
             return (
-                None, None, None, None, None,
+                None, None, None, None, None, None,
                 'El producto no tiene un desarrollador válido.',
             )
         if desarrollador.id == current_user.id:
             return (
-                None, None, None, None, None,
+                None, None, None, None, None, None,
                 'No puedes crear un contrato contigo mismo.',
             )
-        return producto, None, desarrollador, None, producto.precio, None
+        return (
+            producto, None, desarrollador, None, producto.precio,
+            bool(producto.precio_negociable), None,
+        )
 
     encargo = db.session.get(OfertaTrabajo, id_encargo)
     if encargo is None:
         return (
-            None, None, None, None, None,
+            None, None, None, None, None, None,
             'La oferta seleccionada no existe.',
         )
     if encargo.id_cliente != current_user.id:
         return (
-            None, None, None, None, None,
+            None, None, None, None, None, None,
             'La oferta no pertenece a tu cuenta.',
         )
 
@@ -424,19 +462,19 @@ def _resolver_contexto_contrato(id_producto, id_encargo):
     ).scalars().first()
     if postulacion is None:
         return (
-            None, None, None, None, None,
+            None, None, None, None, None, None,
             'La oferta todavía no tiene un desarrollador aceptado.',
         )
 
     desarrollador = postulacion.desarrollador
     if desarrollador is None or desarrollador.tipo_usuario != 'desarrollador':
         return (
-            None, None, None, None, None,
+            None, None, None, None, None, None,
             'La postulación aceptada no tiene un desarrollador válido.',
         )
     if desarrollador.id == current_user.id:
         return (
-            None, None, None, None, None,
+            None, None, None, None, None, None,
             'No puedes crear un contrato contigo mismo.',
         )
 
@@ -445,7 +483,10 @@ def _resolver_contexto_contrato(id_producto, id_encargo):
         if postulacion.costo_propuesto is not None
         else encargo.presupuesto
     )
-    return None, encargo, desarrollador, postulacion, costo_sugerido, None
+    return (
+        None, encargo, desarrollador, postulacion, costo_sugerido,
+        bool(postulacion.costo_negociable), None,
+    )
 
 
 def _producto_contexto(producto):
@@ -453,6 +494,7 @@ def _producto_contexto(producto):
         'id': producto.id,
         'titulo': producto.titulo,
         'precio': producto.precio,
+        'precio_negociable': bool(producto.precio_negociable),
         'estado': producto.estado,
         'id_usuario': producto.id_usuario,
     }
@@ -465,6 +507,7 @@ def _oferta_contexto(encargo, postulacion):
         'presupuesto': encargo.presupuesto,
         'estado': encargo.estado,
         'costo_postulado': postulacion.costo_propuesto if postulacion else None,
+        'costo_negociable': bool(postulacion.costo_negociable) if postulacion else False,
     }
 
 
@@ -485,7 +528,7 @@ def _opciones_contrato(id_producto=None, id_encargo=None):
     contexto = None
     mensaje = None
     if id_producto or id_encargo:
-        producto, encargo, desarrollador, postulacion, costo_sugerido, error = (
+        producto, encargo, desarrollador, postulacion, costo_sugerido, negociable, error = (
             _resolver_contexto_contrato(id_producto, id_encargo)
         )
         if error:
@@ -496,6 +539,7 @@ def _opciones_contrato(id_producto=None, id_encargo=None):
                 'oferta': _oferta_contexto(encargo, postulacion) if encargo else None,
                 'desarrollador': _usuario_publico(desarrollador),
                 'costo_sugerido': costo_sugerido,
+                'negociable': bool(negociable),
             }
 
     return {
@@ -535,10 +579,15 @@ def listar_contratos():
     estado = request.args.get('estado', '', type=str).strip()
     query = (
         db.select(Contrato)
-        .filter(or_(
-            Contrato.id_cliente == current_user.id,
-            Contrato.id_desarrollador == current_user.id,
-        ))
+        .filter(
+            or_(
+                Contrato.id_cliente == current_user.id,
+                Contrato.id_desarrollador == current_user.id,
+            ),
+            # Los contratos rechazados se conservan para auditoría, pero ya no
+            # forman parte del menú de contratos de ninguna de las partes.
+            Contrato.rechazado.is_(False),
+        )
         .order_by(Contrato.fecha_creacion.desc())
     )
     if estado:
@@ -605,7 +654,9 @@ def descargar_contrato_pdf(id):
     )
 
 
-def _contexto_plantilla(contrato, notas=''):
+def _contexto_plantilla(contrato, notas=None):
+    if notas is None:
+        notas = contrato.notas or ''
     notas = (notas or '').strip()
     notas_html = ''
     if notas:
@@ -641,19 +692,22 @@ def crear_contrato():
     id_producto = _entero(datos.get('id_producto'))
     id_encargo = _entero(datos.get('id_encargo'))
 
-    producto, encargo, desarrollador, _, _, error_contexto = (
+    producto, encargo, desarrollador, _, costo_sugerido, negociable, error_contexto = (
         _resolver_contexto_contrato(id_producto, id_encargo)
     )
     if error_contexto:
         campo = 'id_producto' if id_producto else 'id_encargo'
         return _error(error_contexto, 400, {campo: error_contexto})
 
-    # El desarrollador y el objeto se deducen del contexto; nunca se aceptan
-    # identificadores arbitrarios enviados por el navegador.
+    # El desarrollador, el objeto y la negociación se deducen del contexto;
+    # nunca se aceptan identificadores arbitrarios enviados por el navegador.
     datos_validacion = dict(datos)
     datos_validacion['id_desarrollador'] = desarrollador.id
     datos_validacion['id_producto'] = producto.id if producto else None
     datos_validacion['id_encargo'] = encargo.id if encargo else None
+    if not negociable and costo_sugerido is not None:
+        # Monto fijo: el cliente no puede alterar el precio publicado.
+        datos_validacion['costo_acordado'] = costo_sugerido
     form = ContratoForm(
         formdata=_formdata(datos_validacion),
         meta={'csrf': False},
@@ -670,6 +724,39 @@ def crear_contrato():
             {'plantilla_id': 'La plantilla seleccionada no existe.'},
         )
 
+    if producto:
+        campo_duplicado = 'id_producto'
+        mensaje_duplicado = (
+            'Ya tienes un contrato activo para este producto. '
+            'Revisa tu menú de contratos o cancélalo antes de crear uno nuevo.'
+        )
+        filtro_duplicado = [
+            Contrato.id_cliente == current_user.id,
+            Contrato.id_producto == producto.id,
+        ]
+    else:
+        campo_duplicado = 'id_encargo'
+        mensaje_duplicado = (
+            'Ya existe un contrato activo para esta oferta. '
+            'Revisa tu menú de contratos antes de crear uno nuevo.'
+        )
+        filtro_duplicado = [
+            Contrato.id_cliente == current_user.id,
+            Contrato.id_encargo == encargo.id,
+        ]
+
+    # El índice único impide dos contratos activos para el mismo objeto. Se
+    # valida aquí para responder 409 con un mensaje claro en lugar de un 500.
+    existente = db.session.execute(
+        db.select(Contrato.id).filter(
+            *filtro_duplicado,
+            Contrato.estado != 'cancelado',
+        ).limit(1)
+    ).scalar_one_or_none()
+    if existente is not None:
+        return _error(mensaje_duplicado, 409, {campo_duplicado: mensaje_duplicado})
+
+    notas = (form.notas.data or '').strip()
     contrato = Contrato(
         id_cliente=current_user.id,
         id_desarrollador=desarrollador.id,
@@ -677,27 +764,41 @@ def crear_contrato():
         id_encargo=encargo.id if encargo else None,
         id_plantilla=plantilla.id,
         costo_acordado=float(form.costo_acordado.data),
+        monto_negociable=bool(negociable),
+        notas=notas or None,
         estado='borrador',
     )
-    db.session.add(contrato)
-    db.session.flush()
 
-    contrato.terminos_condiciones = render_plantilla(
-        plantilla.contenido_html,
-        _contexto_plantilla(contrato, form.notas.data),
-        claves_html={'notas_html'},
-    )
-    db.session.flush()
+    try:
+        db.session.add(contrato)
+        db.session.flush()
 
-    from app.comunicacion.models import Notificacion
-    db.session.add(Notificacion(
-        id_usuario=desarrollador.id,
-        asunto='Nuevo contrato pendiente de revisión',
-        mensaje=f'{current_user.nombre_completo} creó el contrato #{contrato.id}. Revisa los términos y continúa con el proceso.',
-        link=f'/contratos/{contrato.id}',
-    ))
+        contrato.terminos_condiciones = render_plantilla(
+            plantilla.contenido_html,
+            _contexto_plantilla(contrato, notas),
+            claves_html={'notas_html'},
+        )
+        db.session.flush()
 
-    db.session.commit()
+        from app.comunicacion.models import Notificacion
+        tipo_monto = 'con monto negociable' if negociable else 'con monto fijo'
+        db.session.add(Notificacion(
+            id_usuario=desarrollador.id,
+            asunto='Nuevo contrato pendiente de revisión',
+            mensaje=(
+                f'{current_user.nombre_completo} creó el contrato #{contrato.id} '
+                f'{tipo_monto}: {form.costo_acordado.data:,.2f} MXN. '
+                'Revisa los términos y continúa con el proceso.'
+            ),
+            link=f'/contratos/{contrato.id}',
+        ))
+
+        db.session.commit()
+    except IntegrityError:
+        # Carrera entre la validación anterior y el INSERT: otra petición creó
+        # el contrato activo primero.
+        db.session.rollback()
+        return _error(mensaje_duplicado, 409, {campo_duplicado: mensaje_duplicado})
 
     return _ok(
         'Contrato creado. El desarrollador fue notificado para continuar con el proceso.',
@@ -808,6 +909,160 @@ def cancelar_contrato(id):
     contrato.estado = 'cancelado'
     db.session.commit()
     return _ok('Contrato cancelado.', contrato=_contrato_detalle(contrato))
+
+
+@contratos_api_bp.post('/<int:id>/rechazar')
+@_requiere()
+def rechazar_contrato(id):
+    """El desarrollador rechaza un contrato y explica el motivo al cliente."""
+    contrato, error = _contrato_o_error(id)
+    if error:
+        return error
+    if contrato.id_desarrollador != current_user.id:
+        return _error('Solo el desarrollador del contrato puede rechazarlo.', 403)
+    if contrato.rechazado:
+        return _error('Este contrato ya fue rechazado.', 409)
+    if contrato.estado not in ('borrador', 'pendiente'):
+        return _error('Este contrato ya no se puede rechazar en su estado actual.', 409)
+    if contrato.firma_desarrollador:
+        return _error('Ya firmaste este contrato; no puedes rechazarlo.', 409)
+
+    datos = _datos_json()
+    motivo = str(datos.get('motivo') or '').strip()
+    if len(motivo) < 10:
+        mensaje = 'Explica el motivo del rechazo (mínimo 10 caracteres).'
+        return _error(mensaje, 422, {'motivo': mensaje})
+    if len(motivo) > 1000:
+        mensaje = 'El motivo no puede superar los 1000 caracteres.'
+        return _error(mensaje, 422, {'motivo': mensaje})
+
+    contrato.rechazado = True
+    contrato.motivo_rechazo = motivo
+    contrato.fecha_rechazo = datetime.utcnow()
+    contrato.id_rechazado_por = current_user.id
+    # Se usa 'cancelado' para liberar los índices de contrato activo y evitar
+    # bloqueos si el cliente quiere iniciar un nuevo contrato.
+    contrato.estado = 'cancelado'
+
+    from app.comunicacion.models import Notificacion
+    db.session.add(Notificacion(
+        id_usuario=contrato.id_cliente,
+        asunto=f'Contrato #{contrato.id} rechazado',
+        mensaje=(
+            f'{current_user.nombre_completo} rechazó el contrato #{contrato.id} '
+            f'de "{contrato.objeto}". Motivo: {motivo}'
+        ),
+        link=f'/contratos/{contrato.id}',
+    ))
+
+    db.session.commit()
+    return _ok(
+        'Contrato rechazado. Se notificó al cliente con el motivo.',
+        contrato=_contrato_detalle(contrato),
+    )
+
+
+@contratos_api_bp.post('/<int:id>/negociacion')
+@_requiere()
+def actualizar_negociacion(id):
+    """El desarrollador decide si el cliente puede proponer otro monto."""
+    contrato, error = _contrato_o_error(id)
+    if error:
+        return error
+    if contrato.id_desarrollador != current_user.id:
+        return _error('Solo el desarrollador puede definir la negociación del monto.', 403)
+    if contrato.rechazado:
+        return _error('Este contrato fue rechazado.', 409)
+    if contrato.estado not in ('borrador', 'pendiente'):
+        return _error('La negociación solo se puede cambiar antes de la firma.', 409)
+    if contrato.firma_desarrollador:
+        return _error('Ya firmaste este contrato; no puedes cambiar la negociación.', 409)
+
+    datos = _datos_json()
+    negociable = datos.get('negociable')
+    if not isinstance(negociable, bool):
+        return _error(
+            'Indica si el monto es negociable.',
+            422,
+            {'negociable': 'Indica si el monto es negociable.'},
+        )
+
+    cambio = bool(contrato.monto_negociable) != negociable
+    contrato.monto_negociable = negociable
+
+    if cambio:
+        from app.comunicacion.models import Notificacion
+        estado_texto = 'negociable' if negociable else 'fijo'
+        db.session.add(Notificacion(
+            id_usuario=contrato.id_cliente,
+            asunto=f'Actualización del contrato #{contrato.id}',
+            mensaje=(
+                f'{current_user.nombre_completo} marcó el monto del contrato '
+                f'#{contrato.id} como {estado_texto}.'
+            ),
+            link=f'/contratos/{contrato.id}',
+        ))
+
+    db.session.commit()
+    mensaje = 'El monto ahora es negociable.' if negociable else 'El monto quedó fijo.'
+    return _ok(mensaje, contrato=_contrato_detalle(contrato))
+
+
+@contratos_api_bp.post('/<int:id>/oferta')
+@_requiere('cliente')
+def enviar_oferta(id):
+    """El cliente propone un nuevo monto cuando el desarrollador lo permite."""
+    contrato, error = _contrato_o_error(id)
+    if error:
+        return error
+    if contrato.id_cliente != current_user.id:
+        return _error('Solo el cliente del contrato puede enviar una oferta.', 403)
+    if contrato.rechazado:
+        return _error('Este contrato fue rechazado.', 409)
+    if not contrato.monto_negociable:
+        return _error('El monto de este contrato no es negociable.', 409)
+    if contrato.estado not in ('borrador', 'pendiente'):
+        return _error('La oferta solo se puede enviar antes de la firma.', 409)
+    if contrato.firma_cliente or contrato.firma_desarrollador:
+        return _error('Ya hay una firma registrada; no se puede cambiar el monto.', 409)
+
+    datos = _datos_json()
+    try:
+        monto = Decimal(str(datos.get('costo_acordado'))).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP,
+        )
+    except Exception:
+        monto = None
+    if monto is None or monto <= 0:
+        mensaje = 'Indica una oferta válida mayor a cero.'
+        return _error(mensaje, 422, {'costo_acordado': mensaje})
+
+    monto_anterior = contrato.costo_acordado
+    contrato.costo_acordado = float(monto)
+    if contrato.plantilla:
+        contrato.terminos_condiciones = render_plantilla(
+            contrato.plantilla.contenido_html,
+            _contexto_plantilla(contrato, contrato.notas or ''),
+            claves_html={'notas_html'},
+        )
+
+    from app.comunicacion.models import Notificacion
+    db.session.add(Notificacion(
+        id_usuario=contrato.id_desarrollador,
+        asunto=f'Nueva oferta para el contrato #{contrato.id}',
+        mensaje=(
+            f'{current_user.nombre_completo} propuso un nuevo monto para el '
+            f'contrato #{contrato.id}: ${float(monto):,.2f} MXN '
+            f'(antes ${float(monto_anterior or 0):,.2f} MXN).'
+        ),
+        link=f'/contratos/{contrato.id}',
+    ))
+
+    db.session.commit()
+    return _ok(
+        'Oferta enviada. El desarrollador fue notificado.',
+        contrato=_contrato_detalle(contrato),
+    )
 
 
 # ---------------------------------------------------- entregables / escrow
