@@ -45,7 +45,7 @@ export default function OfertasPage() {
   }
 
   return (
-    <div className="catalogo-page-container">
+    <div className="catalogo-page-container catalogo-ofertas-page">
       {/* Encabezado descriptivo de la vista de ofertas */}
       <div className="catalogo-view-header">
         <h1 className="catalogo-page-title">Ofertas de Trabajo y Proyectos</h1>
