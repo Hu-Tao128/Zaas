@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useCatalogo } from '../../context/CatalogoContext';
+import { Link } from 'react-router-dom';
 import { pagosApi } from '../../services/pagosApi';
 import { contratosApi } from '../../services/contratosApi';
 import { formatFechaHora } from '../catalogo/catalogoUtils';
@@ -11,12 +11,6 @@ const TIPOS = [
   { value: 'entregable', label: TIPOS_DISPUTA_LABEL.entregable },
   { value: 'incumplimiento', label: TIPOS_DISPUTA_LABEL.incumplimiento },
   { value: 'otro', label: TIPOS_DISPUTA_LABEL.otro },
-];
-
-const DECISIONES = [
-  { value: 'liberar', label: DECISIONES_LABEL.liberar },
-  { value: 'reembolsar', label: DECISIONES_LABEL.reembolsar },
-  { value: 'dividir', label: DECISIONES_LABEL.dividir },
 ];
 
 function labelContrato(c) {
@@ -31,8 +25,6 @@ function labelPago(p, idx) {
 }
 
 export default function DisputasPage() {
-  const { usuario } = useCatalogo();
-  const esAdmin = usuario?.tipo_usuario === 'admin';
   const [items, setItems] = useState([]);
   const [contratos, setContratos] = useState([]);
   const [contratoDetalle, setContratoDetalle] = useState(null);
@@ -44,7 +36,6 @@ export default function DisputasPage() {
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
 
   const [form, setForm] = useState({ id_contrato: '', tipo: 'pago', descripcion: '', origen: '' });
-  const [arbitrajes, setArbitrajes] = useState({});
 
   async function cargar() {
     setLoading(true);
@@ -122,39 +113,6 @@ export default function DisputasPage() {
       await cargar();
     } catch (err2) {
       setErrorAccion(mensajeError(err2));
-    } finally {
-      setEnviando(false);
-    }
-  }
-
-  function actualizarArbitraje(id, campo, valor) {
-    setArbitrajes((actual) => ({ ...actual, [id]: { ...(actual[id] || {}), [campo]: valor } }));
-  }
-
-  async function resolverDisputa(id) {
-    if (enviando) return;
-    const data = arbitrajes[id] || {};
-    if (!data.decision) { setErrorAccion('Selecciona una decisión para resolver la disputa.'); return; }
-    if (data.decision === 'dividir') {
-      const p = String(data.porcentaje ?? '').trim();
-      if (p === '' || !/^\d{1,3}$/.test(p) || Number(p) < 0 || Number(p) > 100) {
-        setErrorAccion('Indica un porcentaje válido para el desarrollador (0 a 100).');
-        return;
-      }
-    }
-    setEnviando(true);
-    setMensaje('');
-    setErrorAccion('');
-    try {
-      await pagosApi.crearArbitraje(id, {
-        decision: data.decision,
-        porcentaje_desarrollador: data.decision === 'dividir' ? Number(data.porcentaje || 0) : undefined,
-        notas: (data.notas || '').trim() || undefined,
-      });
-      setMensaje('Disputa resuelta correctamente.');
-      await cargar();
-    } catch (err) {
-      setErrorAccion(mensajeError(err));
     } finally {
       setEnviando(false);
     }
@@ -239,15 +197,13 @@ export default function DisputasPage() {
         <div className="contratos-grid">
           {items.map((d) => {
             const c = contratosPorId.get(d.id_contrato);
-            const arbitrajeActual = arbitrajes[d.id] || {};
-            const puedeResolver = esAdmin && ['abierta', 'en_revision'].includes(d.estado);
             return (
               <article key={d.id} className="card contrato-card">
                 <div className="contrato-card-top">
                   <span className="contrato-id">{TIPOS_DISPUTA_LABEL[d.tipo] || 'Disputa'}</span>
                   <span className="contrato-badge contrato-badge--neutral">{ESTADOS_DISPUTA_LABEL[d.estado] || d.estado}</span>
                 </div>
-                <h2 className="contrato-card-title">{c ? labelContrato(c) : 'Contrato asociado'}</h2>
+                <h2 className="contrato-card-title">{d.contrato?.titulo || (c ? labelContrato(c) : 'Contrato asociado')}</h2>
                 <p className="contrato-card-party">{d.descripcion}</p>
                 <div className="contrato-card-meta">
                   <span>{formatFechaHora(d.fecha_hora_publicacion)}</span>
@@ -258,39 +214,9 @@ export default function DisputasPage() {
                     {d.arbitraje.notas ? ` — ${d.arbitraje.notas}` : ''}
                   </p>
                 )}
-
-                {puedeResolver && (
-                  <div className="form-group" style={{ marginTop: '.75rem' }}>
-                    <label htmlFor={`dec-${d.id}`}>Decisión</label>
-                    <select id={`dec-${d.id}`} value={arbitrajeActual.decision || ''} onChange={(e) => actualizarArbitraje(d.id, 'decision', e.target.value)}>
-                      <option value="">Selecciona una decisión...</option>
-                      {DECISIONES.map((dec) => <option key={dec.value} value={dec.value}>{dec.label}</option>)}
-                    </select>
-                    {arbitrajeActual.decision === 'dividir' && (
-                      <div className="form-group">
-                        <label htmlFor={`pct-${d.id}`}>Porcentaje para el desarrollador (0-100)</label>
-                        <input
-                          id={`pct-${d.id}`}
-                          type="text"
-                          inputMode="numeric"
-                          value={arbitrajeActual.porcentaje ?? ''}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            if (/^\d{0,3}$/.test(v)) actualizarArbitraje(d.id, 'porcentaje', v === '' ? '' : String(Math.min(100, Math.max(0, Number(v)))));
-                          }}
-                          placeholder="0-100"
-                        />
-                      </div>
-                    )}
-                    <div className="form-group">
-                      <label htmlFor={`notas-${d.id}`}>Notas</label>
-                      <textarea id={`notas-${d.id}`} rows="2" value={arbitrajeActual.notas || ''} onChange={(e) => actualizarArbitraje(d.id, 'notas', e.target.value)} />
-                    </div>
-                    <button type="button" className="btn btn-primary btn-sm" disabled={enviando} onClick={() => resolverDisputa(d.id)}>
-                      {enviando ? 'Resolviendo...' : 'Resolver disputa'}
-                    </button>
-                  </div>
-                )}
+                <div style={{ marginTop: '.75rem', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <Link to={`/disputas/${d.id}`} className="btn btn-secondary btn-sm">Ver detalle</Link>
+                </div>
               </article>
             );
           })}

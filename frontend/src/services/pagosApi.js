@@ -73,6 +73,7 @@ export const pagosApi = {
   disputas: () => peticion('GET', '/disputas'),
   obtenerDisputa: (id) => peticion('GET', `/disputas/${id}`),
   crearDisputa: (datos) => peticion('POST', '/disputas/crear', datos),
+  atenderDisputa: (id) => peticion('POST', `/disputas/${id}/atender`, {}),
 
   crearArbitraje: (idDisputa, datos) => peticion('POST', `/disputas/${idDisputa}/arbitraje`, datos),
   obtenerArbitraje: (id) => peticion('GET', `/disputas/${id}/arbitraje`),

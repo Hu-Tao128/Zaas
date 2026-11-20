@@ -28,6 +28,13 @@ export const DECISIONES_LABEL = {
   dividir: 'Dividir fondos',
 };
 
+// Etiqueta de la resolución ya aplicada, en lenguaje natural para el detalle.
+export const RESOLUCION_LABEL = {
+  liberar: 'Pagar al desarrollador',
+  reembolsar: 'Devolver al cliente',
+  dividir: 'Repartir fondos',
+};
+
 const CODIGOS_ERROR = {
   sin_conexion: 'No se pudo conectar con el servidor. Verifica tu conexión e inténtalo de nuevo.',
   error_interno: 'Ocurrió un problema al procesar tu solicitud. Inténtalo de nuevo más tarde.',
