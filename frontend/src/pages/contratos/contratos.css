@@ -388,6 +388,45 @@
   gap: 1rem;
 }
 
+.contrato-contexto {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--zaas-border);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+@media (min-width: 640px) {
+  .contrato-contexto {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.contrato-contexto-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.contrato-contexto-item--full {
+  grid-column: 1 / -1;
+}
+
+.contrato-contexto-value {
+  color: var(--zaas-text-heading);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.contrato-contexto-note {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
 @media (min-width: 640px) {
   .contrato-form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -464,6 +503,13 @@
 .contrato-header-tags {
   display: flex;
   flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.contrato-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
 }
 

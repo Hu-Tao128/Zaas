@@ -260,3 +260,157 @@ Fecha de actualización: 14/11/2026 (sesión de continuación).
 - `_escrow` no modificado; reglas/estados/modelos de pagos preservados.
 - `depositar_escrow` permanece definido en servicios sin llamadores activos (por instrucción).
 - Árbol de trabajo con cambios previos/no separados y archivos no seguidos adicionales; conviene revisar antes de commit.
+
+## 12. Contratos: contratación contextual, plantillas por tipo y descarga en PDF
+
+> Actualización aplicada únicamente sobre el área de contratos. El flujo descrito en este apartado se suma a lo documentado en las secciones anteriores; no reemplaza ni elimina los cambios previos.
+
+### 12.1 Objetivo de la actualización
+
+- Evitar que un contrato se cree “desde cero”: todo contrato debe nacer de un **proyecto del catálogo** o de una **oferta con postulación aceptada**, de modo que cliente, desarrollador, objeto y costo queden determinados por el contexto real.
+- Quitar del módulo de contratos los accesos genéricos de creación (incluido el botón **“Nuevo contrato”** del panel y el estado vacío con “Crear mi primer contrato”).
+- Permitir que las **partes involucradas** descarguen el contrato en **PDF** antes y después de firmarlo, sin importar el estado (`borrador`, `pendiente`, `aceptado`, `en_progreso`, `entregado`, `finalizado` o `cancelado`).
+- Que la **plantilla legal cambie según el tipo de contrato**: desarrollo a medida, licencia de uso del software, compra del código fuente y soporte/mantenimiento.
+- Conservar intacto el comportamiento de la versión 1.0: copia inmutable de la plantilla, aceptación mediante checkbox/botón, registro de fecha, hora, IP y folio (hash), permisos por rol y protección CSRF.
+
+### 12.2 Flujo completo de contratación contextual
+
+1. **Entrada desde el catálogo**
+   - En el detalle de un proyecto se conserva la acción **“Contratar con Escrow”**, que enlaza a `/contratos/nuevo` con los parámetros `id_producto`, `id_desarrollador` y el costo de referencia.
+   - En el detalle de una postulación aceptada se conserva la acción **“Contratar a este desarrollador”**, que enlaza con `id_encargo`, `id_cliente`, `id_desarrollador` y `costo_acordado`.
+   - El frontend solo aporta contexto; el backend **no confía** en esos identificadores y los vuelve a resolver.
+
+2. **Apertura de `/contratos/nuevo`**
+   - La pantalla solo funciona con **exactamente uno** de `id_producto` o `id_encargo`.
+   - Si no llega ninguno, llegan ambos o la URL se abre directamente sin contexto, el formulario **redirige a `/contratos`** con un mensaje explicativo (“Para crear un contrato, elige un proyecto o una oferta desde el catálogo”).
+   - Al montar, el formulario consulta `GET /contratos/api/opciones?id_producto=…` o `GET /contratos/api/opciones?id_encargo=…`.
+
+3. **Formulario contextual (`ContratoForm.jsx`)**
+   - Ya **no** muestra selects de desarrollador, proyecto ni oferta.
+   - Muestra en modo lectura: cliente autenticado, desarrollador, proyecto/oferta y costo sugerido.
+   - Campos editables: **costo acordado**, **tipo de contrato** y **notas** (máximo 2000 caracteres).
+   - La vista lateral resume el objeto, el tipo de contrato elegido y el monto.
+   - El tipo de contrato se preselecciona según el contexto:
+     - Proyecto/SaaS del catálogo → **Licencia de uso del software**.
+     - Oferta/encargo con postulación aceptada → **Desarrollo de software a medida**.
+     - El usuario puede cambiarlo antes de crear el contrato.
+
+4. **Creación (`POST /contratos/api/crear`)**
+   - Solo disponible para usuarios con rol **`cliente`**.
+   - El backend resuelve el contexto y **deriva el desarrollador** del proyecto o de la postulación aceptada; cualquier `id_desarrollador` enviado por el navegador se ignora y se sobrescribe con el valor resuelto.
+   - El cliente es siempre el usuario autenticado.
+   - Al crear, se renderiza la plantilla seleccionada y el resultado se guarda como **copia inmutable** en `contrato.terminos_condiciones`.
+   - La respuesta devuelve el contrato creado y el frontend navega al detalle.
+
+5. **Firma y aceptación (sin cambios respecto a v1.0)**
+   - Cada parte firma desde el detalle con checkbox de aceptación y botón de confirmación.
+   - Se registra fecha/hora, dirección IP y folio de verificación (hash), además del registro de aceptaciones.
+   - Los permisos se mantienen: solo las partes pueden firmar/operar; el administrador puede consultar; usuarios ajenos reciben `403`.
+
+### 12.3 Reglas y validaciones del backend
+
+- **Contexto obligatorio y único:** debe llegar `id_producto` **o** `id_encargo`, nunca ambos ni ninguno. Si la combinación es inválida, responde `400` con mensaje y error asociado al campo.
+- **Proyecto/producto:**
+  - Debe existir y estar en estado `activo`.
+  - Debe pertenecer a un usuario con `tipo_usuario = 'desarrollador'`.
+  - No se permite crear un contrato contra uno mismo.
+- **Oferta/encargo:**
+  - Debe existir y pertenecer al cliente autenticado.
+  - Debe tener una **postulación en estado `aceptada`**.
+  - El desarrollador de esa postulación debe ser válido y distinto del cliente.
+  - El costo sugerido es el de la postulación aceptada (`costo_propuesto`), con el presupuesto de la oferta como respaldo.
+- **Costo:** numérico, mayor a cero y con hasta dos decimales.
+- **Plantilla:** debe existir y pertenecer a uno de los tipos disponibles.
+- **Notas:** texto opcional, máximo 2000 caracteres; se escapa antes de convertirse en HTML.
+- **CSRF y sesión:** se mantienen las protecciones existentes; sin sesión se responde `401` y sin permisos `403`.
+- **Seguridad:** el cliente nunca puede inyectar un desarrollador, un cliente ni un objeto arbitrario; todo se deduce del producto/oferta y del usuario autenticado.
+
+### 12.4 Tipos de contrato y plantillas legales
+
+Las plantillas siguen viviendo en la tabla `plantilla_contrato` (sin cambio de esquema) y ahora existen cuatro plantillas base:
+
+| Tipo (clave) | Etiqueta visible | Uso previsto | Plantilla |
+|---|---|---|---|
+| `desarrollo` | Desarrollo de software a medida | Encargos con entregables y cesión de derechos al liberar el pago | `Contrato de Desarrollo de Software a Medida v1.0` |
+| `licencia_software` | Licencia de uso del software | Venta del derecho de uso de un SaaS/software sin transferir el código | `Contrato de Licencia de Uso de Software v1.0` |
+| `compra_codigo` | Compra del código fuente | Transferencia del código, documentación y derechos patrimoniales | `Contrato de Compraventa de Código Fuente v1.0` |
+| `soporte_mantenimiento` | Soporte y mantenimiento | Servicios recurrentes de soporte, corrección de errores y actualizaciones | `Contrato de Soporte y Mantenimiento v1.0` |
+
+- Cada plantilla tiene cláusulas propias (objeto, alcance, restricciones, propiedad intelectual, confidencialidad, garantías, vigencia, cancelación, disputas y aceptación digital).
+- `ensure_plantillas()` es **idempotente**: crea las plantillas faltantes al arrancar la aplicación y al ejecutar `seed.py`, sin sobrescribir plantillas personalizadas existentes.
+- **Migración sin cambio de esquema:** la plantilla histórica `Contrato de Servicios Profesionales v1.0` se renombra a la plantilla de desarrollo; los contratos ya creados conservan su propio texto en `terminos_condiciones`.
+- Los contratos existentes **no cambian** si después se edita una plantilla: el documento guardado es la fuente de verdad.
+- La API expone el tipo y la etiqueta de cada plantilla (`tipo`, `etiqueta`, `descripcion`) en `/opciones` y en el detalle del contrato.
+- El listado de contratos y el detalle muestran el **tipo de contrato** en lugar del nombre técnico de la plantilla.
+
+### 12.5 Descarga del contrato en PDF
+
+- **Endpoint:** `GET /contratos/api/<id>/pdf`.
+- **Permisos:** cliente, desarrollador y administrador. Cualquier otro usuario recibe `403`; sin sesión, `401`.
+- **Estados:** disponible en **cualquier estado**, incluidos `pendiente`, `cancelado` y `finalizado`, antes y después de la firma.
+- **Generación:** se realiza en el servidor con **WeasyPrint** a partir de:
+  - La copia inmutable de los términos (`contrato.terminos_condiciones`).
+  - El resumen del acuerdo: cliente, desarrollador, tipo de contrato, objeto, costo, fecha de creación, estado del contrato y estado de Escrow.
+  - El **registro de firmas** con nombre, estado y folio de verificación.
+  - El **registro de aceptaciones digitales** con usuario, fecha/hora e IP.
+  - Aviso de que el documento refleja el estado al momento de la descarga y que la versión vinculante es la copia guardada por Zaas.
+- **Contratos antiguos:** si un contrato no tiene `terminos_condiciones`, el endpoint lo genera con su plantilla (o la plantilla base) antes de construir el PDF.
+- **Respuesta:** `application/pdf` con `Content-Disposition: attachment; filename="contrato-<id>.pdf"` y `Cache-Control: private, no-store`.
+- **UI:** botón **“Descargar PDF”** en el encabezado del detalle, visible para las partes y administradores, junto a “Imprimir documento”. También se añadió el enlace en la vista legacy `backend/app/templates/contratos/ver.html`.
+- **Servicio frontend:** `contratosApi.pdfUrl(id)` construye la URL de descarga para usarla en un enlace del mismo origen (la sesión y las cookies se envían automáticamente).
+
+### 12.6 Limpieza de accesos genéricos
+
+- Se eliminó el botón **“Nuevo contrato”** del panel/listado de contratos.
+- Se eliminó el acceso **“Crear mi primer contrato”** del estado vacío.
+- El estado vacío ahora explica que los contratos se crean desde el catálogo (proyecto con “Contratar con Escrow” o postulación aceptada) y ofrece un enlace para explorar el catálogo.
+- La ruta `/contratos/nuevo` sigue existiendo, pero **solo** como formulario contextual; sin contexto redirige al listado.
+- No se modificaron otras áreas del producto.
+
+### 12.7 Archivos modificados y creados
+
+**Backend**
+- `backend/app/contratos/api.py` — `/opciones` y `/crear` contextuales; resolución y validación del proyecto/oferta; serialización del tipo de plantilla; endpoint `GET /<id>/pdf`; generación del documento para contratos antiguos.
+- `backend/app/contratos/plantillas.py` — cuatro plantillas legales, metadatos de tipo (`info_plantilla`), siembra idempotente (`ensure_plantillas`) y migración del nombre histórico.
+- `backend/app/contratos/pdf.py` — **nuevo**: construcción del PDF con WeasyPrint, resumen, documento, firmas y aceptaciones.
+- `backend/app/contratos/routes.py` — compatibilidad con la siembra de todas las plantillas en el flujo Flask heredado.
+- `backend/app/__init__.py` — al arrancar se aseguran todas las plantillas base.
+- `backend/seed.py` — usa `ensure_plantillas()` en lugar de crear una sola plantilla.
+- `backend/requirements.txt` — agrega `weasyprint==70.0`.
+- `backend/app/templates/contratos/ver.html` — enlace de descarga en la vista heredada.
+- `backend/tests/test_contratos_contexto.py` — **nuevo**: creación contextual, validaciones y permisos.
+- `backend/tests/test_contratos_pdf_tipos.py` — **nuevo**: cuatro tipos de plantilla, PDF en todos los estados, contratos antiguos y accesos denegados.
+
+**Frontend**
+- `frontend/src/pages/contratos/ContratoForm.jsx` — formulario contextual sin selects de desarrollador/proyecto, partes y objeto de solo lectura, selector de **tipo de contrato** con descripción y tipo sugerido según el contexto.
+- `frontend/src/pages/contratos/ContratosList.jsx` — eliminación de accesos genéricos de creación y visualización del tipo de contrato.
+- `frontend/src/pages/contratos/ContratoDetalle.jsx` — botón **“Descargar PDF”**, tipo de contrato visible y conservación de firma/impresión.
+- `frontend/src/pages/contratos/contratos.css` — estilos del grupo de acciones del encabezado.
+- `frontend/src/services/contratosApi.js` — `opciones` contextual y `pdfUrl`.
+- `frontend/src/pages/catalogo/catalogoUtils.js` — referencia de las URLs de contratación desde proyecto y postulación; sin cambios en esta actualización.
+
+### 12.8 Verificación realizada
+
+- **Backend:** `python -m unittest discover -s backend/tests -q` → **56 tests, OK**.
+  - Incluye los nuevos casos de contratación contextual, los cuatro tipos de contrato, descarga PDF en `pendiente`/`cancelado`/`finalizado`/`borrador`, generación para contratos antiguos, rechazo a terceros y exigencia de sesión.
+- **Frontend:** `npm run build` → **OK** (`vite v5.4.21`, `✓ built`). Se mantiene únicamente el warning preexistente de chunk mayor a 500 kB.
+- **Comprobación manual del PDF:** se generó un contrato de prueba tipo licencia y se validó con `pdftotext` que el contenido incluye el tipo, las partes, las cláusulas de licencia, las firmas y el registro de aceptaciones.
+- **Calidad:** `python -m py_compile` sobre los módulos modificados y `git diff --check` sin errores.
+
+### 12.9 Dependencia y despliegue
+
+- Instalar la nueva dependencia:
+  ```bash
+  pip install -r backend/requirements.txt
+  ```
+- WeasyPrint requiere las bibliotecas de sistema de Pango/Cairo (en Debian/Ubuntu: `libpango-1.0-0`, `libpangoft2-1.0-0`, `libcairo2`, `libgdk-pixbuf-2.0-0` y fuentes como `fonts-dejavu`). En el entorno local ya están presentes y el PDF se generó correctamente.
+- Reiniciar el backend después de instalar la dependencia.
+- No se requiere migración de esquema: al arrancar, `ensure_plantillas()` agrega las plantillas nuevas a bases existentes y conserva los contratos ya creados.
+
+### 12.10 Notas de compatibilidad
+
+- Se conserva el comportamiento v1.0: snapshot de plantilla, checkbox y botón de aceptación, registro de fecha/hora/IP/folio, permisos por rol y CSRF.
+- Las plantillas son texto con reemplazo de marcadores; no se evalúan como código, por lo que las notas del usuario no pueden ejecutar nada.
+- El flujo Flask con plantillas HTML de contratos sigue presente como compatibilidad, pero la interfaz activa es la de React bajo `/contratos/*`.
+- Los cambios de esta actualización quedaron **sin commit** en la rama `sidrac`.
+

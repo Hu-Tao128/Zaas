@@ -14,7 +14,12 @@ from app.contratos.api import _depositar_escrow
 from app.contratos.models import Aceptacion, Contrato, Entregable, PlantillaContrato
 from app.contratos.plantillas import NOMBRE_PLANTILLA_BASE
 from app.extensions import db
-from app.pagos.models import Arbitraje, Disputa, Liberacion
+from app.auth.models import (
+    Usuario, Perfil, Habilidad, PerfilHabilidad, PerfilTecnologia,
+)
+from app.catalogo.models import Proyecto, OfertaTrabajo, Categoria, Tecnologia
+from app.contratos.plantillas import ensure_plantillas
+from app.comunicacion.models import Notificacion
 
 
 def obtener_o_crear(modelo, *, datos=None, **filtros):
@@ -179,84 +184,66 @@ def agregar_ejemplos(admin, cliente, desarrolladora, web, movil):
             agregar_contrato(cliente, desarrolladora, plantilla, oferta, hoy - timedelta(days=12),
                              estado, entregables, escrow, disputa)
 
-    agregar_incidencias(admin, hoy, (
-        (cliente, 'bug', 'El resumen tarda en cargar después de cambiar el filtro.', 'abierta', None),
-        (desarrolladora, 'bug', 'El adjunto se queda cargando al abrir un entregable.', 'abierta', None),
-        (cliente, 'fraude', 'Se recibió una solicitud de pago fuera de la plataforma.', 'en_proceso', None),
-        (desarrolladora, 'acoso', 'Se reportó un mensaje inapropiado.', 'en_proceso', None),
-        (cliente, 'incumplimiento', 'La fecha de revisión no coincidía con el acuerdo.', 'resuelta',
-         'Se aclaró la fecha con ambas partes.'),
-        (desarrolladora, 'otro', 'La notificación llegó dos veces.', 'cerrada',
-         'Se verificó el envío y se cerró el reporte.'),
-    ))
+        db.session.add_all([admin, cliente1, dev1, dev2])
+        db.session.flush()
 
+        # ── Catálogo de habilidades y tecnologías ──
+        hab_python = Habilidad(nombre='Python')
+        hab_flask = Habilidad(nombre='Flask')
+        hab_js = Habilidad(nombre='JavaScript')
+        hab_gestion = Habilidad(nombre='Gestión de proyectos')
+        db.session.add_all([hab_python, hab_flask, hab_js, hab_gestion])
 
-def agregar_incidencias(admin, hoy, incidencias):
-    for dias, (usuario, tipo, descripcion, estado, resolucion) in enumerate(incidencias, start=1):
-        descripcion = f'[Demo] {descripcion}'
-        existe = db.session.scalar(db.select(Incidencia.id).filter_by(
-            id_usuario=usuario.id, descripcion=descripcion).limit(1))
-        if existe is not None:
-            continue
-        incidencia = Incidencia(
-            usuario=usuario, tipo=tipo, descripcion=descripcion, estado=estado,
-            fecha_hora=hoy - timedelta(days=dias), resolucion=resolucion,
-            admin=admin if resolucion else None,
-            fecha_resolucion=hoy - timedelta(days=dias - 1) if resolucion else None,
-        )
-        db.session.add(incidencia)
-        if not resolucion:
-            crear_notificacion(admin, f'Incidencia de demostración · {tipo}', '/incidencias')
+        tech_python = Tecnologia(nombre='Python')
+        tech_js = Tecnologia(nombre='JavaScript')
+        tech_react = Tecnologia(nombre='React')
+        tech_flask = Tecnologia(nombre='Flask')
+        db.session.add_all([tech_python, tech_js, tech_react, tech_flask])
+        db.session.flush()
 
+        # ── Perfiles (MR: habilidades y tecnologías normalizadas) ──
+        for u in [cliente1, dev1, dev2]:
+            perfil = Perfil(
+                id_usuario=u.id,
+                descripcion=f'Perfil de {u.nombres}',
+                empresa='Tech Corp' if u.tipo_usuario == 'desarrollador' else None,
+                enlaces='https://github.com' if u.tipo_usuario == 'desarrollador' else None
+            )
+            if u.tipo_usuario == 'desarrollador':
+                perfil.habilidades.extend([
+                    PerfilHabilidad(habilidad=hab_python),
+                    PerfilHabilidad(habilidad=hab_flask),
+                    PerfilHabilidad(habilidad=hab_js),
+                ])
+                perfil.tecnologias.extend([
+                    PerfilTecnologia(tecnologia=tech_python),
+                    PerfilTecnologia(tecnologia=tech_flask),
+                    PerfilTecnologia(tecnologia=tech_react),
+                ])
+            else:
+                perfil.habilidades.append(PerfilHabilidad(habilidad=hab_gestion))
+            db.session.add(perfil)
 
-def agregar_segundo_grupo(admin, web, movil):
-    sofia = cuenta('sofia.demo@example.com', 'Sofía', 'Vargas', 'cliente')
-    mateo = cuenta('mateo.demo@example.com', 'Mateo', 'Castillo', 'cliente')
-    valeria = cuenta('valeria.demo@example.com', 'Valeria', 'Mendoza', 'desarrollador')
-    nicolas = cuenta('nicolas.demo@example.com', 'Nicolás', 'Ríos', 'desarrollador')
+        # ── Categorías ──
+        cat_web = Categoria(nombre='Desarrollo Web')
+        cat_mobile = Categoria(nombre='Aplicaciones Móviles')
+        cat_data = Categoria(nombre='Data Science')
+        db.session.add_all([cat_web, cat_mobile, cat_data])
 
-    hoy = datetime.now(timezone.utc).replace(tzinfo=None)
-    plantilla = db.session.scalars(db.select(PlantillaContrato).filter_by(nombre=NOMBRE_PLANTILLA_BASE)).first()
-    for autor, titulo, descripcion, precio, estado, categoria in (
-        (valeria, 'Gestión de membresías', 'Renovaciones, planes y registro de socios.', 6800, 'activo', web),
-        (nicolas, 'Control de rutas', 'Seguimiento de entregas y rutas diarias.', 5400, 'cerrado', movil),
-        (valeria, 'Agenda veterinaria', 'Historial de mascotas y recordatorios de citas.', 4600, 'activo', web),
-    ):
-        proyecto = obtener_o_crear(
-            Proyecto, id_usuario=autor.id, titulo=f'[Demo] {titulo}',
-            datos={'descripcion': descripcion, 'precio': precio, 'estado': estado, 'demo_habilitada': estado == 'activo',
-                   'categorias': [CategoriaProyecto(categoria=categoria)]},
-        )
-        if titulo == 'Gestión de membresías':
-            agregar_contrato(sofia, autor, plantilla, proyecto, hoy - timedelta(days=9),
-                             'en_progreso', [('Registro de socios', 'aprobado'),
-                                             ('Avisos de renovación', 'pendiente')],
-                             'retenido', ('abierta', 'Se solicitó revisar el importe depositado.', None),
-                             metodo_pago='Transferencia bancaria')
-        elif titulo == 'Control de rutas':
-            agregar_contrato(mateo, autor, plantilla, proyecto, hoy - timedelta(days=16),
-                             'finalizado', [('Mapa y asignación de rutas', 'aprobado')], 'liberado',
-                             metodo_pago='Tarjeta de crédito')
+        # ── Proyectos ──
+        p1 = Proyecto(id_usuario=dev1.id, titulo='Sistema de Inventarios', descripcion='Aplicación web para gestión de inventarios con reportes.', precio=5000, demo_habilitada=True)
+        p2 = Proyecto(id_usuario=dev1.id, titulo='API REST de Pagos', descripcion='API para procesamiento de pagos con Stripe.', precio=8000, demo_habilitada=False)
+        p3 = Proyecto(id_usuario=dev2.id, titulo='Dashboard Analytics', descripcion='Panel de análisis de datos con gráficos interactivos.', precio=3500, demo_habilitada=True)
+        db.session.add_all([p1, p2, p3])
+        db.session.flush()
 
-    portal = obtener_o_crear(
-        OfertaTrabajo, id_cliente=sofia.id, titulo='[Demo] Portal para proveedores',
-        datos={'descripcion_requerimientos': 'Alta de proveedores y seguimiento de pedidos.',
-               'presupuesto': 13800, 'estado': 'en_progreso'},
-    )
-    agregar_contrato(sofia, nicolas, plantilla, portal, hoy - timedelta(days=11),
-                     'entregado', [('Directorio y órdenes de compra', 'pendiente')],
-                     'retenido', ('en_revision', 'Se está revisando el alcance de la entrega.', None),
-                     metodo_pago='Tarjeta de débito')
+        # ── Ofertas de trabajo ──
+        o1 = OfertaTrabajo(id_cliente=cliente1.id, titulo='Desarrollo de E-commerce', descripcion_requerimientos='Necesito una tienda en línea con carrito de compras y pasarela de pago.', presupuesto=15000, estado='abierto')
+        o2 = OfertaTrabajo(id_cliente=cliente1.id, titulo='App de Tareas', descripcion_requerimientos='Aplicación de gestión de tareas con notificaciones.', presupuesto=5000, estado='abierto')
+        db.session.add_all([o1, o2])
 
-    conciliacion = obtener_o_crear(
-        OfertaTrabajo, id_cliente=mateo.id, titulo='[Demo] Conciliación de inventario',
-        datos={'descripcion_requerimientos': 'Importación y comparación de existencias por almacén.',
-               'presupuesto': 7200, 'estado': 'cerrado'},
-    )
-    agregar_contrato(mateo, valeria, plantilla, conciliacion, hoy - timedelta(days=14),
-                     'cancelado', [('Importador de existencias', 'rechazado')], 'reembolsado',
-                     ('resuelta', 'La importación quedó fuera del alcance acordado.', admin),
-                     metodo_pago='SPEI')
+        # ── Plantillas de contrato por tipo de operación ──
+        ensure_plantillas()
 
     reservas = obtener_o_crear(
         OfertaTrabajo, id_cliente=mateo.id, titulo='[Demo] Reservas de salas',
