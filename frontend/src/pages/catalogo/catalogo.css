@@ -1079,7 +1079,7 @@
   color: var(--zaas-text-heading);
 }
 
-.form-group input,
+.form-group input:not([type="checkbox"]):not([type="radio"]),
 .form-group textarea,
 .form-group select {
   width: 100%;
@@ -1093,7 +1093,7 @@
   transition: var(--zaas-transition);
 }
 
-.form-group input:focus,
+.form-group input:not([type="checkbox"]):not([type="radio"]):focus,
 .form-group textarea:focus,
 .form-group select:focus {
   border-color: var(--zaas-primary);
@@ -1116,9 +1116,42 @@
   font-weight: 600;
 }
 
+.catalogo-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+
+.catalogo-checkbox input[type="checkbox"] {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
+  margin: 0;
+  accent-color: var(--zaas-primary);
+  cursor: pointer;
+}
+
+.catalogo-checkbox label {
+  margin: 0;
+  font-weight: 500;
+  font-size: 0.925rem;
+  color: var(--zaas-text);
+  cursor: pointer;
+}
+
+.form-group textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
 .catalogo-form-card {
   max-width: 680px;
   margin: 2rem auto;
+}
+
+.catalogo-form-card h2 {
+  margin-bottom: 1.5rem;
 }
 
 /* ==========================================================================
