@@ -942,14 +942,14 @@ def liberar_fondos(id):
     if custodia_restante == Decimal('0.00') and total_liberado_contrato >= costo:
         contrato_actualizado.estado = 'finalizado'
         db.session.commit()
-        db.session.refresh(contrato_actualizado)
-        return _ok(f'Fondos liberados: ${saldo_pendiente:,.2f} al desarrollador. Contrato finalizado.', contrato=_contrato_detalle(contrato_actualizado))
+        db.session.refresh(contrato)
+        return _ok(f'Fondos liberados: ${saldo_pendiente:,.2f} al desarrollador. Contrato finalizado.', contrato=_contrato_detalle(contrato))
 
     db.session.commit()
-    db.session.refresh(contrato_actualizado)
+    db.session.refresh(contrato)
     return _ok(
         f'Fondos liberados: ${saldo_pendiente:,.2f} al desarrollador. El contrato no se finalizó porque aún hay fondos en custodia o no se ha liberado el total acordado.',
-        contrato=_contrato_detalle(contrato_actualizado),
+        contrato=_contrato_detalle(contrato),
     )
 
 

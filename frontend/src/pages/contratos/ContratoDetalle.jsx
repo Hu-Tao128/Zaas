@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { useApi } from '../../hooks/useApi';
 import { contratosApi } from '../../services/contratosApi';
 import { comunicacionApi } from '../../services/comunicacionApi';
@@ -17,6 +17,7 @@ import {
 
 export default function ContratoDetalle() {
   const { id } = useParams();
+  const { hash, state } = useLocation();
   const { data, loading, error, recargar } = useApi(() => contratosApi.detalle(id), [id]);
   const contrato = data?.contrato;
 
@@ -44,9 +45,17 @@ export default function ContratoDetalle() {
 
   const esParte = Boolean(contrato?.acciones?.es_parte);
   const esAdmin = Boolean(contrato?.acciones?.es_admin);
+  const volverA = esAdmin && state?.adminOrigen ? state.adminOrigen : '/contratos';
+  const textoVolver = volverA === '/contratos' ? 'Volver a contratos' : 'Volver al panel';
 
   useEffect(() => {
-    if (!contrato || (!esParte && !esAdmin)) {
+    if (!loading && contrato && hash) {
+      document.getElementById(hash.slice(1))?.scrollIntoView();
+    }
+  }, [loading, contrato, hash]);
+
+  useEffect(() => {
+    if (!contrato || !esParte) {
       setChat({ mensajes: [], cargando: false, error: null });
       return undefined;
     }
@@ -60,7 +69,7 @@ export default function ContratoDetalle() {
         if (vigente) setChat({ mensajes: [], cargando: false, error: err });
       });
     return () => { vigente = false; };
-  }, [id, contrato, esParte, esAdmin]);
+  }, [id, contrato, esParte]);
 
   useEffect(() => {
     if (!contrato || (!esParte && !esAdmin)) {
@@ -424,7 +433,7 @@ export default function ContratoDetalle() {
             )}
           </section>
 
-          <section className="card contrato-section" aria-label="Pagos y liberaciones">
+          <section id="pagos" className="card contrato-section" aria-label="Pagos y liberaciones">
             <h2 className="contrato-section-title">Pagos y liberaciones</h2>
             {(contrato.pagos || []).length === 0 ? (
               <p className="catalogo-muted">Aún no se han depositado fondos en garantía.</p>
@@ -494,7 +503,7 @@ export default function ContratoDetalle() {
             ) : (
               <div className="contrato-entregables-list">
                 {contrato.disputas.map((disputa) => (
-                  <article key={disputa.id} className="contrato-entregable">
+                  <article key={disputa.id} id={`disputa-${disputa.id}`} className="contrato-entregable">
                     <div className="contrato-entregable-top">
                       <strong>
                         {{
@@ -575,7 +584,7 @@ export default function ContratoDetalle() {
             )}
           </section>
 
-          {(esParte || esAdmin) && (
+          {esParte && (
             <section className="card contrato-section" aria-label="Mensajes del contrato">
               <h2 className="contrato-section-title">Mensajes</h2>
               {chat.cargando && <p className="catalogo-muted">Cargando mensajes...</p>}
@@ -742,7 +751,7 @@ export default function ContratoDetalle() {
               </p>
             )}
 
-            <Link to="/contratos" className="contrato-back-link">← Volver a contratos</Link>
+            <Link to={volverA} className="contrato-back-link">← {textoVolver}</Link>
           </div>
         </aside>
       </div>

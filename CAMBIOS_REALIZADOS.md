@@ -1,6 +1,6 @@
 # Cambios realizados en el proyecto
 
-> Documento generado a partir de los cambios aplicados durante la sesión de trabajo sobre el módulo de pagos y ajustes relacionados.  
+> Documento generado a partir de los cambios aplicados durante la sesión de trabajo sobre el módulo de pagos y ajustes relacionados.
 > **Nota:** el árbol de trabajo puede contener otros cambios previos o paralelos; este documento resume los cambios implementados en esta sesión.
 
 ## 1. Visibilidad y acceso al módulo de pagos (frontend)

@@ -10,6 +10,7 @@ from app.catalogo.models import (
 from app.catalogo.forms import ProyectoForm, OfertaForm, PostulacionForm, DemoForm, ActionForm
 from app.contratos.models import Contrato
 from app.extensions import db
+from app.comunicacion.services import registrar_solicitud_demo, ErrorComunicacion
 
 # Un contrato deja de estar "activo" solo en estos estados: son los únicos que
 # contratos.cancelar_contrato trata como cerrados ("Este contrato ya está cerrado").
@@ -489,23 +490,12 @@ def solicitar_demo(id):
         return redirect(url_for('catalogo.index'))
     form = DemoForm()
     if form.validate_on_submit():
-        solicitud = SolicitudDemo(
-            id_producto=id,
-            id_cliente=current_user.id,
-            nombre_contacto=form.nombre_contacto.data,
-            correo_contacto=form.correo_contacto.data
-        )
-        db.session.add(solicitud)
-        db.session.flush()
-        if producto.autor and producto.autor.id != current_user.id:
-            from app.comunicacion.models import Notificacion
-            db.session.add(Notificacion(
-                id_usuario=producto.autor.id,
-                asunto=f'Nueva solicitud sobre tu proyecto: {producto.titulo}',
-                mensaje=f'{current_user.nombre_completo} solicitó información o una demostración de tu proyecto "{producto.titulo}".',
-                link=url_for('catalogo.detalle_proyecto', id=producto.id),
-            ))
-        db.session.commit()
-        flash('Solicitud enviada al desarrollador.', 'success')
-        return redirect(url_for('catalogo.detalle_proyecto', id=id))
+        try:
+            registrar_solicitud_demo(producto, current_user, form.nombre_contacto.data, form.correo_contacto.data)
+            db.session.commit()
+            flash('Solicitud de demo enviada.', 'success')
+            return redirect(url_for('catalogo.detalle_proyecto', id=id))
+        except ErrorComunicacion as error:
+            db.session.rollback()
+            flash(str(error), 'danger')
     return render_template('catalogo/demo_form.html', form=form, producto=producto)

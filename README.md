@@ -85,11 +85,20 @@ cd backend
 python -m venv venv
 source venv/bin/activate  # En Windows: venv\Scripts\activate
 pip install -r requirements.txt
-python seed.py            # Base nueva + datos de prueba
 # Si ya tienes una base local con el esquema anterior:
-python migrate_mr.py      # Ejecuta las migraciones consolidadas (SQLite o Supabase/PostgreSQL)
+python migrate_mr.py      # Ejecuta las migraciones consolidadas (SQLite o PostgreSQL)
+python seed.py            # Agrega datos de prueba sin borrar registros
 python run.py             # Servidor en http://localhost:5000
 ```
+
+En SQLite local, el seed carga cuentas, publicaciones, contratos, entregables,
+pagos simulados, disputas e incidencias para probar el panel administrativo.
+Puedes volver a ejecutarlo para conservar los datos y estados existentes.
+Las cuentas añadidas por el seed son registros locales y requieren una cuenta
+en Firebase Auth para iniciar sesión.
+
+Para el despliegue HTTPS entre subdominios, configura `SESSION_COOKIE_DOMAIN`
+con el dominio compartido. En localhost se deja sin configurar.
 
 ## Frontend (React)
 
@@ -99,6 +108,16 @@ pnpm install              # Instalar dependencias
 pnpm dev                  # Dev server en http://localhost:3000
 pnpm build                # Build para producción
 ```
+
+## Comunicación y administración
+
+Las pantallas de comunicación están en `http://localhost:3000/comunicacion`.
+El panel provisional está en `http://localhost:3000/admin` y solo permite el acceso
+a usuarios con rol `admin`, validado en el backend. Ambas secciones comparten la
+navegación y la paleta roja, negra y gris del catálogo.
+
+Consulta la [referencia de la API](backend/docs/COMUNICACION_API.md) y el
+[informe de cambios](CAMBIOS_COMUNICACION.md) para ver permisos, pruebas y pendientes.
 
 ## Ramas
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { registerWithEmail, loginWithGoogle } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
@@ -34,7 +34,8 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-  const { marcarAutenticado } = useAuth();
+  const { marcarAutenticado, iniciarRegistro, finalizarRegistro } = useAuth();
+  useEffect(() => finalizarRegistro, [finalizarRegistro]);
 
   function validarPasoCredenciales() {
     const nuevosErrores = {};
@@ -69,6 +70,7 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
+    iniciarRegistro();
     try {
       // 1. Autenticar primero con Firebase Auth
       const { user, idToken } = await registerWithEmail(email, password);
@@ -77,6 +79,7 @@ export default function RegisterPage() {
       setFirebaseData({ user, idToken });
       setPaso('seleccion_rol');
     } catch (err) {
+      finalizarRegistro();
       if (err.code === 'auth/email-already-in-use') {
         setErrorGeneral('Este correo ya está registrado. Inicia sesión o usa otro.');
       } else if (err.code === 'auth/weak-password') {
@@ -93,6 +96,7 @@ export default function RegisterPage() {
   async function handleGoogleSubmit() {
     setErrorGeneral('');
     setLoading(true);
+    iniciarRegistro();
     try {
       // 1. Autenticar con Google Provider
       const { user, idToken } = await loginWithGoogle();
@@ -111,6 +115,7 @@ export default function RegisterPage() {
       setFirebaseData({ user, idToken });
       setPaso('seleccion_rol');
     } catch (err) {
+      finalizarRegistro();
       setErrorGeneral(err.message || 'Error al iniciar con Google.');
     } finally {
       setLoading(false);
@@ -130,19 +135,17 @@ export default function RegisterPage() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          id_token: firebaseData.idToken,
-          firebase_uid: firebaseData.user.uid,
+          id_token: await firebaseData.user.getIdToken(),
           tipo_usuario: rolSeleccionado,
           nombres: nombres.trim() || firebaseData.user.displayName?.split(' ')[0] || 'Usuario',
           apellido_paterno: apellidoPaterno.trim() || firebaseData.user.displayName?.split(' ').slice(1).join(' ') || 'Zaas',
           apellido_materno: apellidoMaterno.trim() || '',
-          email: email || firebaseData.user.email,
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al sincronizar tu cuenta con Zaas');
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Error al sincronizar tu cuenta con Zaas');
       }
 
       await response.json();

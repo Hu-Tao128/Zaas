@@ -1,149 +1,181 @@
-from __future__ import annotations
+"""Reglas compartidas de comunicación. El llamador confirma la transacción."""
 
-from datetime import datetime
-
-from sqlalchemy import or_
-
+from datetime import datetime, timezone
+from email_validator import EmailNotValidError, validate_email
+from sqlalchemy.orm import selectinload
+from app.extensions import db
 from app.auth.models import Usuario
 from app.comunicacion.errors import (
-    IncidenciaContratoAjenoError,
-    IncidenciaContratoRequeridoError,
-    IncidenciaDescripcionInvalidaError,
-    IncidenciaDetalleRequeridoError,
+    IncidenciaContratoAjenoError, IncidenciaContratoRequeridoError,
+    IncidenciaDescripcionInvalidaError, IncidenciaDetalleRequeridoError,
     IncidenciaTipoInvalidoError,
 )
-from app.comunicacion.models import Incidencia, Notificacion
+from app.catalogo.models import SolicitudDemo
 from app.contratos.models import Contrato
-from app.extensions import db
-
-TIPOS_INCIDENCIA = {"acoso", "fraude", "incumplimiento", "bug", "otro"}
-TIPOS_REQUIEREN_CONTRATO = {"fraude", "incumplimiento"}
-
-ESTADOS_CONTRATO_LABEL = {
-    "borrador": "Borrador",
-    "pendiente": "Pendiente",
-    "aceptado": "Aceptado",
-    "en_progreso": "En progreso",
-    "entregado": "Entregado",
-    "finalizado": "Finalizado",
-    "cancelado": "Cancelado",
-}
+from app.comunicacion.models import Conversacion, Mensaje, Notificacion, Calificacion, Incidencia
 
 
-def _texto(valor):
-    return str(valor or "").strip()
+class ErrorComunicacion(ValueError):
+    def __init__(self, mensaje, status=400):
+        super().__init__(mensaje)
+        self.status = status
 
 
-def _nombre_usuario(u):
-    if u is None:
-        return "Usuario"
-    nombre = " ".join([p for p in [getattr(u, "nombres", ""), getattr(u, "apellido_paterno", ""), getattr(u, "apellido_materno", "")] if p]).strip()
-    return nombre or getattr(u, "email", None) or "Usuario"
+def texto_requerido(valor, campo, maximo):
+    if not isinstance(valor, str) or not valor.strip():
+        raise ErrorComunicacion(f'{campo} es obligatorio.')
+    valor = valor.strip()
+    if len(valor) > maximo:
+        raise ErrorComunicacion(f'{campo} admite hasta {maximo} caracteres.')
+    return valor
 
 
-def contrato_legible(contrato, usuario_actual):
-    objeto = getattr(contrato, "objeto", None) or "Contrato"
-    # otra parte
-    otra = None
-    if getattr(contrato, "id_cliente", None) == getattr(usuario_actual, "id", None):
-        otra = getattr(contrato, "desarrollador", None)
-    elif getattr(contrato, "id_desarrollador", None) == getattr(usuario_actual, "id", None):
-        otra = getattr(contrato, "cliente", None)
-    else:
-        otra = getattr(contrato, "cliente", None) or getattr(contrato, "desarrollador", None)
-    otra_nombre = _nombre_usuario(otra)
+def verificar_participante(contrato, usuario):
+    if usuario.id not in (contrato.id_cliente, contrato.id_desarrollador):
+        raise ErrorComunicacion('No participas en este contrato.', 403)
+
+
+def crear_notificacion(usuario, texto, link=None):
+    """Acepta Usuario o ID. No hace commit: evento y aviso se guardan juntos."""
+    usuario_id = usuario.id if isinstance(usuario, Usuario) else usuario
+    if type(usuario_id) is not int or db.session.get(Usuario, usuario_id) is None:
+        raise ErrorComunicacion('El destinatario no existe.', 404)
+    texto = texto_requerido(texto, 'El texto', 5000)
+    if link is not None and (
+        not isinstance(link, str) or len(link) > 500 or not link.startswith('/')
+        or link.startswith('//') or '\\' in link or any(ord(c) < 32 for c in link)
+    ):
+        raise ErrorComunicacion('El enlace debe ser una ruta interna válida.')
+    notificacion = Notificacion(id_usuario=usuario_id, asunto=texto[:200], mensaje=texto, link=link)
+    db.session.add(notificacion)
+    return notificacion
+
+
+def obtener_conversacion(contrato, usuario):
+    verificar_participante(contrato, usuario)
+    conversacion = db.session.scalar(
+        db.select(Conversacion).filter_by(id_contrato=contrato.id).order_by(Conversacion.id)
+    )
+    if conversacion is None:
+        conversacion = Conversacion(id_contrato=contrato.id)
+        db.session.add(conversacion)
+        db.session.flush()
+    return conversacion
+
+
+def enviar_mensaje(conversacion, usuario, contenido):
+    contrato = conversacion.contrato
+    verificar_participante(contrato, usuario)
+    contenido = texto_requerido(contenido, 'El mensaje', 5000)
+    receptor = contrato.id_desarrollador if usuario.id == contrato.id_cliente else contrato.id_cliente
+    mensaje = Mensaje(id_conversacion=conversacion.id, id_emisor=usuario.id,
+                      id_receptor=receptor, contenido=contenido)
+    db.session.add(mensaje)
+    crear_notificacion(receptor, f'Nuevo mensaje en contrato #{contrato.id}',
+                       f'/comunicacion?tab=mensajes&contrato={contrato.id}')
+    return mensaje
+
+
+def registrar_calificacion(contrato, usuario, puntaje, comentarios=''):
+    verificar_participante(contrato, usuario)
+    if contrato.estado != 'finalizado':
+        raise ErrorComunicacion('Solo se pueden calificar contratos finalizados.', 409)
+    if type(puntaje) is not int or not 1 <= puntaje <= 5:
+        raise ErrorComunicacion('El puntaje debe ser un entero entre 1 y 5.')
+    if not isinstance(comentarios, str) or len(comentarios) > 2000:
+        raise ErrorComunicacion('Los comentarios admiten hasta 2000 caracteres.')
+    existente = db.session.scalar(db.select(Calificacion).filter_by(
+        id_contrato=contrato.id, id_evaluador=usuario.id))
+    if existente:
+        raise ErrorComunicacion('Ya calificaste este contrato.', 409)
+    evaluado = contrato.id_desarrollador if usuario.id == contrato.id_cliente else contrato.id_cliente
+    calificacion = Calificacion(id_contrato=contrato.id, id_evaluador=usuario.id,
+                               id_evaluado=evaluado, puntaje=puntaje, comentarios=comentarios.strip())
+    db.session.add(calificacion)
+    crear_notificacion(evaluado, f'Recibiste una calificación de {puntaje}/5 en contrato #{contrato.id}',
+                       f'/comunicacion?tab=calificaciones&contrato={contrato.id}')
+    return calificacion
+
+
+def registrar_solicitud_demo(proyecto, usuario, nombre, correo):
+    if usuario.tipo_usuario != 'cliente' or proyecto.id_usuario == usuario.id:
+        raise ErrorComunicacion('Solo un cliente puede solicitar una demo a otro usuario.', 403)
+    if not proyecto.demo_habilitada or proyecto.estado != 'activo':
+        raise ErrorComunicacion('Este proyecto no tiene demos disponibles.', 409)
+    nombre = texto_requerido(nombre, 'El nombre de contacto', 150)
+    correo = texto_requerido(correo, 'El correo de contacto', 150)
     try:
-        monto = f"${float(getattr(contrato, 'costo_acordado', 0) or 0):,.2f} MXN"
-    except Exception:
-        monto = "Monto no disponible"
-    estado = ESTADOS_CONTRATO_LABEL.get(getattr(contrato, "estado", None), str(getattr(contrato, "estado", "") or "Desconocido"))
-    return f"{objeto} — con {otra_nombre} — {monto} — {estado}"
+        correo = validate_email(correo, check_deliverability=False).normalized
+    except EmailNotValidError:
+        raise ErrorComunicacion('El correo de contacto no es válido.')
+    existente = db.session.scalar(db.select(SolicitudDemo).filter_by(
+        id_producto=proyecto.id, id_cliente=usuario.id))
+    if existente:
+        raise ErrorComunicacion('Ya solicitaste una demo de este proyecto.', 409)
+    solicitud = SolicitudDemo(id_producto=proyecto.id, id_cliente=usuario.id,
+                             nombre_contacto=nombre, correo_contacto=correo)
+    db.session.add(solicitud)
+    crear_notificacion(proyecto.id_usuario, f'{nombre} solicitó una demo de {proyecto.titulo}',
+                       '/comunicacion?tab=demos')
+    return solicitud
 
 
 def listar_contratos_usuario(usuario):
-    contratos = db.session.execute(
-        db.select(Contrato)
-        .filter(or_(Contrato.id_cliente == usuario.id, Contrato.id_desarrollador == usuario.id))
-        .order_by(Contrato.fecha_creacion.desc())
-    ).scalars().all()
+    query = db.select(Contrato).where(
+        (Contrato.id_cliente == usuario.id) | (Contrato.id_desarrollador == usuario.id)
+    ).options(
+        selectinload(Contrato.producto), selectinload(Contrato.encargo),
+        selectinload(Contrato.cliente), selectinload(Contrato.desarrollador),
+    ).order_by(Contrato.fecha_creacion.desc(), Contrato.id.desc())
     items = []
-    for c in contratos:
-        items.append({
-            "id": c.id,
-            "etiqueta": contrato_legible(c, usuario),
-            "estado": c.estado,
-            "estado_etiqueta": ESTADOS_CONTRATO_LABEL.get(c.estado, c.estado or ""),
-            "objeto": getattr(c, "objeto", None),
-        })
+    for contrato in db.session.scalars(query):
+        contraparte = contrato.nombre_desarrollador if usuario.id == contrato.id_cliente else contrato.nombre_cliente
+        estado = (contrato.estado or 'desconocido').replace('_', ' ')
+        items.append({'id': contrato.id, 'etiqueta':
+                      f'{contrato.objeto} · {contraparte} · ${contrato.costo_acordado:,.2f} MXN · {estado}'})
     return items
 
 
-def _resolver_contrato(id_contrato, usuario):
-    if id_contrato in (None, "", 0, "0"):
-        return None
-    try:
-        cid = int(id_contrato)
-    except (TypeError, ValueError):
-        raise IncidenciaContratoAjenoError()
-    if cid <= 0:
-        raise IncidenciaContratoAjenoError()
-    contrato = db.session.get(Contrato, cid)
-    if contrato is None:
-        raise IncidenciaContratoAjenoError()
-    # pertenencia: cliente o desarrollador (admin no crea en nombre ajeno aquí; se valida como usuario actual)
-    if usuario.id not in (contrato.id_cliente, contrato.id_desarrollador):
-        raise IncidenciaContratoAjenoError()
-    return contrato
-
-
-def crear_incidencia(usuario, datos):
-    tipo = _texto((datos or {}).get("tipo")).lower()
-    if not tipo or tipo not in TIPOS_INCIDENCIA:
+def registrar_incidencia(usuario, tipo, descripcion, id_contrato=None, tipo_detalle=None):
+    if tipo not in ('acoso', 'fraude', 'incumplimiento', 'bug', 'otro'):
         raise IncidenciaTipoInvalidoError()
-
-    descripcion = _texto((datos or {}).get("descripcion"))
-    if len(descripcion) < 10 or len(descripcion) > 1000:
+    if not isinstance(descripcion, str) or not 10 <= len(descripcion.strip()) <= 1000:
         raise IncidenciaDescripcionInvalidaError()
-
-    # contrato
-    raw_contrato = (datos or {}).get("id_contrato")
-    if tipo in TIPOS_REQUIEREN_CONTRATO and raw_contrato in (None, "", 0, "0"):
+    if id_contrato is None and tipo in ('fraude', 'incumplimiento'):
         raise IncidenciaContratoRequeridoError()
-    contrato = _resolver_contrato(raw_contrato, usuario) if raw_contrato not in (None, "", 0, "0") else None
-    if tipo in TIPOS_REQUIEREN_CONTRATO and contrato is None:
-        raise IncidenciaContratoRequeridoError()
-
-    # tipo_detalle
-    raw_detalle = (datos or {}).get("tipo_detalle")
-    detalle = _texto(raw_detalle)
-    if tipo == "otro":
+    if id_contrato is not None:
+        if type(id_contrato) is not int or id_contrato < 1:
+            raise IncidenciaContratoAjenoError()
+        contrato = db.session.get(Contrato, id_contrato)
+        if contrato is None or usuario.id not in (contrato.id_cliente, contrato.id_desarrollador):
+            raise IncidenciaContratoAjenoError()
+    detalle = None
+    if tipo == 'otro':
+        detalle = tipo_detalle.strip() if isinstance(tipo_detalle, str) else ''
         if not detalle:
             raise IncidenciaDetalleRequeridoError()
         if len(detalle) > 100:
-            raise IncidenciaDetalleRequeridoError("El detalle del tipo de incidencia no puede superar 100 caracteres.")
-        tipo_detalle = detalle
-    else:
-        # solo obligatorio en nuevas de tipo otro; para otros tipos debe ser nulo
-        tipo_detalle = None
-
-    incidencia = Incidencia(
-        id_usuario=usuario.id,
-        id_contrato=contrato.id if contrato else None,
-        tipo=tipo,
-        descripcion=descripcion,
-        tipo_detalle=tipo_detalle,
-        estado="abierta",
-    )
+            raise IncidenciaDetalleRequeridoError('El detalle del tipo de incidencia no puede superar 100 caracteres.')
+    incidencia = Incidencia(id_usuario=usuario.id, tipo=tipo, tipo_detalle=detalle,
+                            descripcion=descripcion.strip(), id_contrato=id_contrato)
     db.session.add(incidencia)
     db.session.flush()
-
-    admins = db.session.execute(db.select(Usuario).filter_by(tipo_usuario="admin")).scalars().all()
-    etiqueta_tipo = tipo_detalle if (tipo == "otro" and tipo_detalle) else tipo
+    admins = db.session.scalars(db.select(Usuario).filter_by(tipo_usuario='admin')).all()
     for admin in admins:
-        db.session.add(Notificacion(
-            id_usuario=admin.id,
-            asunto=f"Nueva incidencia: {etiqueta_tipo}"[:200],
-            mensaje=f"Nueva incidencia de {_nombre_usuario(usuario)}: {etiqueta_tipo}",
-            link="/incidencias",
-        ))
+        crear_notificacion(admin, f'Nueva incidencia #{incidencia.id}: {detalle or tipo}',
+                           '/incidencias')
+    return incidencia
+
+
+def resolver_incidencia(incidencia, usuario, resolucion):
+    if usuario.tipo_usuario != 'admin':
+        raise ErrorComunicacion('Solo un administrador puede resolver incidencias.', 403)
+    if incidencia.estado in ('resuelta', 'cerrada'):
+        raise ErrorComunicacion('La incidencia ya está resuelta o cerrada.', 409)
+    incidencia.resolucion = texto_requerido(resolucion, 'La resolución', 5000)
+    incidencia.estado = 'resuelta'
+    incidencia.fecha_resolucion = datetime.now(timezone.utc).replace(tzinfo=None)
+    incidencia.id_admin = usuario.id
+    crear_notificacion(incidencia.id_usuario, f'Tu incidencia #{incidencia.id} ha sido resuelta.',
+                       '/incidencias')
     return incidencia
