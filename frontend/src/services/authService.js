@@ -89,18 +89,4 @@ export function onAuthChange(callback) {
 /**
  * Enviar token al backend para crear sesión
  */
-export async function syncWithBackend(idToken) {
-  const response = await fetch('/auth/firebase-login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ id_token: idToken })
-  });
-  
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Error de autenticación');
-  }
-  
-  return await response.json();
-}
+export { syncWithBackend } from './authBackend';

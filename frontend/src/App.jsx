@@ -4,6 +4,8 @@ import { CatalogoProvider, useCatalogo } from './context/CatalogoContext';
 import CatalogoLayout from './components/catalogo/CatalogoLayout';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ComunicacionPage from './pages/ComunicacionPage';
+import AdminPage from './pages/AdminPage';
 import CatalogoIndexPage from './pages/catalogo/CatalogoIndexPage';
 import DetalleProyectoPage from './pages/catalogo/DetalleProyectoPage';
 import ProyectoFormPage from './pages/catalogo/ProyectoFormPage';
@@ -67,6 +69,10 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/registro" element={<RegisterPage />} />
+          <Route path="/comunicacion" element={
+            <ProtectedRoute><ComunicacionPage /></ProtectedRoute>
+          } />
+          <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
           <Route path="/catalogo/*" element={<RedirigirDesdeCatalogo />} />
           <Route path="/" element={<CatalogoArea />}>
             <Route index element={<CatalogoIndexPage />} />

@@ -52,13 +52,12 @@ export default function CatalogoIndexPage() {
 
   return (
     <div className="catalogo-page-container">
-      {/* Encabezado contextual de la vista */}
-      <div className="catalogo-view-header">
-        <h1 className="catalogo-page-title">Catálogo de Proyectos SaaS</h1>
+      <header className="catalogo-view-header catalogo-projects-header">
+        <h1 className="catalogo-page-title">Proyectos SaaS en venta</h1>
         <p className="catalogo-page-subtitle">
-          Descubre software validado y listo para transferir con pagos custodiados en Escrow.
+          Explora software publicado, compara precios y solicita una demo cuando esté disponible.
         </p>
-      </div>
+      </header>
 
       {/* Controles de búsqueda, filtros y botonera con flexbox/grid */}
       <CatalogControls

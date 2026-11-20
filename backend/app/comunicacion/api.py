@@ -1,487 +1,462 @@
-"""API JSON de comunicación para el frontend React.
+"""API JSON para React; usa la sesión Flask y CSRF en las escrituras."""
 
-Cubre los recursos del MR: conversaciones, mensajes, notificaciones,
-calificaciones e incidencias. Usa la misma sesión de Flask-Login que el resto
-de APIs (`/auth/firebase-login`).
-"""
-
-from datetime import datetime
 from functools import wraps
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from flask_login import current_user
-from sqlalchemy import or_, update
-
+from flask_wtf.csrf import generate_csrf, validate_csrf
+from wtforms.validators import ValidationError
+from werkzeug.exceptions import HTTPException
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import selectinload
 from app.auth.models import Usuario
-from app.comunicacion.errors import (
-    IncidenciaContratoAjenoError,
-    IncidenciaContratoRequeridoError,
-    IncidenciaDescripcionInvalidaError,
-    IncidenciaDetalleRequeridoError,
-    IncidenciaError,
-    IncidenciaTipoInvalidoError,
-)
-from app.comunicacion.models import (
-    Calificacion, Conversacion, Incidencia, Mensaje, Notificacion,
-)
-from app.comunicacion import services as comunicacion_services
-from app.contratos.models import Contrato
 from app.extensions import db
-
-ESTADOS_INCIDENCIA_LABEL = {
-    'abierta': 'Abierta',
-    'en_proceso': 'En proceso',
-    'resuelta': 'Resuelta',
-    'cerrada': 'Cerrada',
-}
-TIPOS_INCIDENCIA_LABEL = {
-    'acoso': 'Acoso',
-    'fraude': 'Fraude',
-    'incumplimiento': 'Incumplimiento',
-    'bug': 'Bug del sistema',
-    'otro': 'Otro',
-}
-
-comunicacion_api_bp = Blueprint(
-    'comunicacion_api', __name__, url_prefix='/api/comunicacion'
+from app.contratos.models import Contrato, Entregable
+from app.catalogo.models import OfertaTrabajo, Proyecto, SolicitudDemo
+from app.comunicacion.models import Conversacion, Mensaje, Notificacion, Calificacion, Incidencia
+from app.comunicacion.errors import IncidenciaError
+from app.pagos.models import Disputa, Pago
+from app.comunicacion.services import (
+    ErrorComunicacion, verificar_participante, obtener_conversacion, enviar_mensaje,
+    registrar_calificacion, registrar_solicitud_demo, registrar_incidencia, resolver_incidencia,
+    listar_contratos_usuario,
 )
 
-
-# ---------------------------------------------------------------- utilidades
-
-def _ok(mensaje=None, status=200, **datos):
-    return jsonify({'ok': True, 'mensaje': mensaje, **datos}), status
+comunicacion_api = Blueprint('comunicacion_api', __name__, url_prefix='/api/comunicacion')
 
 
-def _error(mensaje, status=400, errores=None, codigo=None):
-    payload = {'ok': False, 'mensaje': mensaje, 'errores': errores or {}}
-    if codigo:
-        payload['codigo'] = codigo
-    return jsonify(payload), status
-
-
-def _requiere(*roles):
-    def decorador(vista):
-        @wraps(vista)
-        def envoltura(*args, **kwargs):
-            if not current_user.is_authenticated:
-                return _error('Debes iniciar sesión.', 401)
-            if roles and current_user.tipo_usuario not in roles:
-                return _error('No tienes permiso para realizar esta acción.', 403)
-            return vista(*args, **kwargs)
-        return envoltura
-    return decorador
-
-
-def _iso(valor, utc=False):
-    if not valor:
+@comunicacion_api.before_request
+def proteger_api():
+    if request.method == 'OPTIONS':
         return None
-    texto = valor.isoformat()
-    return texto + 'Z' if utc else texto
-
-
-def _datos_json():
-    datos = request.get_json(silent=True)
-    return datos if isinstance(datos, dict) else {}
-
-
-def _usuario_publico(usuario):
-    if usuario is None:
-        return None
-    return {
-        'id': usuario.id,
-        'nombres': usuario.nombres,
-        'apellido_paterno': usuario.apellido_paterno,
-        'nombre_completo': usuario.nombre_completo,
-    }
-
-
-def _contrato_de_usuario(id_contrato):
-    contrato = db.session.get(Contrato, id_contrato)
-    if contrato is None:
-        return None
-    if current_user.tipo_usuario == 'admin':
-        return contrato
-    if current_user.id not in (contrato.id_cliente, contrato.id_desarrollador):
-        return None
-    return contrato
-
-
-def _crear_notificacion(usuario_id, texto, link=None):
-    notificacion = Notificacion(
-        id_usuario=usuario_id,
-        asunto=texto[:200],
-        mensaje=texto,
-        link=link,
-    )
-    db.session.add(notificacion)
-    return notificacion
-
-
-@comunicacion_api_bp.get('/csrf')
-def csrf():
-    from flask_wtf.csrf import generate_csrf
-    return jsonify({'csrf_token': generate_csrf()})
-
-
-# --------------------------------------------------------- notificaciones
-
-def _notificacion(item):
-    return {
-        'id': item.id,
-        'asunto': item.asunto,
-        'mensaje': item.mensaje,
-        'leido': bool(item.leido),
-        'fecha_hora_creacion': _iso(item.fecha_hora_creacion, utc=True),
-        'link': item.link,
-    }
-
-
-@comunicacion_api_bp.get('/notificaciones')
-@_requiere()
-def listar_notificaciones():
-    items = db.session.execute(
-        db.select(Notificacion)
-        .filter_by(id_usuario=current_user.id)
-        .order_by(Notificacion.fecha_hora_creacion.desc())
-        .limit(50)
-    ).scalars().all()
-    no_leidas = sum(1 for item in items if not item.leido)
-    return jsonify({
-        'items': [_notificacion(item) for item in items],
-        'no_leidas': no_leidas,
-        'total': len(items),
-    })
-
-
-@comunicacion_api_bp.post('/notificaciones/leer')
-@_requiere()
-def marcar_notificaciones_leidas():
-    db.session.execute(
-        update(Notificacion)
-        .where(Notificacion.id_usuario == current_user.id)
-        .values(leido=True)
-    )
-    db.session.commit()
-    return _ok('Notificaciones marcadas como leídas.')
-
-
-# ------------------------------------------------------------ conversaciones
-
-def _mensaje(item):
-    return {
-        'id': item.id,
-        'id_conversacion': item.id_conversacion,
-        'id_emisor': item.id_emisor,
-        'id_receptor': item.id_receptor,
-        'contenido': item.contenido,
-        'fecha_hora': _iso(item.fecha_hora, utc=True),
-        'leido': bool(item.leido),
-        'emisor': _usuario_publico(item.emisor),
-        'receptor': _usuario_publico(item.receptor),
-    }
-
-
-@comunicacion_api_bp.get('/conversaciones')
-@_requiere()
-def listar_conversaciones():
-    conversaciones = db.session.execute(
-        db.select(Conversacion)
-        .join(Contrato)
-        .filter(or_(
-            Contrato.id_cliente == current_user.id,
-            Contrato.id_desarrollador == current_user.id,
-        ))
-        .order_by(Conversacion.fecha_creacion.desc())
-    ).scalars().all()
-
-    items = []
-    for conversacion in conversaciones:
-        ultimo = max(
-            (conversacion.mensajes or []),
-            key=lambda m: m.fecha_hora or datetime.min,
-            default=None,
-        )
-        items.append({
-            'id': conversacion.id,
-            'id_contrato': conversacion.id_contrato,
-            'fecha_creacion': _iso(conversacion.fecha_creacion, utc=True),
-            'contrato_objeto': conversacion.contrato.objeto if conversacion.contrato else None,
-            'ultimo_mensaje': _mensaje(ultimo) if ultimo else None,
-            'no_leidos': sum(
-                1 for m in (conversacion.mensajes or [])
-                if m.id_receptor == current_user.id and not m.leido
-            ),
-        })
-    return jsonify({'items': items})
-
-
-@comunicacion_api_bp.get('/contrato/<int:id>')
-@_requiere()
-def obtener_chat(id):
-    contrato = _contrato_de_usuario(id)
-    if contrato is None:
-        return _error('Contrato no encontrado o sin permiso.', 404)
-
-    conversacion = db.session.execute(
-        db.select(Conversacion).filter_by(id_contrato=id)
-    ).scalars().first()
-    if conversacion is None:
-        conversacion = Conversacion(id_contrato=id)
-        db.session.add(conversacion)
-        db.session.commit()
-
-    mensajes = db.session.execute(
-        db.select(Mensaje)
-        .filter_by(id_conversacion=conversacion.id)
-        .order_by(Mensaje.fecha_hora)
-    ).scalars().all()
-
-    for mensaje in mensajes:
-        if mensaje.id_receptor == current_user.id and not mensaje.leido:
-            mensaje.leido = True
-    db.session.commit()
-
-    receptor = (
-        contrato.id_desarrollador
-        if current_user.id == contrato.id_cliente
-        else contrato.id_cliente
-    )
-    return jsonify({
-        'conversacion': {
-            'id': conversacion.id,
-            'id_contrato': conversacion.id_contrato,
-            'fecha_creacion': _iso(conversacion.fecha_creacion, utc=True),
-        },
-        'mensajes': [_mensaje(m) for m in mensajes],
-        'receptor_id': receptor,
-    })
-
-
-@comunicacion_api_bp.post('/contrato/<int:id>')
-@_requiere()
-def enviar_mensaje(id):
-    contrato = _contrato_de_usuario(id)
-    if contrato is None:
-        return _error('Contrato no encontrado o sin permiso.', 404)
-
-    datos = _datos_json()
-    contenido = str(datos.get('contenido', '')).strip()
-    if not contenido:
-        return _error('El mensaje no puede estar vacío.', 422, {
-            'contenido': 'El mensaje no puede estar vacío.',
-        })
-
-    conversacion = db.session.execute(
-        db.select(Conversacion).filter_by(id_contrato=id)
-    ).scalars().first()
-    if conversacion is None:
-        conversacion = Conversacion(id_contrato=id)
-        db.session.add(conversacion)
-        db.session.flush()
-
-    receptor = (
-        contrato.id_desarrollador
-        if current_user.id == contrato.id_cliente
-        else contrato.id_cliente
-    )
-    mensaje = Mensaje(
-        id_conversacion=conversacion.id,
-        id_emisor=current_user.id,
-        id_receptor=receptor,
-        contenido=contenido,
-    )
-    db.session.add(mensaje)
-    _crear_notificacion(
-        receptor,
-        f'Nuevo mensaje en contrato #{id}',
-        link=f'/contratos/{id}',
-    )
-    db.session.commit()
-    return _ok('Mensaje enviado.', 201, mensaje_enviado=_mensaje(mensaje))
-
-
-# ------------------------------------------------------------ calificaciones
-
-@comunicacion_api_bp.post('/contrato/<int:id>/calificar')
-@_requiere()
-def calificar_contrato(id):
-    contrato = _contrato_de_usuario(id)
-    if contrato is None:
-        return _error('Contrato no encontrado o sin permiso.', 404)
-    if contrato.estado != 'finalizado':
-        return _error('Solo se pueden calificar contratos finalizados.', 409)
-    if current_user.id not in (contrato.id_cliente, contrato.id_desarrollador):
-        return _error('Solo las partes pueden calificar este contrato.', 403)
-
-    ya_califico = db.session.execute(
-        db.select(Calificacion).filter_by(
-            id_contrato=id, id_evaluador=current_user.id
-        )
-    ).scalars().first()
-    if ya_califico:
-        return _error('Ya calificaste este contrato.', 409)
-
-    datos = _datos_json()
-    try:
-        puntaje = int(datos.get('puntaje'))
-    except (TypeError, ValueError):
-        return _error('El puntaje es obligatorio.', 422, {
-            'puntaje': 'El puntaje es obligatorio.',
-        })
-    if not 1 <= puntaje <= 5:
-        return _error('El puntaje debe estar entre 1 y 5.', 422, {
-            'puntaje': 'El puntaje debe estar entre 1 y 5.',
-        })
-
-    evaluado = (
-        contrato.id_desarrollador
-        if current_user.id == contrato.id_cliente
-        else contrato.id_cliente
-    )
-    calificacion = Calificacion(
-        id_contrato=id,
-        id_evaluador=current_user.id,
-        id_evaluado=evaluado,
-        puntaje=puntaje,
-        comentarios=str(datos.get('comentarios', '')).strip() or None,
-    )
-    db.session.add(calificacion)
-    _crear_notificacion(
-        evaluado,
-        f'Recibiste una calificación de {puntaje}/5 en contrato #{id}',
-        link=f'/perfil/{evaluado}',
-    )
-    db.session.commit()
-    return _ok('Calificación enviada.', 201, calificacion={
-        'id': calificacion.id,
-        'puntaje': calificacion.puntaje,
-        'comentarios': calificacion.comentarios,
-    })
-
-
-# --------------------------------------------------------------- incidencias
-
-def _incidencia(item):
-    tipo = (item.tipo or '').strip().lower()
-    tipo_detalle = (getattr(item, 'tipo_detalle', None) or '').strip() or None
-    if tipo == 'otro' and tipo_detalle:
-        tipo_etiqueta = f'Otro: {tipo_detalle}'
-    else:
-        tipo_etiqueta = TIPOS_INCIDENCIA_LABEL.get(tipo, TIPOS_INCIDENCIA_LABEL.get('otro', 'Otro') if tipo == 'otro' else (tipo or 'Incidencia'))
-    contrato_etiqueta = None
-    if item.contrato is not None:
+    if not current_user.is_authenticated:
+        raise ErrorComunicacion('Debes iniciar sesión.', 401)
+    if current_app.config.get('WTF_CSRF_ENABLED', True) and request.method not in ('GET', 'HEAD'):
         try:
-            contrato_etiqueta = comunicacion_services.contrato_legible(item.contrato, current_user)
-        except Exception:
-            contrato_etiqueta = getattr(item.contrato, 'objeto', None)
-    estado = item.estado or 'abierta'
-    return {
-        'id': item.id,
-        'id_usuario': item.id_usuario,
-        'id_admin': item.id_admin,
-        'id_contrato': item.id_contrato,
-        'tipo': tipo or item.tipo,
-        'tipo_detalle': tipo_detalle,
-        'tipo_etiqueta': tipo_etiqueta,
-        'descripcion': item.descripcion,
-        'estado': estado,
-        'estado_etiqueta': ESTADOS_INCIDENCIA_LABEL.get(estado, estado),
-        'fecha_hora': _iso(item.fecha_hora, utc=True),
-        'resolucion': item.resolucion,
-        'fecha_resolucion': _iso(item.fecha_resolucion, utc=True),
-        'usuario': _usuario_publico(item.usuario),
-        'admin': _usuario_publico(item.admin),
-        'contrato_objeto': item.contrato.objeto if item.contrato else None,
-        'contrato_etiqueta': contrato_etiqueta,
-    }
+            validate_csrf(request.headers.get('X-CSRFToken'))
+        except ValidationError:
+            raise ErrorComunicacion('La protección de sesión expiró. Recarga la página.', 400)
 
 
-@comunicacion_api_bp.get('/incidencias')
-@_requiere()
-def listar_incidencias():
-    query = db.select(Incidencia).order_by(Incidencia.fecha_hora.desc())
-    if current_user.tipo_usuario != 'admin':
-        query = query.filter_by(id_usuario=current_user.id)
-    items = db.session.execute(query).scalars().all()
-    return jsonify({'items': [_incidencia(item) for item in items]})
+@comunicacion_api.errorhandler(ErrorComunicacion)
+def error_comunicacion(error):
+    db.session.rollback()
+    return jsonify(error=str(error)), error.status
 
 
-@comunicacion_api_bp.get('/incidencias/contratos')
-@_requiere()
-def contratos_para_incidencias():
-    items = comunicacion_services.listar_contratos_usuario(current_user)
-    return jsonify({'ok': True, 'items': items})
+@comunicacion_api.errorhandler(IncidenciaError)
+def error_incidencia(error):
+    db.session.rollback()
+    campo = {
+        'incidencia_tipo_invalido': 'tipo',
+        'incidencia_contrato_requerido': 'id_contrato',
+        'incidencia_contrato_ajeno': 'id_contrato',
+        'incidencia_detalle_requerido': 'tipo_detalle',
+        'incidencia_descripcion_invalida': 'descripcion',
+    }.get(error.codigo)
+    return jsonify(error=error.mensaje, codigo=error.codigo,
+                   errores={campo: error.mensaje} if campo else {}), 422
 
 
-@comunicacion_api_bp.post('/incidencias')
-@_requiere()
-def crear_incidencia():
-    datos = _datos_json()
+@comunicacion_api.errorhandler(HTTPException)
+def error_http(error):
+    db.session.rollback()
+    return jsonify(error=error.description), error.code
+
+
+@comunicacion_api.errorhandler(SQLAlchemyError)
+def error_db(error):
+    db.session.rollback()
+    current_app.logger.exception('Error de persistencia en comunicación')
+    return jsonify(error='No se pudieron guardar o consultar los datos.'), 500
+
+
+def datos_json():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        raise ErrorComunicacion('Envía un objeto JSON válido.')
+    return data
+
+
+def obtener(modelo, id):
+    registro = db.session.get(modelo, id)
+    if registro is None:
+        raise ErrorComunicacion('El registro no existe.', 404)
+    return registro
+
+
+def fecha(valor):
+    return valor.isoformat() + 'Z' if valor else None
+
+
+def persona(usuario):
+    return {'id': usuario.id, 'nombre': f'{usuario.nombres} {usuario.apellido_paterno}'.strip()}
+
+
+def contrato_json(contrato):
+    otro = contrato.desarrollador if current_user.id == contrato.id_cliente else contrato.cliente
+    return {'id': contrato.id, 'estado': contrato.estado, 'contraparte': persona(otro)}
+
+
+def mensaje_json(mensaje):
+    return {campo: getattr(mensaje, campo) for campo in
+            ('id', 'id_conversacion', 'id_emisor', 'id_receptor', 'contenido', 'leido')} | {
+                'fecha_hora': fecha(mensaje.fecha_hora),
+                'emisor': {'nombre_completo': mensaje.emisor.nombre_completo} if mensaje.emisor else None}
+
+
+def notificacion_json(notificacion):
+    return {campo: getattr(notificacion, campo) for campo in
+            ('id', 'asunto', 'mensaje', 'leido', 'link')} | {
+                'fecha_hora_creacion': fecha(notificacion.fecha_hora_creacion)}
+
+
+def demo_json(solicitud):
+    return {'id': solicitud.id, 'id_producto': solicitud.id_producto,
+            'proyecto': solicitud.producto.titulo, 'id_cliente': solicitud.id_cliente,
+            'id_autor': solicitud.producto.id_usuario,
+            'nombre_contacto': solicitud.nombre_contacto, 'correo_contacto': solicitud.correo_contacto,
+            'fecha_solicitud': fecha(solicitud.fecha_solicitud)}
+
+
+def calificacion_json(calificacion):
+    return {campo: getattr(calificacion, campo) for campo in
+            ('id', 'id_contrato', 'id_evaluador', 'id_evaluado', 'puntaje', 'comentarios')} | {
+                'evaluador': persona(calificacion.evaluador),
+                'evaluado': persona(calificacion.evaluado), 'fecha_hora': fecha(calificacion.fecha_hora)}
+
+
+def incidencia_json(incidencia):
+    detalle = incidencia.tipo_detalle
+    tipo_etiqueta = (incidencia.tipo or 'otro').capitalize()
+    if incidencia.tipo == 'otro' and detalle:
+        tipo_etiqueta = f'Otro: {detalle}'
+    return {campo: getattr(incidencia, campo) for campo in
+            ('id', 'id_usuario', 'tipo', 'descripcion', 'estado', 'resolucion', 'id_admin', 'id_contrato')} | {
+                'fecha_hora': fecha(incidencia.fecha_hora),
+                'fecha_resolucion': fecha(incidencia.fecha_resolucion),
+                'tipo_detalle': detalle, 'tipo_etiqueta': tipo_etiqueta,
+                'contrato_objeto': incidencia.contrato.objeto if incidencia.contrato else None}
+
+
+def paginar(query, serializar, **extra):
     try:
-        incidencia = comunicacion_services.crear_incidencia(current_user, datos)
-        db.session.commit()
-        db.session.refresh(incidencia)
-        return _ok('Incidencia reportada.', 201, incidencia=_incidencia(incidencia))
-    except IncidenciaTipoInvalidoError as exc:
-        db.session.rollback()
-        return _error(exc.mensaje, 422, {'tipo': exc.mensaje}, codigo=exc.codigo)
-    except IncidenciaContratoRequeridoError as exc:
-        db.session.rollback()
-        return _error(exc.mensaje, 422, {'id_contrato': exc.mensaje}, codigo=exc.codigo)
-    except IncidenciaContratoAjenoError as exc:
-        db.session.rollback()
-        return _error(exc.mensaje, 422, {'id_contrato': exc.mensaje}, codigo=exc.codigo)
-    except IncidenciaDetalleRequeridoError as exc:
-        db.session.rollback()
-        return _error(exc.mensaje, 422, {'tipo_detalle': exc.mensaje}, codigo=exc.codigo)
-    except IncidenciaDescripcionInvalidaError as exc:
-        db.session.rollback()
-        return _error(exc.mensaje, 422, {'descripcion': exc.mensaje}, codigo=exc.codigo)
-    except IncidenciaError as exc:
-        db.session.rollback()
-        return _error(exc.mensaje, 400, codigo=exc.codigo)
-    except Exception:
-        db.session.rollback()
-        return _error('No se pudo reportar la incidencia. Inténtalo de nuevo más tarde.', 500, codigo='error_interno')
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+    except ValueError:
+        raise ErrorComunicacion('La paginación debe usar números enteros.')
+    if page < 1 or not 1 <= per_page <= 100:
+        raise ErrorComunicacion('Usa page >= 1 y per_page entre 1 y 100.')
+    pagina = db.paginate(query, page=page, per_page=per_page, error_out=False)
+    return jsonify(data=[serializar(item) for item in pagina.items],
+                   meta={'page': page, 'per_page': per_page, 'total': pagina.total,
+                         'pages': pagina.pages, 'has_next': pagina.has_next}, **extra)
 
 
-@comunicacion_api_bp.get('/incidencias/<int:id>')
-@_requiere()
-def ver_incidencia(id):
-    incidencia = db.session.get(Incidencia, id)
-    if incidencia is None:
-        return _error('Incidencia no encontrada.', 404)
-    if current_user.tipo_usuario != 'admin' and incidencia.id_usuario != current_user.id:
-        return _error('No tienes permiso para ver esta incidencia.', 403)
-    return jsonify({'incidencia': _incidencia(incidencia)})
+def requiere_admin(vista):
+    @wraps(vista)
+    def verificar(*args, **kwargs):
+        if current_user.tipo_usuario != 'admin':
+            raise ErrorComunicacion('Solo un administrador puede ingresar a este panel.', 403)
+        return vista(*args, **kwargs)
+    return verificar
 
 
-@comunicacion_api_bp.post('/incidencias/<int:id>/resolver')
-@_requiere('admin')
-def resolver_incidencia(id):
-    incidencia = db.session.get(Incidencia, id)
-    if incidencia is None:
-        return _error('Incidencia no encontrada.', 404)
-    if incidencia.estado in ('resuelta', 'cerrada'):
-        return _error('Esta incidencia ya fue resuelta.', 409)
+def filtrar(query, parametro, columna, opciones):
+    valor = request.args.get(parametro, '')
+    if not valor:
+        return query
+    if valor not in opciones:
+        raise ErrorComunicacion('El filtro seleccionado no es válido.')
+    return query.where(columna == valor)
 
-    datos = _datos_json()
-    resolucion = str(datos.get('resolucion', '')).strip()
-    if not resolucion:
-        return _error('La resolución es obligatoria.', 422, {
-            'resolucion': 'La resolución es obligatoria.',
-        })
 
-    incidencia.resolucion = resolucion
-    incidencia.estado = 'resuelta'
-    incidencia.fecha_resolucion = datetime.utcnow()
-    incidencia.id_admin = current_user.id
+@comunicacion_api.get('/sesion')
+def sesion():
+    return jsonify(data=persona(current_user) | {'email': current_user.email,
+                   'tipo_usuario': current_user.tipo_usuario}, csrf_token=generate_csrf())
 
-    _crear_notificacion(
-        incidencia.id_usuario,
-        f'Tu incidencia #{id} ha sido resuelta.',
-        link='/incidencias',
+
+@comunicacion_api.get('/admin/resumen')
+@requiere_admin
+def resumen_admin():
+    por_estado = dict(db.session.execute(db.select(
+        Incidencia.estado, db.func.count(Incidencia.id)).group_by(Incidencia.estado)).all())
+    recientes = db.session.scalars(db.select(Incidencia).order_by(Incidencia.id.desc()).limit(5)).all()
+    return jsonify(data={
+        'usuario': persona(current_user) | {'tipo_usuario': current_user.tipo_usuario},
+        'incidencias': {
+            'total': sum(por_estado.values()),
+            'pendientes': sum(por_estado.get(estado, 0) for estado in ('abierta', 'en_proceso')),
+            'resueltas': sum(por_estado.get(estado, 0) for estado in ('resuelta', 'cerrada')),
+        },
+        'recientes': [incidencia_json(item) for item in recientes],
+    })
+
+
+@comunicacion_api.get('/admin/catalogo')
+@requiere_admin
+def catalogo_admin():
+    tipo = request.args.get('tipo', 'proyectos')
+    if tipo not in ('proyectos', 'ofertas'):
+        raise ErrorComunicacion('Elige proyectos u ofertas.')
+    es_proyecto = tipo == 'proyectos'
+    modelo = Proyecto if es_proyecto else OfertaTrabajo
+    estados = ('activo', 'cerrado') if es_proyecto else ('abierto', 'en_progreso', 'cerrado')
+    estado = request.args.get('estado', '')
+    if estado and estado not in estados:
+        raise ErrorComunicacion('El estado seleccionado no corresponde al tipo de publicación.')
+
+    conteos = {}
+    for nombre, tabla in (('proyectos', Proyecto), ('ofertas', OfertaTrabajo)):
+        por_estado = {estado or 'sin_estado': cantidad for estado, cantidad in db.session.execute(
+            db.select(tabla.estado, db.func.count(tabla.id)).group_by(tabla.estado)
+        )}
+        conteos[nombre] = {'total': sum(por_estado.values()), 'estados': por_estado}
+
+    relacion = Proyecto.autor if es_proyecto else OfertaTrabajo.cliente
+    query = db.select(modelo).options(selectinload(relacion))
+    if estado:
+        query = query.where(modelo.estado == estado)
+
+    def serializar(publicacion):
+        responsable = publicacion.autor if es_proyecto else publicacion.cliente
+        return {
+            'id': publicacion.id,
+            'titulo': publicacion.titulo,
+            'responsable': persona(responsable) if responsable else None,
+            'estado': publicacion.estado,
+            'monto': publicacion.precio if es_proyecto else publicacion.presupuesto,
+            'fecha_publicacion': fecha(publicacion.fecha_publicacion),
+        }
+
+    return paginar(query.order_by(modelo.fecha_publicacion.desc(), modelo.id.desc()),
+                   serializar, conteos=conteos)
+
+
+@comunicacion_api.get('/admin/contratos')
+@requiere_admin
+def contratos_admin():
+    query = db.select(Contrato).options(
+        selectinload(Contrato.cliente), selectinload(Contrato.desarrollador),
+        selectinload(Contrato.producto), selectinload(Contrato.encargo),
+        selectinload(Contrato.entregables).load_only(Entregable.estado),
     )
+    query = filtrar(query, 'estado', Contrato.estado, (
+        'borrador', 'pendiente', 'aceptado', 'en_progreso', 'entregado', 'finalizado', 'cancelado',
+    ))
+
+    def serializar(contrato):
+        return {
+            'id': contrato.id, 'objeto': contrato.objeto, 'estado': contrato.estado,
+            'cliente': contrato.nombre_cliente, 'desarrollador': contrato.nombre_desarrollador,
+            'fecha': fecha(contrato.fecha_creacion),
+            'entregables': len(contrato.entregables),
+            'aprobados': sum(item.estado == 'aprobado' for item in contrato.entregables),
+        }
+
+    return paginar(query.order_by(Contrato.id.desc()), serializar)
+
+
+@comunicacion_api.get('/admin/pagos')
+@requiere_admin
+def pagos_admin():
+    query = filtrar(db.select(Pago), 'estado', Pago.estado_escrow,
+                    ('pendiente', 'fallido', 'retenido', 'liberado', 'reembolsado', 'dividido'))
+    return paginar(query.order_by(Pago.id.desc()), lambda pago: {
+        'id': pago.id, 'id_contrato': pago.id_contrato, 'monto': pago.monto,
+        'estado': pago.estado_escrow, 'metodo': pago.metodo_pago, 'fecha': fecha(pago.fecha_pago),
+    })
+
+
+@comunicacion_api.get('/admin/disputas')
+@requiere_admin
+def disputas_admin():
+    query = db.select(Disputa).options(selectinload(Disputa.reportante))
+    query = filtrar(query, 'estado', Disputa.estado, ('abierta', 'en_revision', 'resuelta', 'cerrada'))
+    return paginar(query.order_by(Disputa.id.desc()), lambda disputa: {
+        'id': disputa.id, 'id_contrato': disputa.id_contrato, 'tipo': disputa.tipo,
+        'estado': disputa.estado, 'fecha': fecha(disputa.fecha_hora_publicacion),
+        'reportante': disputa.reportante.nombre_completo if disputa.reportante else None,
+    })
+
+
+@comunicacion_api.get('/admin/usuarios')
+@requiere_admin
+def usuarios_admin():
+    query = filtrar(db.select(Usuario), 'rol', Usuario.tipo_usuario,
+                    ('cliente', 'desarrollador', 'admin'))
+    return paginar(query.order_by(Usuario.id.desc()), lambda usuario: {
+        'id': usuario.id, 'nombre': usuario.nombre_completo, 'email': usuario.email,
+        'rol': usuario.tipo_usuario, 'fecha': fecha(usuario.fecha_registro),
+    })
+
+
+@comunicacion_api.get('/contratos')
+def contratos():
+    query = db.select(Contrato).where(
+        (Contrato.id_cliente == current_user.id) | (Contrato.id_desarrollador == current_user.id))
+    return paginar(query.order_by(Contrato.id.desc()), contrato_json)
+
+
+@comunicacion_api.get('/conversaciones')
+def conversaciones():
+    query = db.select(Conversacion).join(Contrato).where(
+        (Contrato.id_cliente == current_user.id) | (Contrato.id_desarrollador == current_user.id))
+    def serializar(item):
+        no_leidos = db.session.scalar(db.select(db.func.count(Mensaje.id)).where(
+            Mensaje.id_conversacion == item.id, Mensaje.id_receptor == current_user.id,
+            Mensaje.leido.is_(False)))
+        return {'id': item.id, 'contrato': contrato_json(item.contrato),
+                'no_leidos': no_leidos, 'fecha_creacion': fecha(item.fecha_creacion)}
+    return paginar(query.order_by(Conversacion.id.desc()), serializar)
+
+
+@comunicacion_api.post('/contratos/<int:id>/conversacion')
+def abrir_conversacion(id):
+    conversacion = obtener_conversacion(obtener(Contrato, id), current_user)
     db.session.commit()
-    return _ok('Incidencia resuelta.', incidencia=_incidencia(incidencia))
+    return jsonify(data={'id': conversacion.id, 'contrato': contrato_json(conversacion.contrato)})
+
+
+@comunicacion_api.get('/contratos/<int:id>/mensajes')
+def mensajes_del_contrato(id):
+    contrato = obtener(Contrato, id)
+    verificar_participante(contrato, current_user)
+    query = (db.select(Mensaje).join(Conversacion).options(selectinload(Mensaje.emisor))
+             .where(Conversacion.id_contrato == id).order_by(Mensaje.id.desc()))
+    return paginar(query, mensaje_json)
+
+
+@comunicacion_api.route('/conversaciones/<int:id>/mensajes', methods=['GET', 'POST'])
+def mensajes(id):
+    conversacion = obtener(Conversacion, id)
+    verificar_participante(conversacion.contrato, current_user)
+    if request.method == 'POST':
+        mensaje = enviar_mensaje(conversacion, current_user, datos_json().get('contenido'))
+        db.session.commit()
+        return jsonify(data=mensaje_json(mensaje)), 201
+    query = db.select(Mensaje).filter_by(id_conversacion=id).order_by(Mensaje.id.desc())
+    return paginar(query, mensaje_json)
+
+
+@comunicacion_api.post('/conversaciones/<int:id>/leer')
+def leer_mensajes(id):
+    conversacion = obtener(Conversacion, id)
+    verificar_participante(conversacion.contrato, current_user)
+    resultado = db.session.execute(db.update(Mensaje).where(
+        Mensaje.id_conversacion == id, Mensaje.id_receptor == current_user.id,
+        Mensaje.leido.is_(False)).values(leido=True))
+    db.session.commit()
+    return jsonify(data={'actualizados': resultado.rowcount})
+
+
+@comunicacion_api.get('/notificaciones')
+def notificaciones():
+    query = db.select(Notificacion).filter_by(id_usuario=current_user.id)
+    total_no_leidas = db.session.scalar(db.select(db.func.count(Notificacion.id)).where(
+        Notificacion.id_usuario == current_user.id, Notificacion.leido.is_(False)))
+    if request.args.get('solo_no_leidas') == 'true':
+        query = query.where(Notificacion.leido.is_(False))
+    return paginar(query.order_by(Notificacion.id.desc()), notificacion_json, no_leidas=total_no_leidas)
+
+
+@comunicacion_api.patch('/notificaciones/<int:id>/leer')
+def leer_notificacion(id):
+    notificacion = obtener(Notificacion, id)
+    if notificacion.id_usuario != current_user.id:
+        raise ErrorComunicacion('No puedes modificar esta notificación.', 403)
+    notificacion.leido = True
+    db.session.commit()
+    return jsonify(data=notificacion_json(notificacion))
+
+
+@comunicacion_api.post('/notificaciones/leer')
+def leer_notificaciones():
+    resultado = db.session.execute(db.update(Notificacion).where(
+        Notificacion.id_usuario == current_user.id, Notificacion.leido.is_(False)).values(leido=True))
+    db.session.commit()
+    return jsonify(data={'actualizados': resultado.rowcount})
+
+
+@comunicacion_api.get('/proyectos-demo')
+def proyectos_demo():
+    query = db.select(Proyecto).where(Proyecto.demo_habilitada.is_(True),
+                                     Proyecto.estado == 'activo', Proyecto.id_usuario != current_user.id)
+    return paginar(query.order_by(Proyecto.id.desc()), lambda p: {
+        'id': p.id, 'titulo': p.titulo, 'autor': persona(p.autor)})
+
+
+@comunicacion_api.get('/solicitudes-demo')
+def solicitudes_demo():
+    query = db.select(SolicitudDemo).join(Proyecto).where(
+        (SolicitudDemo.id_cliente == current_user.id) | (Proyecto.id_usuario == current_user.id))
+    return paginar(query.order_by(SolicitudDemo.id.desc()), demo_json)
+
+
+@comunicacion_api.post('/proyectos/<int:id>/solicitudes-demo')
+def solicitar_demo(id):
+    data = datos_json()
+    solicitud = registrar_solicitud_demo(obtener(Proyecto, id), current_user,
+                                        data.get('nombre_contacto'), data.get('correo_contacto'))
+    db.session.commit()
+    return jsonify(data=demo_json(solicitud)), 201
+
+
+@comunicacion_api.get('/calificaciones')
+def calificaciones():
+    query = db.select(Calificacion).where(
+        (Calificacion.id_evaluador == current_user.id) | (Calificacion.id_evaluado == current_user.id))
+    return paginar(query.order_by(Calificacion.id.desc()), calificacion_json)
+
+
+@comunicacion_api.post('/contratos/<int:id>/calificaciones')
+def calificar(id):
+    data = datos_json()
+    calificacion = registrar_calificacion(obtener(Contrato, id), current_user,
+                                          data.get('puntaje'), data.get('comentarios', ''))
+    db.session.commit()
+    return jsonify(data=calificacion_json(calificacion)), 201
+
+
+@comunicacion_api.route('/incidencias', methods=['GET', 'POST'])
+def incidencias():
+    if request.method == 'POST':
+        data = datos_json()
+        incidencia = registrar_incidencia(current_user, data.get('tipo'), data.get('descripcion'),
+                                          data.get('id_contrato'), data.get('tipo_detalle'))
+        db.session.commit()
+        return jsonify(data=incidencia_json(incidencia)), 201
+    query = db.select(Incidencia)
+    # La vista provisional siempre muestra los reportes propios.
+    if request.args.get('todas') == 'true':
+        if current_user.tipo_usuario != 'admin':
+            raise ErrorComunicacion('Solo un administrador puede consultar todos los reportes.', 403)
+        query = filtrar(query, 'estado', Incidencia.estado, ('abierta', 'en_proceso', 'resuelta', 'cerrada'))
+        query = query.options(selectinload(Incidencia.contrato).options(
+            selectinload(Contrato.producto), selectinload(Contrato.encargo),
+        ))
+    else:
+        query = query.where(Incidencia.id_usuario == current_user.id)
+    return paginar(query.order_by(Incidencia.id.desc()), incidencia_json)
+
+
+@comunicacion_api.get('/incidencias/contratos')
+def contratos_para_incidencias():
+    return jsonify(items=listar_contratos_usuario(current_user))
+
+
+@comunicacion_api.get('/incidencias/<int:id>')
+def ver_incidencia(id):
+    incidencia = obtener(Incidencia, id)
+    if incidencia.id_usuario != current_user.id and current_user.tipo_usuario != 'admin':
+        raise ErrorComunicacion('No puedes consultar esta incidencia.', 403)
+    return jsonify(data=incidencia_json(incidencia))
+
+
+@comunicacion_api.patch('/incidencias/<int:id>/resolver')
+def resolver(id):
+    incidencia = resolver_incidencia(obtener(Incidencia, id), current_user,
+                                    datos_json().get('resolucion'))
+    db.session.commit()
+    return jsonify(data=incidencia_json(incidencia))

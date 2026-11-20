@@ -20,12 +20,12 @@ from werkzeug.datastructures import MultiDict
 
 from app.catalogo.forms import ProyectoForm, OfertaForm, PostulacionForm, DemoForm
 from app.catalogo.models import (
-    Proyecto, OfertaTrabajo, Postulacion, SolicitudDemo, Categoria, Tecnologia,
+    Proyecto, OfertaTrabajo, Postulacion, Categoria, Tecnologia,
     CategoriaProyecto,
 )
 from app.auth.models import Usuario, Perfil
 from app.auth.perfil_utils import sincronizar_habilidades, sincronizar_tecnologias
-from app.comunicacion.models import Calificacion
+from app.comunicacion.services import ErrorComunicacion, registrar_solicitud_demo
 from app.contratos.models import Contrato
 from app.catalogo.routes import (
     _aceptar_postulacion, _rechazar_postulacion, _cargar_opciones, _cerrar_oferta_atomico,
@@ -297,22 +297,11 @@ def solicitar_demo(id):
     form = DemoForm(formdata=_formdata(_datos_json()), meta={'csrf': False})
     if not form.validate():
         return _form_invalido(form)
-    solicitud = SolicitudDemo(
-        id_producto=id,
-        id_cliente=current_user.id,
-        nombre_contacto=form.nombre_contacto.data,
-        correo_contacto=form.correo_contacto.data,
-    )
-    db.session.add(solicitud)
-    db.session.flush()
-    if proyecto.autor and proyecto.autor.id != current_user.id:
-        from app.comunicacion.models import Notificacion
-        db.session.add(Notificacion(
-            id_usuario=proyecto.autor.id,
-            asunto=f'Nueva solicitud para tu proyecto: {proyecto.titulo}',
-            mensaje=f'{current_user.nombre_completo} solicitó información o una demostración de tu proyecto "{proyecto.titulo}".',
-            link=f'/proyecto/{proyecto.id}',
-        ))
+    try:
+        registrar_solicitud_demo(proyecto, current_user, form.nombre_contacto.data, form.correo_contacto.data)
+    except ErrorComunicacion as error:
+        db.session.rollback()
+        return _error(str(error), error.status)
     db.session.commit()
     return _ok('Solicitud enviada al desarrollador.', 201)
 

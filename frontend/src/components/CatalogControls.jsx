@@ -170,7 +170,7 @@ export default function CatalogControls({
         aria-label="Acciones rápidas de usuario"
       >
         <div className="catalog-actions-group">
-          {esDesarrollador ? (
+          {esProyectos && esDesarrollador && (
             <>
               {/* Botón primario consistente en rojo #DC2626 */}
               <Link to="/proyecto/nuevo" className="btn btn-primary">
@@ -195,13 +195,10 @@ export default function CatalogControls({
               <Link to="/mis-productos" className="btn btn-secondary">
                 Mis productos
               </Link>
-              <Link to="/mis-postulaciones" className="btn btn-secondary">
-                Mis postulaciones
-              </Link>
             </>
-          ) : (
+          )}
+          {!esProyectos && esCliente && (
             <>
-              {/* '+ Nueva Oferta' siempre primario #DC2626 tanto en Catálogo como en Ofertas */}
               <Link to="/oferta/nueva" className="btn btn-primary">
                 <svg
                   aria-hidden="true"
@@ -225,6 +222,9 @@ export default function CatalogControls({
                 Mis ofertas
               </Link>
             </>
+          )}
+          {!esProyectos && esDesarrollador && (
+            <Link to="/mis-postulaciones" className="btn btn-secondary">Mis postulaciones</Link>
           )}
 
           {/* En la vista de ofertas se ofrece volver al catálogo de productos SaaS */}

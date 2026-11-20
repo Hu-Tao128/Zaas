@@ -13,6 +13,7 @@ import hashlib
 import html
 import uuid
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 from functools import wraps
 
 from flask import Blueprint, jsonify, request
@@ -813,30 +814,18 @@ def liberar_fondos(id):
         return _error(str(exc), 403 if isinstance(exc, PermissionError) else 400)
 
     db.session.flush()
-    contrato_actualizado = db.session.get(type(contrato), contrato.id)
-
-    total_liberado_contrato = Decimal('0.00')
-    custodia_restante = Decimal('0.00')
-    for p in (contrato_actualizado.pagos or []):
-        lib_p = sum((_d(l.monto_liberado) for l in (p.liberaciones or [])), Decimal('0.00'))
-        total_liberado_contrato += lib_p
-        if p.estado_escrow == 'retenido':
-            saldo_p = _d(p.monto) - lib_p
-            if saldo_p > 0:
-                custodia_restante += saldo_p
-
-    costo = _d(contrato_actualizado.costo_acordado)
-    if custodia_restante == Decimal('0.00') and total_liberado_contrato >= costo:
-        contrato_actualizado.estado = 'finalizado'
+    resumen = pagos_services.obtener_resumen_contrato(contrato.id, current_user)
+    if Decimal(resumen['en_custodia']) == 0 and Decimal(resumen['liberado']) >= Decimal(resumen['costo_acordado']):
+        contrato.estado = 'finalizado'
         db.session.commit()
-        db.session.refresh(contrato_actualizado)
-        return _ok(f'Fondos liberados: ${saldo_pendiente:,.2f} al desarrollador. Contrato finalizado.', contrato=_contrato_detalle(contrato_actualizado))
+        db.session.refresh(contrato)
+        return _ok(f'Fondos liberados: ${saldo_pendiente:,.2f} al desarrollador. Contrato finalizado.', contrato=_contrato_detalle(contrato))
 
     db.session.commit()
-    db.session.refresh(contrato_actualizado)
+    db.session.refresh(contrato)
     return _ok(
         f'Fondos liberados: ${saldo_pendiente:,.2f} al desarrollador. El contrato no se finalizó porque aún hay fondos en custodia o no se ha liberado el total acordado.',
-        contrato=_contrato_detalle(contrato_actualizado),
+        contrato=_contrato_detalle(contrato),
     )
 
 

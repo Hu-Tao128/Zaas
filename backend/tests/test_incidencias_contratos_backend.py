@@ -113,7 +113,7 @@ class IncidenciasTests(BaseCase):
         self.assertEqual(resp.status_code, 422)
         data = resp.get_json()
         self.assertEqual(data.get("codigo"), "incidencia_contrato_ajeno")
-        self.assertEqual(data.get("mensaje"), "No tienes acceso al contrato seleccionado.")
+        self.assertEqual(data.get("error"), "No tienes acceso al contrato seleccionado.")
         self.assertEqual((data.get("errores") or {}).get("id_contrato"), "No tienes acceso al contrato seleccionado.")
 
     def test_contrato_propio_ajeno_inexistente_mismo_codigo_mensaje(self):
@@ -141,12 +141,12 @@ class IncidenciasTests(BaseCase):
         # otro con detalle ok
         r2 = self.crear_incidencia_api(c, {"tipo": "otro", "descripcion": "Descripcion valida 12345", "tipo_detalle": "Soporte"})
         self.assertEqual(r2.status_code, 201, r2.get_data(as_text=True))
-        inc = Incidencia.query.get(r2.get_json()["incidencia"]["id"])
+        inc = db.session.get(Incidencia, r2.get_json()["data"]["id"])
         self.assertEqual(inc.tipo_detalle, "Soporte")
         # detalle enviado en tipo distinto a otro -> se ignora/fuerza nulo
         r3 = self.crear_incidencia_api(c, {"tipo": "bug", "descripcion": "Descripcion valida 12345", "tipo_detalle": "No aplica"})
         self.assertEqual(r3.status_code, 201, r3.get_data(as_text=True))
-        inc3 = Incidencia.query.get(r3.get_json()["incidencia"]["id"])
+        inc3 = db.session.get(Incidencia, r3.get_json()["data"]["id"])
         self.assertIsNone(inc3.tipo_detalle)
 
     def test_tipo_vacio_o_invalido(self):
@@ -177,7 +177,7 @@ class IncidenciasTests(BaseCase):
         c = self.login(self.cliente)
         r = c.get("/api/comunicacion/incidencias")
         self.assertEqual(r.status_code, 200)
-        items = r.get_json()["items"]
+        items = r.get_json()["data"]
         it = next(x for x in items if x["id"] == inc.id)
         self.assertEqual(it.get("tipo_etiqueta"), "Otro")
         self.assertIsNone(it.get("tipo_detalle"))

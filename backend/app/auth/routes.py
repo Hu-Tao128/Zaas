@@ -25,23 +25,14 @@ def _sincronizar_supabase(firebase_data, tipo_usuario):
         return None
 
 
-def _verificar_token_firebase(id_token, datos=None):
-    """Verifica un ID token de Firebase; en desarrollo local acepta tokens sin firma."""
-    datos = datos or {}
-    firebase_data = verify_firebase_token(id_token)
-    if firebase_data or is_firebase_ready():
-        return firebase_data
-
-    import jwt
-    try:
-        payload = jwt.decode(id_token, options={"verify_signature": False})
-        return {
-            'uid': payload.get('sub', datos.get('firebase_uid', 'dev_user')),
-            'email': payload.get('email', datos.get('email', 'dev@test.com')),
-            'name': payload.get('name'),
-        }
-    except Exception:
-        return None
+def _datos_perfil(datos):
+    perfil = {}
+    for campo in ('nombres', 'apellido_paterno', 'apellido_materno'):
+        valor = datos.get(campo, '')
+        if not isinstance(valor, str) or len(valor.strip()) > 100:
+            raise ValueError('Los nombres y apellidos admiten hasta 100 caracteres.')
+        perfil[campo] = valor.strip()
+    return perfil
 
 
 # Manejar OPTIONS preflight para CORS
@@ -74,92 +65,55 @@ def rol_requerido(roles):
     return decorator
 
 
-def find_or_create_user(
-    firebase_data: dict,
-    tipo_usuario=None,
-    datos=None,
-    sync_supabase=True,
-) -> Usuario:
+def _buscar_usuario(firebase_data):
+    usuario = db.session.scalar(db.select(Usuario).filter_by(firebase_uid=firebase_data['uid']))
+    if usuario is None and firebase_data.get('email'):
+        usuario = db.session.scalar(db.select(Usuario).filter_by(email=firebase_data['email']))
+    return usuario
+
+
+@auth_bp.errorhandler(IntegrityError)
+def error_sincronizacion(error):
+    db.session.rollback()
+    return jsonify({'error': 'No se pudo vincular la cuenta. Vuelve a iniciar sesión.'}), 409
+
+
+def find_or_create_user(firebase_data: dict, tipo_usuario='cliente', datos_perfil=None) -> Usuario:
     """
     Busca un usuario por firebase_uid o email. Si no existe, lo crea.
     Retorna el usuario de la base de datos local (SQLite).
 
-    ``tipo_usuario``/``datos`` permiten aplicar los datos del registro.
-    ``sync_supabase=False`` deja la escritura en Supabase al llamador.
+    El rol y los datos del registro se aplican al crear el usuario.
     """
-    datos = datos or {}
-    email = firebase_data.get('email') or datos.get('email') or ''
-    if not email:
-        raise ValueError('El token de Firebase no contiene email.')
-
-    usuario = db.session.execute(
-        db.select(Usuario).filter_by(firebase_uid=firebase_data['uid'])
-    ).scalar_one_or_none()
-
-    if not usuario:
-        usuario = db.session.execute(
-            db.select(Usuario).filter_by(email=email)
-        ).scalar_one_or_none()
-
-    nombre_completo = (firebase_data.get('name') or '').strip()
-    partes = nombre_completo.split()
-    nombres = (datos.get('nombres') or '').strip() or (partes[0] if partes else '')
-    apellido_paterno = (datos.get('apellido_paterno') or '').strip() or (
-        partes[-1] if partes else ''
-    )
-    apellido_materno = (datos.get('apellido_materno') or '').strip()
-
-    if not usuario:
-        try:
+    usuario = _buscar_usuario(firebase_data)
+    try:
+        if usuario is None:
+            datos_perfil = datos_perfil or {}
+            nombre_firebase = (firebase_data.get('name') or '').split()
             usuario = Usuario(
                 firebase_uid=firebase_data['uid'],
-                nombres=nombres or 'Usuario',
-                apellido_paterno=apellido_paterno,
-                apellido_materno=apellido_materno,
-                email=email,
-                tipo_usuario=tipo_usuario or 'cliente',
+                nombres=datos_perfil.get('nombres') or (nombre_firebase[0] if nombre_firebase else 'Usuario'),
+                apellido_paterno=datos_perfil.get('apellido_paterno') or (nombre_firebase[-1] if nombre_firebase else ''),
+                apellido_materno=datos_perfil.get('apellido_materno'),
+                email=firebase_data['email'],
+                tipo_usuario=tipo_usuario,
             )
             db.session.add(usuario)
             db.session.flush()
             db.session.add(Perfil(id_usuario=usuario.id))
             db.session.commit()
-        except IntegrityError:
-            # Dos logins simultáneos (onAuthStateChanged + registro) pueden
-            # intentar crear el mismo usuario. Gana el primero; el segundo relee.
-            db.session.rollback()
-            usuario = db.session.execute(
-                db.select(Usuario).filter_by(firebase_uid=firebase_data['uid'])
-            ).scalar_one_or_none()
-            if not usuario:
-                usuario = db.session.execute(
-                    db.select(Usuario).filter_by(email=email)
-                ).scalar_one_or_none()
-            if not usuario:
-                raise
-
-    # Aplica los datos del registro tanto al usuario existente como al que
-    # acaba de ganar la carrera de creación.
-    if tipo_usuario:
-        usuario.tipo_usuario = tipo_usuario
-    # No sobrescribir nombres existentes si el token no trae nombre.
-    if nombres:
-        usuario.nombres = nombres
-    if apellido_paterno:
-        usuario.apellido_paterno = apellido_paterno
-    if apellido_materno:
-        usuario.apellido_materno = apellido_materno
-    if not usuario.firebase_uid:
-        usuario.firebase_uid = firebase_data['uid']
-    if not usuario.perfil:
-        db.session.add(Perfil(id_usuario=usuario.id))
-    db.session.commit()
-
-    if sync_supabase:
-        _sincronizar_supabase(
-            {**firebase_data, **{k: v for k, v in datos.items() if v}},
-            usuario.tipo_usuario,
-        )
-    return usuario
+        elif not usuario.firebase_uid:
+            usuario.firebase_uid = firebase_data['uid']
+            db.session.commit()
+        return usuario
+    except IntegrityError:
+        # Otra petición puede haber creado al mismo usuario entre SELECT e INSERT.
+        # Revertir la transacción fallida antes de consultar al ganador.
+        db.session.rollback()
+        existente = db.session.scalar(db.select(Usuario).filter_by(firebase_uid=firebase_data['uid']))
+        if existente is None:
+            raise
+        return existente
 
 
 @auth_bp.route('/login', methods=['GET'])
@@ -180,29 +134,28 @@ def firebase_login():
     if request.method == 'OPTIONS':
         return handle_options()
 
-    datos = request.get_json(silent=True) or {}
+    datos = request.get_json(silent=True)
+    if not isinstance(datos, dict):
+        return jsonify({'error': 'Envía un objeto JSON válido.'}), 400
     id_token = datos.get('id_token')
-    if not id_token:
+    if not isinstance(id_token, str) or not id_token.strip():
         return jsonify({'error': 'Token no proporcionado'}), 400
 
-    firebase_data = _verificar_token_firebase(id_token, datos)
+    firebase_data = verify_firebase_token(id_token)
     if not firebase_data:
         return jsonify({'error': 'Token inválido o expirado'}), 401
-    if not firebase_data.get('email'):
-        firebase_data['email'] = datos.get('email')
     if not firebase_data.get('email'):
         return jsonify({'error': 'El token no contiene email'}), 400
 
     tipo_usuario = datos.get('tipo_usuario')
     if tipo_usuario not in (None, 'cliente', 'desarrollador'):
-        tipo_usuario = 'cliente'
+        return jsonify({'error': 'El registro público solo permite cuentas de cliente o desarrollador.'}), 403
 
     try:
         usuario = find_or_create_user(
             firebase_data,
-            tipo_usuario=tipo_usuario,
-            datos=datos,
-            sync_supabase=False,
+            tipo_usuario=tipo_usuario or 'cliente',
+            datos_perfil=_datos_perfil(datos),
         )
     except ValueError as error:
         return jsonify({'error': str(error)}), 400
@@ -211,11 +164,9 @@ def firebase_login():
         from app.auth.firebase_supabase import sync_firebase_user
         supabase_data = {
             **firebase_data,
-            **{
-                clave: datos.get(clave)
-                for clave in ('nombres', 'apellido_paterno', 'apellido_materno')
-                if datos.get(clave)
-            },
+            'nombres': usuario.nombres,
+            'apellido_paterno': usuario.apellido_paterno,
+            'apellido_materno': usuario.apellido_materno,
         }
         supabase_id = sync_firebase_user(supabase_data, tipo_usuario=usuario.tipo_usuario)
     except Exception as error:  # noqa: BLE001
@@ -225,7 +176,6 @@ def firebase_login():
         )
         return jsonify({
             'error': 'No se pudo guardar el usuario en Supabase.',
-            'detalle': str(error),
         }), 502
 
     login_user(usuario, remember=True)
@@ -251,26 +201,15 @@ def auth_callback():
     Endpoint que recibe el token de Firebase tras login exitoso.
     Verifica el token, busca/crea el usuario local y establece la sesión.
     """
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Envía un objeto JSON válido.'}), 400
     id_token = data.get('id_token')
 
-    if not id_token:
+    if not isinstance(id_token, str) or not id_token.strip():
         return jsonify({'error': 'Token no proporcionado'}), 400
 
     firebase_data = verify_firebase_token(id_token)
-    
-    # Modo desarrollo: si Firebase no está configurado, decodificar sin verificar
-    if not firebase_data and not is_firebase_ready():
-        import jwt
-        try:
-            payload = jwt.decode(id_token, options={"verify_signature": False})
-            firebase_data = {
-                'uid': payload.get('sub', 'dev_user'),
-                'email': payload.get('email', 'dev@test.com'),
-                'name': payload.get('name', 'Dev User'),
-            }
-        except Exception:
-            return jsonify({'error': 'Token inválido'}), 400
     
     if not firebase_data:
         return jsonify({'error': 'Token inválido o expirado'}), 401
@@ -303,72 +242,29 @@ def registro_callback():
     Endpoint que recibe el token de Firebase tras registro exitoso.
     Crea el usuario local vinculado al UID de Firebase.
     """
-    data = request.get_json()
+    if request.method == 'OPTIONS':
+        return '', 204
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Envía un objeto JSON válido.'}), 400
     id_token = data.get('id_token')
     tipo_usuario = data.get('tipo_usuario', 'cliente')
 
-    if not id_token:
+    if tipo_usuario not in ('cliente', 'desarrollador'):
+        return jsonify({'error': 'El registro público solo permite cuentas de cliente o desarrollador.'}), 403
+
+    if not isinstance(id_token, str) or not id_token.strip():
         return jsonify({'error': 'Token no proporcionado'}), 400
 
     firebase_data = verify_firebase_token(id_token)
 
-    # Modo desarrollo: si Firebase no está configurado, decodificar sin verificar
-    if not firebase_data and not is_firebase_ready():
-        import jwt
-        try:
-            payload = jwt.decode(id_token, options={"verify_signature": False})
-            firebase_data = {
-                'uid': payload.get('sub', data.get('firebase_uid', 'dev_user')),
-                'email': payload.get('email', data.get('email', 'dev@test.com')),
-                'name': payload.get('name', 'Dev User'),
-            }
-        except Exception:
-            return jsonify({'error': 'Token inválido'}), 400
-
     if not firebase_data:
         return jsonify({'error': 'Token inválido o expirado'}), 401
 
-    # Buscar usuario existente por firebase_uid o por email
-    usuario = db.session.execute(
-        db.select(Usuario).filter_by(firebase_uid=firebase_data['uid'])
-    ).scalar_one_or_none()
-
-    if not usuario and firebase_data.get('email'):
-        usuario = db.session.execute(
-            db.select(Usuario).filter_by(email=firebase_data['email'])
-        ).scalar_one_or_none()
-
-    if not usuario:
-        nombre_default = firebase_data.get('name', '').split()[0] if firebase_data.get('name') else 'Usuario'
-        apellido_default = firebase_data.get('name', '').split()[-1] if firebase_data.get('name') else 'Zaas'
-        usuario = Usuario(
-            firebase_uid=firebase_data['uid'],
-            nombres=data.get('nombres') or nombre_default,
-            apellido_paterno=data.get('apellido_paterno') or apellido_default,
-            apellido_materno=data.get('apellido_materno') or '',
-            email=firebase_data.get('email') or data.get('email', ''),
-            tipo_usuario=tipo_usuario,
-        )
-        db.session.add(usuario)
-        db.session.flush()
-
-        perfil = Perfil(id_usuario=usuario.id)
-        db.session.add(perfil)
-    else:
-        usuario.tipo_usuario = tipo_usuario
-        if not usuario.firebase_uid:
-            usuario.firebase_uid = firebase_data['uid']
-        if data.get('nombres'):
-            usuario.nombres = data.get('nombres')
-        if data.get('apellido_paterno'):
-            usuario.apellido_paterno = data.get('apellido_paterno')
-        if data.get('apellido_materno'):
-            usuario.apellido_materno = data.get('apellido_materno')
-        if not usuario.perfil:
-            perfil = Perfil(id_usuario=usuario.id)
-            db.session.add(perfil)
-
-    db.session.commit()
+    try:
+        usuario = find_or_create_user(firebase_data, tipo_usuario=tipo_usuario, datos_perfil=_datos_perfil(data))
+    except ValueError as error:
+        return jsonify({'error': str(error)}), 400
     login_user(usuario, remember=True)
     _sincronizar_supabase(firebase_data, usuario.tipo_usuario)
 
