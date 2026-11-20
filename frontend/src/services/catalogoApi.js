@@ -1,5 +1,5 @@
 // Cliente de la API JSON del catálogo (blueprint /api/catalogo del backend Flask).
-// Usa la sesión de Flask-Login (cookie) creada por /auth/callback y el token CSRF de Flask-WTF.
+// Usa la sesión de Flask-Login (cookie) creada por /auth/firebase-login y el token CSRF de Flask-WTF.
 const BASE = '/api/catalogo';
 
 let csrfToken = null;

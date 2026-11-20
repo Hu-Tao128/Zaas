@@ -10,17 +10,21 @@
             <h3 class="mt-2">Descripción</h3>
             <p>{{ usuario.perfil.descripcion }}</p>
         {% endif %}
-        {% if usuario.perfil.habilidades %}
+        {% if usuario.perfil.nombres_habilidades %}
             <h3 class="mt-2">Habilidades</h3>
             <div class="flex flex-wrap">
-                {% for h in usuario.perfil.habilidades.split(',') %}
-                    <span class="badge badge-info">{{ h.strip() }}</span>
+                {% for h in usuario.perfil.nombres_habilidades %}
+                    <span class="badge badge-info">{{ h }}</span>
                 {% endfor %}
             </div>
         {% endif %}
-        {% if usuario.perfil.stack_tecnologico %}
-            <h3 class="mt-2">Stack Tecnológico</h3>
-            <p>{{ usuario.perfil.stack_tecnologico }}</p>
+        {% if usuario.perfil.nombres_tecnologias %}
+            <h3 class="mt-2">Tecnologías</h3>
+            <div class="flex flex-wrap">
+                {% for t in usuario.perfil.nombres_tecnologias %}
+                    <span class="badge badge-info">{{ t }}</span>
+                {% endfor %}
+            </div>
         {% endif %}
         {% if usuario.perfil.empresa %}
             <p><strong>Empresa:</strong> {{ usuario.perfil.empresa }}</p>

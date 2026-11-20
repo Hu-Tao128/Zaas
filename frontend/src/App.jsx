@@ -4,6 +4,8 @@ import { CatalogoProvider, useCatalogo } from './context/CatalogoContext';
 import CatalogoLayout from './components/catalogo/CatalogoLayout';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ComunicacionPage from './pages/ComunicacionPage';
+import AdminPage from './pages/AdminPage';
 import CatalogoIndexPage from './pages/catalogo/CatalogoIndexPage';
 import DetalleProyectoPage from './pages/catalogo/DetalleProyectoPage';
 import ProyectoFormPage from './pages/catalogo/ProyectoFormPage';
@@ -20,6 +22,12 @@ import PerfilPage from './pages/catalogo/PerfilPage';
 import ContratosList from './pages/contratos/ContratosList';
 import ContratoForm from './pages/contratos/ContratoForm';
 import ContratoDetalle from './pages/contratos/ContratoDetalle';
+import NotificacionesPage from './pages/comunicacion/NotificacionesPage';
+import IncidenciasPage from './pages/comunicacion/IncidenciasPage';
+import IncidenciaFormPage from './pages/comunicacion/IncidenciaFormPage';
+import PagosContratoPage from './pages/pagos/PagosContratoPage';
+import DisputasPage from './pages/pagos/DisputasPage';
+import DisputaDetallePage from './pages/pagos/DisputaDetallePage';
 import './pages/catalogo/catalogo.css';
 import './pages/contratos/contratos.css';
 
@@ -62,6 +70,10 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/registro" element={<RegisterPage />} />
+          <Route path="/comunicacion" element={
+            <ProtectedRoute><ComunicacionPage /></ProtectedRoute>
+          } />
+          <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
           <Route path="/catalogo/*" element={<RedirigirDesdeCatalogo />} />
           <Route path="/" element={<CatalogoArea />}>
             <Route index element={<CatalogoIndexPage />} />
@@ -81,6 +93,12 @@ export default function App() {
             <Route path="contratos" element={<ContratosList />} />
             <Route path="contratos/nuevo" element={<ContratoForm />} />
             <Route path="contratos/:id" element={<ContratoDetalle />} />
+            <Route path="contratos/:id/pagos" element={<PagosContratoPage />} />
+            <Route path="disputas" element={<DisputasPage />} />
+            <Route path="disputas/:id" element={<DisputaDetallePage />} />
+            <Route path="notificaciones" element={<NotificacionesPage />} />
+            <Route path="incidencias" element={<IncidenciasPage />} />
+            <Route path="incidencias/nueva" element={<IncidenciaFormPage />} />
             <Route path="perfil" element={<PerfilPage />} />
             <Route path="perfil/:id" element={<PerfilPage />} />
           </Route>

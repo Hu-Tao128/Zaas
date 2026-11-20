@@ -2,7 +2,7 @@
 
 Reutiliza la misma lógica (y las mismas operaciones atómicas) que las vistas HTML de
 routes.py: cierre de ofertas, cerrojo de postulaciones, aceptar/rechazar. Todo cuelga de
-/api/catalogo y usa la sesión de Flask-Login que crea /auth/callback.
+/api/catalogo y usa la sesión de Flask-Login que crea /auth/firebase-login.
 
 Convenciones de respuesta:
   éxito  -> {"ok": true,  "mensaje": "...", ...datos}
@@ -20,11 +20,12 @@ from werkzeug.datastructures import MultiDict
 
 from app.catalogo.forms import ProyectoForm, OfertaForm, PostulacionForm, DemoForm
 from app.catalogo.models import (
-    Proyecto, OfertaTrabajo, Postulacion, SolicitudDemo, Categoria, Tecnologia,
+    Proyecto, OfertaTrabajo, Postulacion, Categoria, Tecnologia,
     CategoriaProyecto,
 )
 from app.auth.models import Usuario, Perfil
-from app.comunicacion.models import Calificacion
+from app.auth.perfil_utils import sincronizar_habilidades, sincronizar_tecnologias
+from app.comunicacion.services import ErrorComunicacion, registrar_solicitud_demo
 from app.contratos.models import Contrato
 from app.catalogo.routes import (
     _aceptar_postulacion, _rechazar_postulacion, _cargar_opciones, _cerrar_oferta_atomico,
@@ -296,14 +297,13 @@ def solicitar_demo(id):
     form = DemoForm(formdata=_formdata(_datos_json()), meta={'csrf': False})
     if not form.validate():
         return _form_invalido(form)
-    db.session.add(SolicitudDemo(
-        id_producto=id,
-        id_cliente=current_user.id,
-        nombre_contacto=form.nombre_contacto.data,
-        correo_contacto=form.correo_contacto.data,
-    ))
+    try:
+        registrar_solicitud_demo(proyecto, current_user, form.nombre_contacto.data, form.correo_contacto.data)
+    except ErrorComunicacion as error:
+        db.session.rollback()
+        return _error(str(error), error.status)
     db.session.commit()
-    return _ok('Solicitud de demo enviada.', 201)
+    return _ok('Solicitud enviada al desarrollador.', 201)
 
 
 # ---------------------------------------------------------------------- ofertas
@@ -551,10 +551,18 @@ def _serializar_perfil(u, perfil=None):
         'perfil': {
             'id': perfil.id if perfil else None,
             'descripcion': (perfil.descripcion or '') if perfil else '',
-            'habilidades': (perfil.habilidades or '') if perfil else '',
             'empresa': (perfil.empresa or '') if perfil else '',
-            'stack_tecnologico': (perfil.stack_tecnologico or '') if perfil else '',
             'enlaces': (perfil.enlaces or '') if perfil else '',
+            'habilidades': [
+                {'id': item.habilidad.id, 'nombre': item.habilidad.nombre}
+                for item in (perfil.habilidades if perfil else [])
+                if item.habilidad
+            ],
+            'tecnologias': [
+                {'id': item.tecnologia.id, 'nombre': item.tecnologia.nombre}
+                for item in (perfil.tecnologias if perfil else [])
+                if item.tecnologia
+            ],
         },
         'estadisticas': {
             'total_proyectos': len(proyectos),
@@ -622,9 +630,11 @@ def actualizar_perfil():
     apellido_materno = str(datos.get('apellido_materno', '')).strip()
     empresa = str(datos.get('empresa', '')).strip()
     descripcion = str(datos.get('descripcion', '')).strip()
-    habilidades = str(datos.get('habilidades', '')).strip()
-    stack_tecnologico = str(datos.get('stack_tecnologico', '')).strip()
     enlaces = str(datos.get('enlaces', '')).strip()
+    # El MR normaliza habilidades y tecnologías en tablas intermedias.
+    # Se aceptan listas de strings/objetos o texto separado por comas.
+    habilidades = datos.get('habilidades', [])
+    tecnologias = datos.get('tecnologias', datos.get('stack_tecnologico', []))
 
     if not nombres:
         errores['nombres'] = 'El nombre es obligatorio.'
@@ -658,9 +668,9 @@ def actualizar_perfil():
 
     perfil.empresa = empresa
     perfil.descripcion = descripcion
-    perfil.habilidades = habilidades
-    perfil.stack_tecnologico = stack_tecnologico
     perfil.enlaces = enlaces
+    sincronizar_habilidades(perfil, habilidades)
+    sincronizar_tecnologias(perfil, tecnologias)
 
     db.session.commit()
 

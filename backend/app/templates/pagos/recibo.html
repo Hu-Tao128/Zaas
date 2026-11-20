@@ -9,8 +9,18 @@
         <p><strong>Folio:</strong> N/A</p>
     {% endif %}
     <p><strong>Monto:</strong> ${{ pago.monto }}</p>
+    {% if pago.metodo_pago %}<p><strong>Método de pago:</strong> {{ pago.metodo_pago }}</p>{% endif %}
+    {% if pago.transaccion_id %}<p><strong>Transacción:</strong> {{ pago.transaccion_id }}</p>{% endif %}
+    {% if recibo and recibo.total is not none %}<p><strong>Total del recibo:</strong> ${{ recibo.total }}</p>{% endif %}
     <p><strong>Estado:</strong> <span class="badge badge-info">{{ pago.estado_escrow }}</span></p>
     <p><strong>Fecha:</strong> {{ pago.fecha_pago.strftime('%d/%m/%Y %H:%M') }}</p>
+    {% if pago.liberaciones %}
+        <h3 class="mt-2">Liberaciones</h3>
+        {% for lib in pago.liberaciones %}
+            <p>${{ lib.monto_liberado }} — {{ lib.motivo or 'Sin motivo' }} — {{ lib.fecha_hora.strftime('%d/%m/%Y %H:%M') }}
+            {% if lib.entregable %} (entregable: {{ lib.entregable.titulo }}){% endif %}</p>
+        {% endfor %}
+    {% endif %}
     {% if pago.fecha_liberacion %}
         <p><strong>Fecha liberación:</strong> {{ pago.fecha_liberacion.strftime('%d/%m/%Y %H:%M') }}</p>
     {% endif %}

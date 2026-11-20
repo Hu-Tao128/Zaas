@@ -6,9 +6,6 @@ import { formatDinero } from '../catalogo/catalogoUtils';
 import { CargandoContratos } from './ContratoUI';
 
 const VALORES_INICIALES = {
-  id_desarrollador: '',
-  id_producto: '',
-  id_encargo: '',
   costo_acordado: '',
   plantilla_id: '',
   notas: '',
@@ -16,40 +13,35 @@ const VALORES_INICIALES = {
 
 // Relaciona cada campo del modelo con el id del control HTML (para enfocar el primer error).
 const IDS_CAMPOS = {
-  id_desarrollador: 'contrato-desarrollador',
-  id_producto: 'contrato-producto',
-  id_encargo: 'contrato-oferta',
   costo_acordado: 'contrato-costo',
   plantilla_id: 'contrato-plantilla',
   notas: 'contrato-notas',
 };
 
-function validar(valores, productos) {
-  const errores = {};
+function costoInicial(valor) {
+  if (valor === null || valor === undefined || valor === '') return '';
+  const numero = Number(valor);
+  if (!Number.isFinite(numero) || numero <= 0) return '';
+  return String(Math.round(numero * 100) / 100);
+}
 
-  if (!valores.id_desarrollador) {
-    errores.id_desarrollador = 'Selecciona un desarrollador.';
-  }
+function validar(valores) {
+  const errores = {};
 
   if (!valores.costo_acordado) {
     errores.costo_acordado = 'Indica el costo acordado.';
+  } else if (!/^\d+(\.\d{1,2})?$/.test(String(valores.costo_acordado).trim())) {
+    errores.costo_acordado = 'El costo debe ser un número válido (hasta 2 decimales).';
   } else if (!Number.isFinite(Number(valores.costo_acordado)) || Number(valores.costo_acordado) <= 0) {
     errores.costo_acordado = 'El costo debe ser mayor a cero.';
   }
 
   if (!valores.plantilla_id) {
-    errores.plantilla_id = 'Selecciona una plantilla de contrato.';
+    errores.plantilla_id = 'Selecciona un tipo de contrato.';
   }
 
   if (valores.notas.length > 2000) {
     errores.notas = 'Las notas no pueden superar los 2000 caracteres.';
-  }
-
-  if (valores.id_producto && valores.id_desarrollador) {
-    const producto = productos.find((p) => p.id === Number(valores.id_producto));
-    if (producto && producto.id_usuario !== Number(valores.id_desarrollador)) {
-      errores.id_producto = 'El producto debe pertenecer al desarrollador seleccionado.';
-    }
   }
 
   return errores;
@@ -58,6 +50,9 @@ function validar(valores, productos) {
 export default function ContratoForm() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const idProducto = searchParams.get('id_producto');
+  const idEncargo = searchParams.get('id_encargo');
+  const costoParametro = searchParams.get('costo_acordado') || '';
 
   const [opciones, setOpciones] = useState(null);
   const [cargandoOpciones, setCargandoOpciones] = useState(true);
@@ -70,20 +65,38 @@ export default function ContratoForm() {
   const [errorGeneral, setErrorGeneral] = useState('');
   const [enviando, setEnviando] = useState(false);
 
+  const contextoFaltante = Boolean(idProducto) === Boolean(idEncargo);
+
   useEffect(() => {
+    if (contextoFaltante) {
+      const mensaje = idProducto && idEncargo
+        ? 'Selecciona un solo producto u oferta para crear el contrato.'
+        : 'Para crear un contrato, elige un proyecto o una oferta desde el catálogo.';
+      navigate('/contratos', { replace: true, state: { mensaje } });
+      return undefined;
+    }
+
     let vigente = true;
     setCargandoOpciones(true);
-    contratosApi.opciones()
+    setErrorOpciones(null);
+    contratosApi.opciones({ id_producto: idProducto, id_encargo: idEncargo })
       .then((data) => {
         if (!vigente) return;
+        if (!data.contexto) {
+          setErrorOpciones(new Error(data.mensaje || 'No se pudo preparar el contrato.'));
+          setCargandoOpciones(false);
+          return;
+        }
         setOpciones(data);
-        const plantillaBase = data.plantillas.find((p) => p.es_base) || data.plantillas[0];
+        const tipoSugerido = data.contexto.producto ? 'licencia_software' : 'desarrollo';
+        const plantillaBase = data.plantillas.find((p) => p.tipo === tipoSugerido)
+          || data.plantillas.find((p) => p.es_base)
+          || data.plantillas[0];
         setValores((actual) => ({
           ...actual,
-          id_desarrollador: searchParams.get('id_desarrollador') || '',
-          id_producto: searchParams.get('id_producto') || '',
-          id_encargo: searchParams.get('id_encargo') || '',
-          costo_acordado: searchParams.get('costo_acordado') || '',
+          costo_acordado: actual.costo_acordado
+            || costoInicial(costoParametro)
+            || costoInicial(data.contexto.costo_sugerido),
           plantilla_id: actual.plantilla_id || (plantillaBase ? String(plantillaBase.id) : ''),
         }));
         setCargandoOpciones(false);
@@ -94,33 +107,30 @@ export default function ContratoForm() {
         setCargandoOpciones(false);
       });
     return () => { vigente = false; };
-    // Solo al montar: los parámetros de la URL son el prellenado inicial.
+    // Solo al montar: los parámetros de la URL definen el contrato a crear.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const productos = opciones?.productos || [];
+  const contexto = opciones?.contexto;
+  const producto = contexto?.producto || null;
+  const oferta = contexto?.oferta || null;
+  const desarrollador = contexto?.desarrollador || null;
+  const objeto = producto || oferta;
+  const tipoObjeto = producto ? 'Proyecto' : 'Oferta';
+  const montoReferencia = producto
+    ? producto.precio
+    : (oferta?.costo_postulado ?? oferta?.presupuesto);
+  const plantillaSeleccionada = opciones?.plantillas.find(
+    (plantilla) => plantilla.id === Number(valores.plantilla_id),
+  );
 
-  const productosDisponibles = useMemo(() => {
-    if (!valores.id_desarrollador) return productos;
-    return productos.filter((p) => p.id_usuario === Number(valores.id_desarrollador));
-  }, [productos, valores.id_desarrollador]);
-
-  const errores = useMemo(() => validar(valores, productos), [valores, productos]);
+  const errores = useMemo(() => validar(valores), [valores]);
 
   const mostrarError = (campo) =>
     (intentoEnvio || touched[campo]) ? (errores[campo] || erroresServidor[campo]) : erroresServidor[campo];
 
   function actualizar(campo, valor) {
-    setValores((actual) => {
-      const siguiente = { ...actual, [campo]: valor };
-      if (campo === 'id_desarrollador') {
-        const productoElegido = productos.find((p) => p.id === Number(actual.id_producto));
-        if (productoElegido && productoElegido.id_usuario !== Number(valor)) {
-          siguiente.id_producto = '';
-        }
-      }
-      return siguiente;
-    });
+    setValores((actual) => ({ ...actual, [campo]: valor }));
     setErroresServidor((actual) => ({ ...actual, [campo]: undefined }));
   }
 
@@ -143,9 +153,8 @@ export default function ContratoForm() {
     setEnviando(true);
     try {
       const data = await contratosApi.crear({
-        id_desarrollador: Number(valores.id_desarrollador),
-        id_producto: valores.id_producto ? Number(valores.id_producto) : null,
-        id_encargo: valores.id_encargo ? Number(valores.id_encargo) : null,
+        id_producto: producto ? producto.id : null,
+        id_encargo: oferta ? oferta.id : null,
         costo_acordado: Number(valores.costo_acordado),
         plantilla_id: Number(valores.plantilla_id),
         notas: valores.notas.trim(),
@@ -159,17 +168,15 @@ export default function ContratoForm() {
     }
   }
 
-  const desarrolladorElegido = opciones?.desarrolladores.find(
-    (d) => d.id === Number(valores.id_desarrollador),
-  );
+  if (contextoFaltante) return <CargandoContratos mensaje="Volviendo a contratos..." />;
 
-  if (cargandoOpciones) return <CargandoContratos mensaje="Cargando opciones de contrato..." />;
+  if (cargandoOpciones) return <CargandoContratos mensaje="Preparando el contrato..." />;
 
   if (errorOpciones) {
     return (
       <div className="card contrato-error" role="alert">
         <div className="alert alert-danger">
-          {errorOpciones.message || 'No se pudieron cargar las opciones del contrato.'}
+          {errorOpciones.message || 'No se pudo preparar el contrato.'}
         </div>
         <Link to="/contratos" className="btn btn-secondary">Volver a contratos</Link>
       </div>
@@ -188,8 +195,8 @@ export default function ContratoForm() {
         <div>
           <h1 className="catalogo-page-title">Nueva propuesta de contrato</h1>
           <p className="catalogo-page-subtitle">
-            Define a las partes, el monto y la plantilla legal. El contrato se creará como
-            borrador y quedará protegido por Escrow al firmarse.
+            Revisa las partes y el objeto del acuerdo. El desarrollador y el objeto se
+            toman directamente del catálogo para evitar contratos genéricos.
           </p>
         </div>
       </header>
@@ -202,89 +209,34 @@ export default function ContratoForm() {
             <div className="alert alert-danger" role="alert">{errorGeneral}</div>
           )}
 
-          {opciones.desarrolladores.length === 0 && (
-            <div className="alert alert-warning" role="status">
-              No hay desarrolladores registrados todavía. Pide a un desarrollador que cree su
-              cuenta antes de generar un contrato.
+          <div className="contrato-contexto" aria-label="Partes y objeto del contrato">
+            <div className="contrato-contexto-item">
+              <span className="contrato-summary-label">Cliente</span>
+              <strong className="contrato-contexto-value">
+                {opciones.usuario?.nombre_completo}
+              </strong>
+              <span className="contrato-contexto-note">{opciones.usuario?.email || ''}</span>
             </div>
-          )}
 
-          <div className="form-group">
-            <label htmlFor="contrato-desarrollador">
-              Desarrollador <span className="zaas-required-asterisk">*</span>
-            </label>
-            <select
-              id="contrato-desarrollador"
-              value={valores.id_desarrollador}
-              onChange={(e) => actualizar('id_desarrollador', e.target.value)}
-              onBlur={() => marcarTocado('id_desarrollador')}
-              aria-invalid={Boolean(mostrarError('id_desarrollador'))}
-              aria-describedby={`contrato-desarrollador-hint${mostrarError('id_desarrollador') ? ' contrato-desarrollador-error' : ''}`}
-              required
-            >
-              <option value="">Selecciona un desarrollador</option>
-              {opciones.desarrolladores.map((dev) => (
-                <option key={dev.id} value={dev.id}>
-                  {dev.nombre_completo}
-                </option>
-              ))}
-            </select>
-            <small className="form-hint" id="contrato-desarrollador-hint">
-              La contraparte que ejecutará el desarrollo.
-            </small>
-            {mostrarError('id_desarrollador') && (
-              <small className="field-error" id="contrato-desarrollador-error" role="alert">
-                {mostrarError('id_desarrollador')}
-              </small>
-            )}
-          </div>
+            <div className="contrato-contexto-item">
+              <span className="contrato-summary-label">Desarrollador</span>
+              <strong className="contrato-contexto-value">
+                {desarrollador?.nombre_completo || 'No disponible'}
+              </strong>
+              <span className="contrato-contexto-note">Contraparte del contrato</span>
+            </div>
 
-          <div className="form-group">
-            <label htmlFor="contrato-producto">Producto relacionado (opcional)</label>
-            <select
-              id="contrato-producto"
-              value={valores.id_producto}
-              onChange={(e) => actualizar('id_producto', e.target.value)}
-              onBlur={() => marcarTocado('id_producto')}
-              aria-invalid={Boolean(mostrarError('id_producto'))}
-              aria-describedby={`contrato-producto-hint${mostrarError('id_producto') ? ' contrato-producto-error' : ''}`}
-            >
-              <option value="">Sin producto relacionado</option>
-              {productosDisponibles.map((producto) => (
-                <option key={producto.id} value={producto.id}>
-                  {producto.titulo} — {formatDinero(producto.precio)}
-                </option>
-              ))}
-            </select>
-            <small className="form-hint" id="contrato-producto-hint">
-              Vincula el contrato a un SaaS del desarrollador seleccionado.
-            </small>
-            {mostrarError('id_producto') && (
-              <small className="field-error" id="contrato-producto-error" role="alert">
-                {mostrarError('id_producto')}
-              </small>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="contrato-oferta">Oferta relacionada (opcional)</label>
-            <select
-              id="contrato-oferta"
-              value={valores.id_encargo}
-              onChange={(e) => actualizar('id_encargo', e.target.value)}
-              aria-describedby="contrato-oferta-hint"
-            >
-              <option value="">Sin oferta relacionada</option>
-              {opciones.ofertas.map((oferta) => (
-                <option key={oferta.id} value={oferta.id}>
-                  {oferta.titulo}
-                  {oferta.presupuesto ? ` — ${formatDinero(oferta.presupuesto)}` : ''}
-                </option>
-              ))}
-            </select>
-            <small className="form-hint" id="contrato-oferta-hint">
-              Vincula el contrato a una de tus ofertas publicadas.
-            </small>
+            <div className="contrato-contexto-item contrato-contexto-item--full">
+              <span className="contrato-summary-label">{tipoObjeto} contratado</span>
+              <strong className="contrato-contexto-value">{objeto?.titulo}</strong>
+              <span className="contrato-contexto-note">
+                {montoReferencia != null
+                  ? `Monto de referencia: ${formatDinero(montoReferencia)}`
+                  : 'Sin monto de referencia'}
+                {' · '}
+                El objeto no se puede cambiar desde este formulario.
+              </span>
+            </div>
           </div>
 
           <div className="contrato-form-grid">
@@ -294,13 +246,14 @@ export default function ContratoForm() {
               </label>
               <input
                 id="contrato-costo"
-                type="number"
-                min="0.01"
-                step="0.01"
+                type="text"
                 inputMode="decimal"
                 placeholder="15000.00"
                 value={valores.costo_acordado}
-                onChange={(e) => actualizar('costo_acordado', e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (/^\d*\.?\d{0,2}$/.test(v)) actualizar('costo_acordado', v);
+                }}
                 onBlur={() => marcarTocado('costo_acordado')}
                 aria-invalid={Boolean(mostrarError('costo_acordado'))}
                 aria-describedby={`contrato-costo-hint${mostrarError('costo_acordado') ? ' contrato-costo-error' : ''}`}
@@ -318,7 +271,7 @@ export default function ContratoForm() {
 
             <div className="form-group">
               <label htmlFor="contrato-plantilla">
-                Plantilla legal <span className="zaas-required-asterisk">*</span>
+                Tipo de contrato <span className="zaas-required-asterisk">*</span>
               </label>
               <select
                 id="contrato-plantilla"
@@ -329,15 +282,17 @@ export default function ContratoForm() {
                 aria-describedby={`contrato-plantilla-hint${mostrarError('plantilla_id') ? ' contrato-plantilla-error' : ''}`}
                 required
               >
-                <option value="">Selecciona una plantilla</option>
+                <option value="">Selecciona un tipo de contrato</option>
                 {opciones.plantillas.map((plantilla) => (
                   <option key={plantilla.id} value={plantilla.id}>
-                    {plantilla.nombre}
+                    {plantilla.etiqueta || plantilla.nombre}
                   </option>
                 ))}
               </select>
               <small className="form-hint" id="contrato-plantilla-hint">
-                Se guarda una copia inmutable al crear el contrato.
+                {plantillaSeleccionada
+                  ? `${plantillaSeleccionada.descripcion} Plantilla: ${plantillaSeleccionada.nombre}.`
+                  : 'La plantilla legal cambia según el tipo de contrato elegido.'}
               </small>
               {mostrarError('plantilla_id') && (
                 <small className="field-error" id="contrato-plantilla-error" role="alert">
@@ -375,7 +330,7 @@ export default function ContratoForm() {
             <button
               type="submit"
               className="btn btn-primary contrato-submit"
-              disabled={enviando || opciones.desarrolladores.length === 0}
+              disabled={enviando}
               aria-busy={enviando}
             >
               {enviando ? (
@@ -402,7 +357,19 @@ export default function ContratoForm() {
 
             <span className="contrato-summary-label">Desarrollador</span>
             <strong className="contrato-summary-name">
-              {desarrolladorElegido ? desarrolladorElegido.nombre_completo : 'Por seleccionar'}
+              {desarrollador?.nombre_completo || 'No disponible'}
+            </strong>
+
+            <hr className="proyecto-sidebar-divider" />
+
+            <span className="contrato-summary-label">{tipoObjeto}</span>
+            <strong className="contrato-summary-name">{objeto?.titulo}</strong>
+
+            <hr className="proyecto-sidebar-divider" />
+
+            <span className="contrato-summary-label">Tipo de contrato</span>
+            <strong className="contrato-summary-name">
+              {plantillaSeleccionada?.etiqueta || 'Por seleccionar'}
             </strong>
 
             <hr className="proyecto-sidebar-divider" />

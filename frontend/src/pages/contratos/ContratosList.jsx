@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useApi } from '../../hooks/useApi';
 import { contratosApi } from '../../services/contratosApi';
-import { PlusIcon, ShieldCheckIcon } from '../../components/icons';
+import { ShieldCheckIcon } from '../../components/icons';
 import { formatDinero, formatFecha } from '../catalogo/catalogoUtils';
 import {
   CargandoContratos,
@@ -29,6 +29,8 @@ function coincideFiltro(contrato, filtro) {
 export default function ContratosList() {
   const { data, loading, error, recargar } = useApi(() => contratosApi.listar(), []);
   const [filtro, setFiltro] = useState('todos');
+  const location = useLocation();
+  const mensaje = location.state?.mensaje || '';
 
   const contratos = data?.items || [];
 
@@ -54,14 +56,11 @@ export default function ContratosList() {
             custodia de fondos de Zaas.
           </p>
         </div>
-
-        <div className="catalogo-actions-group">
-          <Link to="/contratos/nuevo" className="btn btn-primary">
-            <PlusIcon />
-            <span>Nuevo contrato</span>
-          </Link>
-        </div>
       </header>
+
+      {mensaje && (
+        <div className="alert alert-info" role="status">{mensaje}</div>
+      )}
 
       {loading && <CargandoContratos />}
       {error && <ErrorContratos error={error} onReintentar={recargar} />}
@@ -135,6 +134,9 @@ export default function ContratosList() {
                   </div>
 
                   <div className="contrato-card-meta">
+                    {contrato.plantilla && (
+                      <span>{contrato.plantilla.etiqueta || contrato.plantilla.nombre}</span>
+                    )}
                     <span>
                       Firmas: {Number(contrato.firmas?.cliente) + Number(contrato.firmas?.desarrollador)}/2
                     </span>
@@ -160,13 +162,12 @@ export default function ContratosList() {
               </h2>
               <p className="contrato-empty-text">
                 {contratos.length === 0
-                  ? 'Crea una propuesta de contrato para comenzar a trabajar con fondos protegidos en Escrow.'
+                  ? 'Los contratos se crean desde el catálogo: abre un proyecto y elige «Contratar con Escrow», o hazlo desde una postulación aceptada.'
                   : 'Cambia el filtro para ver otros contratos.'}
               </p>
               {contratos.length === 0 && (
-                <Link to="/contratos/nuevo" className="btn btn-primary">
-                  <PlusIcon />
-                  <span>Crear mi primer contrato</span>
+                <Link to="/" className="btn btn-secondary">
+                  <span>Explorar catálogo</span>
                 </Link>
               )}
             </div>

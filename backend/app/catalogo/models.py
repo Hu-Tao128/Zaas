@@ -5,6 +5,10 @@ from app.extensions import db
 class Proyecto(db.Model):
     """Un proyecto/producto publicado por un desarrollador."""
     __tablename__ = 'proyecto'
+    __table_args__ = (
+        db.CheckConstraint("estado IN ('activo', 'cerrado')", name='ck_proyecto_estado'),
+        db.CheckConstraint('precio >= 0', name='ck_proyecto_precio'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     id_usuario = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
@@ -37,6 +41,11 @@ class Categoria(db.Model):
 class CategoriaProyecto(db.Model):
     """Tabla intermedia proyecto <-> categoría."""
     __tablename__ = 'categoria_proyecto'
+    __table_args__ = (
+        db.UniqueConstraint(
+            'id_proyecto', 'id_categoria', name='uq_categoria_proyecto'
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     id_proyecto = db.Column(db.Integer, db.ForeignKey('proyecto.id'), nullable=False)
@@ -56,6 +65,11 @@ class Tecnologia(db.Model):
 class TecnologiaProyecto(db.Model):
     """Tabla intermedia proyecto <-> tecnología."""
     __tablename__ = 'tecnologia_proyecto'
+    __table_args__ = (
+        db.UniqueConstraint(
+            'id_proyecto', 'id_tecnologia', name='uq_tecnologia_proyecto'
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     id_proyecto = db.Column(db.Integer, db.ForeignKey('proyecto.id'), nullable=False)
@@ -68,6 +82,16 @@ class TecnologiaProyecto(db.Model):
 class OfertaTrabajo(db.Model):
     """Un encargo/solicitud de desarrollo publicado por un cliente."""
     __tablename__ = 'oferta_trabajo'
+    __table_args__ = (
+        db.CheckConstraint(
+            "estado IN ('abierto', 'en_progreso', 'cerrado')",
+            name='ck_oferta_trabajo_estado',
+        ),
+        db.CheckConstraint(
+            'presupuesto IS NULL OR presupuesto >= 0',
+            name='ck_oferta_trabajo_presupuesto',
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     id_cliente = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
@@ -89,6 +113,19 @@ class OfertaTrabajo(db.Model):
 class Postulacion(db.Model):
     """Una postulación de un desarrollador a una oferta de trabajo."""
     __tablename__ = 'postulacion'
+    __table_args__ = (
+        db.UniqueConstraint(
+            'id_oferta', 'id_desarrollador', name='uq_postulacion_oferta_dev'
+        ),
+        db.CheckConstraint(
+            "estado IN ('pendiente', 'aceptada', 'rechazada')",
+            name='ck_postulacion_estado',
+        ),
+        db.CheckConstraint(
+            'costo_propuesto IS NULL OR costo_propuesto >= 0',
+            name='ck_postulacion_costo',
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     id_desarrollador = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)

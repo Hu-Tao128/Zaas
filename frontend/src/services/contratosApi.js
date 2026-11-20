@@ -1,5 +1,5 @@
 // Cliente de la API JSON de Contratos Escrow (`/contratos/api`).
-// Usa la sesión de Flask-Login creada por /auth/callback y el token CSRF de Flask-WTF.
+// Usa la sesión de Flask-Login creada por /auth/firebase-login y el token CSRF de Flask-WTF.
 const BASE = '/contratos/api';
 
 let csrfToken = null;
@@ -58,7 +58,13 @@ async function peticion(metodo, ruta, cuerpo, puedeReintentar = true) {
 }
 
 export const contratosApi = {
-  opciones: () => peticion('GET', '/opciones'),
+  opciones: ({ id_producto, id_encargo } = {}) => {
+    const params = new URLSearchParams();
+    if (id_producto) params.set('id_producto', id_producto);
+    if (id_encargo) params.set('id_encargo', id_encargo);
+    const query = params.toString();
+    return peticion('GET', query ? `/opciones?${query}` : '/opciones');
+  },
   listar: ({ estado } = {}) => {
     const params = new URLSearchParams();
     if (estado) params.set('estado', estado);
@@ -66,7 +72,14 @@ export const contratosApi = {
     return peticion('GET', query ? `/?${query}` : '/');
   },
   detalle: (id) => peticion('GET', `/${id}`),
+  pdfUrl: (id) => `${BASE}/${id}/pdf`,
   crear: (datos) => peticion('POST', '/crear', datos),
   aceptar: (id) => peticion('POST', `/${id}/aceptar`, { acepto: true }),
   cancelar: (id) => peticion('POST', `/${id}/cancelar`, { confirmar: true }),
+
+  crearEntregable: (id, datos) => peticion('POST', `/${id}/entregables`, datos),
+  revisarEntregable: (id, datos) => peticion('POST', `/entregables/${id}/revisar`, datos),
+  liberar: (id) => peticion('POST', `/${id}/liberar`, {}),
+  abrirDisputa: (id, datos) => peticion('POST', `/${id}/disputa`, datos),
+  resolverDisputa: (id, datos) => peticion('POST', `/disputas/${id}/resolver`, datos),
 };

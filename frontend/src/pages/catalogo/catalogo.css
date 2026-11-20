@@ -94,6 +94,13 @@
   margin-bottom: 2rem;
 }
 
+.catalogo-projects-header {
+  padding: clamp(1rem, 3vw, 2rem);
+  border-inline-start: 4px solid var(--zaas-primary);
+  border-radius: var(--zaas-radius);
+  background: var(--zaas-danger-bg);
+}
+
 .catalogo-page-title {
   font-size: 2rem;
   line-height: 1.25;

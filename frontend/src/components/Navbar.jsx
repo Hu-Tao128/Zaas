@@ -1,16 +1,14 @@
 import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useCatalogo } from '../context/CatalogoContext';
 import { logout } from '../services/authService';
 
 /**
  * Componente Navbar con navegación accesible, estados de foco limpios (:focus-visible),
  * semántica ARIA, soporte para roles y distintivo de garantía Escrow.
  */
-export default function Navbar() {
+export default function Navbar({ usuario }) {
   const { user } = useAuth();
-  const { usuario } = useCatalogo();
   const navigate = useNavigate();
   const [menuAbierto, setMenuAbierto] = useState(false);
 
@@ -151,6 +149,43 @@ export default function Navbar() {
                 }
               >
                 Contratos
+              </NavLink>
+            </li>
+            <li><NavLink to="/comunicacion" onClick={cerrarMenu} className="catalogo-nav-link">Comunicación</NavLink></li>
+            {usuario?.tipo_usuario === 'admin' && (
+              <li><NavLink to="/admin" onClick={cerrarMenu} className="catalogo-nav-link">Administración</NavLink></li>
+            )}
+            <li>
+              <NavLink
+                to="/notificaciones"
+                onClick={cerrarMenu}
+                className={({ isActive }) =>
+                  `catalogo-nav-link ${isActive ? 'catalogo-nav-link--active' : ''}`
+                }
+              >
+                Notificaciones
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/incidencias"
+                onClick={cerrarMenu}
+                className={({ isActive }) =>
+                  `catalogo-nav-link ${isActive ? 'catalogo-nav-link--active' : ''}`
+                }
+              >
+                Incidencias
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/disputas"
+                onClick={cerrarMenu}
+                className={({ isActive }) =>
+                  `catalogo-nav-link ${isActive ? 'catalogo-nav-link--active' : ''}`
+                }
+              >
+                Disputas
               </NavLink>
             </li>
           </ul>

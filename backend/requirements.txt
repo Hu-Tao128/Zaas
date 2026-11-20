@@ -61,6 +61,7 @@ pyasn1_modules==0.4.2
 pycparser==3.12
 pydantic==2.14.1
 pydantic_core==2.50.1
+psycopg2-binary==2.9.13
 PyJWT==2.15.1
 pyparsing==3.3.3
 python-dateutil==2.9.0.post0
@@ -79,6 +80,7 @@ typing-inspection==0.4.4
 typing_extensions==4.16.0
 uritemplate==4.2.0
 urllib3==2.8.0
+weasyprint==70.0
 websockets==14.2
 Werkzeug==3.1.9
 WTForms==3.2.1
