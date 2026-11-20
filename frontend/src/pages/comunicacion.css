@@ -42,3 +42,9 @@
   .comm-records > li { flex-direction: column; }
   .comm-message { max-width: 95%; }
 }
+
+/* Tarjetas de mensajería más anchas en escritorio */
+.comm-form,
+.comm-contract-selector {
+  max-width: 896px; /* max-w-4xl */
+}

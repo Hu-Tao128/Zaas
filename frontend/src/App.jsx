@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificacionesProvider } from './context/NotificacionesContext';
 import { CatalogoProvider, useCatalogo } from './context/CatalogoContext';
 import CatalogoLayout from './components/catalogo/CatalogoLayout';
 import LoginPage from './pages/LoginPage';
@@ -66,45 +67,47 @@ function CatalogoArea() {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/registro" element={<RegisterPage />} />
-          <Route path="/comunicacion" element={
-            <ProtectedRoute><ComunicacionPage /></ProtectedRoute>
-          } />
-          <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
-          <Route path="/catalogo/*" element={<RedirigirDesdeCatalogo />} />
-          <Route path="/" element={<CatalogoArea />}>
-            <Route index element={<CatalogoIndexPage />} />
-            <Route path="proyecto/nuevo" element={soDesarrollador(<ProyectoFormPage />)} />
-            <Route path="proyecto/:id" element={<DetalleProyectoPage />} />
-            <Route path="proyecto/:id/editar" element={soDesarrollador(<ProyectoFormPage />)} />
-            <Route path="proyecto/:id/demo" element={<DemoFormPage />} />
-            <Route path="mis-productos" element={soDesarrollador(<MisProductosPage />)} />
-            <Route path="ofertas" element={<OfertasPage />} />
-            <Route path="oferta/nueva" element={soCliente(<OfertaFormPage />)} />
-            <Route path="oferta/:id" element={<DetalleOfertaPage />} />
-            <Route path="oferta/:id/editar" element={soCliente(<OfertaFormPage />)} />
-            <Route path="oferta/:id/postular" element={soDesarrollador(<PostularPage />)} />
-            <Route path="mis-ofertas" element={soCliente(<MisOfertasPage />)} />
-            <Route path="mis-postulaciones" element={soDesarrollador(<MisPostulacionesPage />)} />
-            <Route path="postulacion/:id" element={<DetallePostulacionPage />} />
-            <Route path="contratos" element={<ContratosList />} />
-            <Route path="contratos/nuevo" element={<ContratoForm />} />
-            <Route path="contratos/:id" element={<ContratoDetalle />} />
-            <Route path="contratos/:id/pagos" element={<PagosContratoPage />} />
-            <Route path="disputas" element={<DisputasPage />} />
-            <Route path="disputas/:id" element={<DisputaDetallePage />} />
-            <Route path="notificaciones" element={<NotificacionesPage />} />
-            <Route path="incidencias" element={<IncidenciasPage />} />
-            <Route path="incidencias/nueva" element={<IncidenciaFormPage />} />
-            <Route path="perfil" element={<PerfilPage />} />
-            <Route path="perfil/:id" element={<PerfilPage />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+      <NotificacionesProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/registro" element={<RegisterPage />} />
+            <Route path="/comunicacion" element={
+              <ProtectedRoute><ComunicacionPage /></ProtectedRoute>
+            } />
+            <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
+            <Route path="/catalogo/*" element={<RedirigirDesdeCatalogo />} />
+            <Route path="/" element={<CatalogoArea />}>
+              <Route index element={<CatalogoIndexPage />} />
+              <Route path="proyecto/nuevo" element={soDesarrollador(<ProyectoFormPage />)} />
+              <Route path="proyecto/:id" element={<DetalleProyectoPage />} />
+              <Route path="proyecto/:id/editar" element={soDesarrollador(<ProyectoFormPage />)} />
+              <Route path="proyecto/:id/demo" element={<DemoFormPage />} />
+              <Route path="mis-productos" element={soDesarrollador(<MisProductosPage />)} />
+              <Route path="ofertas" element={<OfertasPage />} />
+              <Route path="oferta/nueva" element={soCliente(<OfertaFormPage />)} />
+              <Route path="oferta/:id" element={<DetalleOfertaPage />} />
+              <Route path="oferta/:id/editar" element={soCliente(<OfertaFormPage />)} />
+              <Route path="oferta/:id/postular" element={soDesarrollador(<PostularPage />)} />
+              <Route path="mis-ofertas" element={soCliente(<MisOfertasPage />)} />
+              <Route path="mis-postulaciones" element={soDesarrollador(<MisPostulacionesPage />)} />
+              <Route path="postulacion/:id" element={<DetallePostulacionPage />} />
+              <Route path="contratos" element={<ContratosList />} />
+              <Route path="contratos/nuevo" element={<ContratoForm />} />
+              <Route path="contratos/:id" element={<ContratoDetalle />} />
+              <Route path="contratos/:id/pagos" element={<PagosContratoPage />} />
+              <Route path="disputas" element={<DisputasPage />} />
+              <Route path="disputas/:id" element={<DisputaDetallePage />} />
+              <Route path="notificaciones" element={<NotificacionesPage />} />
+              <Route path="incidencias" element={<IncidenciasPage />} />
+              <Route path="incidencias/nueva" element={<IncidenciaFormPage />} />
+              <Route path="perfil" element={<PerfilPage />} />
+              <Route path="perfil/:id" element={<PerfilPage />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </NotificacionesProvider>
     </AuthProvider>
   );
 }
