@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.pytest_cache/
+*.log
+
+# pnpm-workspace.yaml usa opciones de pnpm 12; la imagen usa pnpm 9 sin
+# workspace, por lo que no debe copiarse.
+pnpm-workspace.yaml
+
+# La configuración de Firebase del frontend se necesita en tiempo de build,
+# por eso .env sí se incluye en el contexto (no contiene secretos de servidor).
+.env.local
+.env.*.local

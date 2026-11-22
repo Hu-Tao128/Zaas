@@ -144,6 +144,7 @@ def nuevo_proyecto():
             titulo=form.titulo.data.strip(),
             descripcion=form.descripcion.data.strip(),
             precio=form.precio.data,
+            precio_negociable=form.precio_negociable.data,
             demo_habilitada=form.demo_habilitada.data,
             estado='activo'
         )
@@ -170,6 +171,7 @@ def editar_proyecto(id):
         proyecto.titulo = form.titulo.data.strip()
         proyecto.descripcion = form.descripcion.data.strip()
         proyecto.precio = form.precio.data
+        proyecto.precio_negociable = form.precio_negociable.data
         proyecto.demo_habilitada = form.demo_habilitada.data
         _sincronizar_relaciones(proyecto, form.categorias_ids.data, form.tecnologias_ids.data)
         db.session.commit()
@@ -291,7 +293,7 @@ def cerrar_oferta(id):
     return redirect(url_for('catalogo.mis_ofertas'))
 
 
-def _enviar_postulacion(id_dev, id, detalles, costo):
+def _enviar_postulacion(id_dev, id, detalles, costo, costo_negociable=False):
     """Crea una postulación con el "cerrojo" sobre la oferta.
     Devuelve (ok, nivel_flash, mensaje, destino) donde destino es 'oferta' o 'postulaciones'.
     Compartido por la vista HTML y la API."""
@@ -317,6 +319,7 @@ def _enviar_postulacion(id_dev, id, detalles, costo):
             id_oferta=id,
             detalles=detalles,
             costo_propuesto=costo,
+            costo_negociable=bool(costo_negociable),
             estado='pendiente',
         ))
         db.session.commit()
@@ -343,7 +346,9 @@ def postular_oferta(id):
     form = PostulacionForm()
     if form.validate_on_submit():
         ok, nivel, mensaje, destino = _enviar_postulacion(
-            current_user.id, id, form.detalles.data.strip(), form.costo_propuesto.data)
+            current_user.id, id, form.detalles.data.strip(),
+            form.costo_propuesto.data, form.costo_negociable.data,
+        )
         flash(mensaje, nivel)
         if destino == 'oferta':
             return redirect(url_for('catalogo.detalle_oferta', id=id))

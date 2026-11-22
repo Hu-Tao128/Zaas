@@ -8,7 +8,11 @@ export default function PostularPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data, loading, error } = useApi(() => catalogoApi.oferta(id), [id]);
-  const [datos, setDatos] = useState({ detalles: '', costo_propuesto: '' });
+  const [datos, setDatos] = useState({
+    detalles: '',
+    costo_propuesto: '',
+    costo_negociable: false,
+  });
   const [errores, setErrores] = useState({});
   const [errorGeneral, setErrorGeneral] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -83,6 +87,22 @@ export default function PostularPage() {
             required
           />
         </FormField>
+        <div className="form-group catalogo-checkbox">
+          <input
+            id="costo_negociable"
+            name="costo_negociable"
+            type="checkbox"
+            checked={datos.costo_negociable}
+            onChange={(event) => setDatos((actuales) => ({
+              ...actuales,
+              costo_negociable: event.target.checked,
+            }))}
+          />
+          <label htmlFor="costo_negociable">Costo negociable</label>
+          <small className="form-hint" style={{ display: 'block', marginLeft: '1.75rem' }}>
+            Si lo desactivas, el cliente no podrá proponer otro costo al crear el contrato.
+          </small>
+        </div>
         <div className="catalogo-actions">
           <button type="submit" className="btn btn-primary" disabled={enviando}>{enviando ? 'Enviando...' : 'Enviar Postulación'}</button>
           <Link to={`/oferta/${oferta.id}`} className="btn btn-secondary">Cancelar</Link>

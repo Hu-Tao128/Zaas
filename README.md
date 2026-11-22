@@ -109,6 +109,21 @@ pnpm dev                  # Dev server en http://localhost:3000
 pnpm build                # Build para producción
 ```
 
+## Docker
+
+El proyecto completo se puede levantar con Docker Compose sin instalar Python
+ni Node en la máquina:
+
+```bash
+cp .env.example .env                    # variables del backend y puertos
+cp frontend/.env.example frontend/.env  # configuración web de Firebase
+# coloca la llave de Firebase Admin en backend/keys/key.json
+docker compose up --build
+```
+
+La aplicación queda en <http://localhost:8080>. La guía completa (volúmenes,
+PostgreSQL, solución de problemas) está en [DOCKER.md](DOCKER.md).
+
 ## Comunicación y administración
 
 Las pantallas de comunicación están en `http://localhost:3000/comunicacion`.

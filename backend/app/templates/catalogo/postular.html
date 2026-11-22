@@ -11,6 +11,10 @@
             {% for e in field.errors %}<small style="color:#c0392b;">{{ e }}</small>{% endfor %}
         </div>
         {% endfor %}
+        <div class="form-group">
+            {{ form.costo_negociable(style="width:auto;") }} {{ form.costo_negociable.label(style="display:inline;") }}
+            <small style="display:block;color:#6b7280;">Si lo desactivas, el cliente no podrá proponer otro costo al contratar.</small>
+        </div>
         <button type="submit" class="btn btn-primary">Enviar Postulación</button>
         <a href="{{ url_for('catalogo.detalle_oferta', id=oferta.id) }}" class="btn btn-secondary">Cancelar</a>
     </form>
