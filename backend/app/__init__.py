@@ -22,13 +22,12 @@ def create_app(config_class=None):
         config_class = Config
     app.config.from_object(config_class)
 
-    # CORS abierto para desarrollo
+    # Orígenes permitidos por CORS. Se configuran por entorno (CORS_ORIGINS)
+    # para poder desplegar en Coolify sin tocar el código.
+    origenes_cors = app.config.get('CORS_ORIGINS') or ['http://localhost:3000']
     CORS(
         app,
-        resources={r"/*": {"origins": [
-            "http://localhost:3000",
-            "https://zaas.shellycornet.com"
-        ]}},
+        resources={r"/*": {"origins": origenes_cors}},
         supports_credentials=True
     )
 
@@ -42,8 +41,11 @@ def create_app(config_class=None):
     # Inicializar Supabase
     init_supabase(app)
 
-    # Inicializar Firebase Auth
-    init_firebase_app(app.config.get('FIREBASE_KEY_PATH', ''))
+    # Inicializar Firebase Auth (archivo en disco o JSON por variable de entorno)
+    init_firebase_app(
+        app.config.get('FIREBASE_KEY_PATH', ''),
+        app.config.get('FIREBASE_CREDENTIALS_JSON'),
+    )
 
     # Blueprints
     app.register_blueprint(auth_bp)
