@@ -1,5 +1,6 @@
 from datetime import datetime
 from app.extensions import db
+from app.types import UTCDateTime
 
 
 class PlantillaContrato(db.Model):
@@ -8,7 +9,7 @@ class PlantillaContrato(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(150), nullable=False)
     contenido_html = db.Column(db.Text, nullable=False)
-    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_creacion = db.Column(UTCDateTime(), default=datetime.utcnow)
 
     def __repr__(self):
         return f'<PlantillaContrato {self.nombre}>'
@@ -46,12 +47,12 @@ class Contrato(db.Model):
     # estados: borrador, pendiente, aceptado, en_progreso, entregado, finalizado, cancelado
     firma_cliente = db.Column(db.String(64))  # hash de aceptación
     firma_desarrollador = db.Column(db.String(64))
-    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_creacion = db.Column(UTCDateTime(), default=datetime.utcnow)
     # Rechazo del desarrollador antes de firmar. El contrato se conserva para
     # auditoría, pero se oculta de los menús de ambas partes.
     rechazado = db.Column(db.Boolean, nullable=False, default=False)
     motivo_rechazo = db.Column(db.Text)
-    fecha_rechazo = db.Column(db.DateTime)
+    fecha_rechazo = db.Column(UTCDateTime())
     id_rechazado_por = db.Column(db.Integer, db.ForeignKey('usuario.id'))
 
     cliente = db.relationship('Usuario', foreign_keys=[id_cliente], back_populates='contratos_como_cliente')
@@ -112,8 +113,8 @@ class Entregable(db.Model):
     descripcion = db.Column(db.Text)
     url_archivo = db.Column(db.String(500))
     estado = db.Column(db.String(20), default='pendiente')  # pendiente, aprobado, rechazado
-    fecha_subida = db.Column(db.DateTime, default=datetime.utcnow)
-    fecha_revision = db.Column(db.DateTime)
+    fecha_subida = db.Column(UTCDateTime(), default=datetime.utcnow)
+    fecha_revision = db.Column(UTCDateTime())
     comentario_revision = db.Column(db.Text)
 
     contrato = db.relationship('Contrato', back_populates='entregables')
@@ -129,7 +130,7 @@ class Aceptacion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     id_contrato = db.Column(db.Integer, db.ForeignKey('contrato.id'), nullable=False)
     id_usuario = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
-    fecha_hora = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_hora = db.Column(UTCDateTime(), default=datetime.utcnow)
     ip = db.Column(db.String(45))
 
     contrato = db.relationship('Contrato', back_populates='aceptaciones')

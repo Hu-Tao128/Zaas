@@ -1,7 +1,10 @@
 import os
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
+from sqlalchemy.pool import NullPool
+
+from app.db_url import normalizar_database_url
 
 # Carga .env solo en local. En contenedores (Coolify, Docker, etc.) las variables
 # ya vienen definidas por el entorno y no deben ser sobrescritas por un archivo.
@@ -24,6 +27,16 @@ def _bool_env(nombre, default=False):
     return valor.lower() in {'1', 'true', 't', 'yes', 'y', 'on'}
 
 
+def _int_env(nombre, default):
+    valor = _env(nombre)
+    if valor is None:
+        return default
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        return default
+
+
 def _lista_env(nombre, default=None):
     valor = _env(nombre)
     if not valor:
@@ -31,34 +44,36 @@ def _lista_env(nombre, default=None):
     return [item.strip() for item in valor.split(',') if item.strip()]
 
 
-def _normalizar_database_url(url):
-    """Adapta URLs de Postgres de Coolify/Supabase/Heroku para SQLAlchemy.
-
-    - ``postgres://`` (Heroku/Coolify) y ``postgresql://`` se fuerzan a usar el
-      driver ``psycopg2`` que ya está instalado en la imagen.
-    - Se eliminan parámetros propios de Prisma (``pgbouncer``,
-      ``connection_limit``, ``schema``) que ``psycopg2``/libpq rechazan.
-    """
-    if url.startswith('postgres://'):
-        url = 'postgresql+psycopg2://' + url[len('postgres://'):]
-    elif url.startswith('postgresql://'):
-        url = 'postgresql+psycopg2://' + url[len('postgresql://'):]
-
-    partes = urlsplit(url)
-    if partes.scheme.startswith('postgresql'):
-        excluir = {'pgbouncer', 'connection_limit', 'schema'}
-        query = [
-            (clave, valor)
-            for clave, valor in parse_qsl(partes.query)
-            if clave.lower() not in excluir
-        ]
-        url = urlunsplit(partes._replace(query=urlencode(query)))
-    return url
-
-
 def _database_url():
-    return _normalizar_database_url(_env('DATABASE_URL', 'sqlite:///zaas.db'))
+    url = _env('DATABASE_URL')
+    if not url:
+        raise RuntimeError(
+            'DATABASE_URL es obligatoria. Configura la cadena de conexión de '
+            'Supabase (Session Pooler, puerto 5432) con ?sslmode=require.'
+        )
+    return normalizar_database_url(url)
 
+
+def _engine_options(url):
+    """Opciones de pool adecuadas para Supabase/Postgres."""
+    opciones = {
+        'pool_pre_ping': True,
+        'pool_recycle': _int_env('DB_POOL_RECYCLE', 300),
+        'pool_timeout': _int_env('DB_POOL_TIMEOUT', 30),
+    }
+    partes = urlsplit(url)
+    # El Transaction Pooler (puerto 6543) no soporta reutilizar conexiones con
+    # estado; con él se recomienda NullPool. El Session Pooler (5432) sí puede
+    # usar el pool normal.
+    if partes.port == 6543:
+        opciones['poolclass'] = NullPool
+    else:
+        opciones['pool_size'] = _int_env('DB_POOL_SIZE', 5)
+        opciones['max_overflow'] = _int_env('DB_MAX_OVERFLOW', 10)
+    return opciones
+
+
+DATABASE_URL = _database_url()
 
 # Orígenes por defecto para desarrollo local y el dominio actual. En Coolify
 # deben sobreescribirse con CORS_ORIGINS y CSRF_TRUSTED_ORIGINS.
@@ -71,14 +86,15 @@ _ORIGENES_POR_DEFECTO = [
 
 class Config:
     SECRET_KEY = _env('SECRET_KEY', 'dev-secret-key-cambiar-en-produccion')
-    SQLALCHEMY_DATABASE_URI = _database_url()
+    SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = _engine_options(DATABASE_URL)
     WTF_CSRF_ENABLED = True
     UPLOAD_FOLDER = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'uploads')
 
-    # Supabase
-    SUPABASE_URL = _env('SUPABASE_URL', '')
-    SUPABASE_KEY = _env('SUPABASE_KEY', '')
+    # En producción el esquema se crea/actualiza con migrate_mr.py antes de
+    # arrancar Gunicorn. En local y pruebas se permite crear tablas al vuelo.
+    AUTO_CREATE_SCHEMA = _bool_env('AUTO_CREATE_SCHEMA', True)
 
     # Firebase Auth. Se puede usar un archivo (FIREBASE_KEY_PATH) o inyectar el
     # JSON de la service account directamente en una variable de entorno

@@ -1,6 +1,7 @@
 from datetime import datetime
 from flask_login import UserMixin
 from app.extensions import db
+from app.types import UTCDateTime
 
 
 class Usuario(UserMixin, db.Model):
@@ -18,7 +19,7 @@ class Usuario(UserMixin, db.Model):
     apellido_paterno = db.Column(db.String(100), nullable=False)
     apellido_materno = db.Column(db.String(100))
     email = db.Column(db.String(150), unique=True, nullable=False)
-    fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_registro = db.Column(UTCDateTime(), default=datetime.utcnow)
     tipo_usuario = db.Column(db.String(20), nullable=False)  # 'cliente', 'desarrollador', 'admin'
 
     # Relaciones — back_populates definidos en los modelos de cada blueprint

@@ -1,10 +1,11 @@
 from datetime import datetime, timezone
 
 from app.extensions import db
+from app.types import UTCDateTime
 
 
 def _bigint_autoincrementable():
-    """BIGINT en PostgreSQL y INTEGER en SQLite (necesario para autoincremento local)."""
+    """BIGINT en PostgreSQL; INTEGER solo para autoincremento en pruebas SQLite."""
     return db.BigInteger().with_variant(db.Integer, 'sqlite')
 
 
@@ -16,9 +17,9 @@ class DispositivoIoT(db.Model):
     modelo_hardware = db.Column(db.String(50), nullable=False, default='ESP32-S3')
     api_key_hash = db.Column(db.String(256), unique=True, nullable=False, index=True)
     activo = db.Column(db.Boolean, nullable=False, default=True)
-    ultimo_ping = db.Column(db.DateTime(timezone=True), nullable=True)
+    ultimo_ping = db.Column(UTCDateTime(), nullable=True)
     fecha_registro = db.Column(
-        db.DateTime(timezone=True),
+        UTCDateTime(),
         nullable=False,
         default=lambda: datetime.now(timezone.utc),
     )
@@ -53,7 +54,7 @@ class TelemetriaECBD(db.Model):
     resumen_agente = db.Column(db.Text, nullable=True)
     procesado_etl = db.Column(db.Boolean, nullable=False, default=False, index=True)
     fecha_captura = db.Column(
-        db.DateTime(timezone=True),
+        UTCDateTime(),
         nullable=False,
         default=lambda: datetime.now(timezone.utc),
     )

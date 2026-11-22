@@ -1,5 +1,6 @@
 from datetime import datetime
 from app.extensions import db
+from app.types import UTCDateTime
 
 
 class Conversacion(db.Model):
@@ -7,7 +8,7 @@ class Conversacion(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     id_contrato = db.Column(db.Integer, db.ForeignKey('contrato.id'))
-    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_creacion = db.Column(UTCDateTime(), default=datetime.utcnow)
 
     contrato = db.relationship('Contrato', back_populates='conversaciones')
     mensajes = db.relationship('Mensaje', back_populates='conversacion', cascade='all, delete-orphan')
@@ -24,7 +25,7 @@ class Mensaje(db.Model):
     id_emisor = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     id_receptor = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     contenido = db.Column(db.Text, nullable=False)
-    fecha_hora = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_hora = db.Column(UTCDateTime(), default=datetime.utcnow)
     leido = db.Column(db.Boolean, default=False)
 
     conversacion = db.relationship('Conversacion', back_populates='mensajes')
@@ -43,7 +44,7 @@ class Notificacion(db.Model):
     asunto = db.Column(db.String(200), nullable=False)
     mensaje = db.Column(db.Text)
     leido = db.Column(db.Boolean, default=False)
-    fecha_hora_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_hora_creacion = db.Column(UTCDateTime(), default=datetime.utcnow)
     link = db.Column(db.String(500))
 
     usuario = db.relationship('Usuario', back_populates='notificaciones')
@@ -66,7 +67,7 @@ class Calificacion(db.Model):
     id_evaluado = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     puntaje = db.Column(db.Integer, nullable=False)  # 1-5
     comentarios = db.Column(db.Text)
-    fecha_hora = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_hora = db.Column(UTCDateTime(), default=datetime.utcnow)
 
     contrato = db.relationship('Contrato', back_populates='calificaciones')
     evaluador = db.relationship('Usuario', foreign_keys=[id_evaluador], back_populates='calificaciones_dadas')
@@ -93,9 +94,9 @@ class Incidencia(db.Model):
     tipo_detalle = db.Column(db.String(100))
     descripcion = db.Column(db.Text)
     estado = db.Column(db.String(20), default='abierta')  # abierta, en_proceso, resuelta, cerrada
-    fecha_hora = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_hora = db.Column(UTCDateTime(), default=datetime.utcnow)
     resolucion = db.Column(db.Text)
-    fecha_resolucion = db.Column(db.DateTime)
+    fecha_resolucion = db.Column(UTCDateTime())
 
     usuario = db.relationship('Usuario', foreign_keys=[id_usuario], back_populates='incidencias')
     admin = db.relationship('Usuario', foreign_keys=[id_admin], back_populates='incidencias_resueltas')

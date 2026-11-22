@@ -1,12 +1,13 @@
-"""Consolida las migraciones del Modelo Relacional y del módulo de pagos.
+"""Consolida el esquema del Modelo Relacional sobre Supabase/PostgreSQL.
 
 Ejecutar desde ``backend`` después de configurar ``DATABASE_URL``:
 
     python migrate_mr.py
 
-Soporta PostgreSQL (incluido Supabase) y SQLite para desarrollo local. El
-script es idempotente: crea tablas faltantes, agrega columnas, migra los
-campos legados del perfil y crea índices después de validar duplicados.
+El script es idempotente: crea tablas faltantes (incluidas las de IoT), agrega
+columnas, alinea restricciones/FKs conocidas y crea índices únicos después de
+validar duplicados. SQLite ya no es un destino soportado en producción; solo se
+usa como motor de pruebas.
 """
 
 from __future__ import annotations
@@ -24,17 +25,17 @@ from app.auth.perfil_utils import sincronizar_habilidades, sincronizar_tecnologi
 from app.extensions import db
 
 
-# Columnas que fueron agregadas en migraciones previas. Los tipos son válidos
-# tanto en PostgreSQL como SQLite.
+# Columnas agregadas en migraciones previas. Tipos alineados con el esquema
+# bigint/timestamptz de Supabase.
 COLUMNAS_NUEVAS = {
     "contrato": {
-        "id_plantilla": "INTEGER",
+        "id_plantilla": "BIGINT",
         "notas": "TEXT",
         "monto_negociable": "BOOLEAN NOT NULL DEFAULT FALSE",
         "rechazado": "BOOLEAN NOT NULL DEFAULT FALSE",
         "motivo_rechazo": "TEXT",
-        "fecha_rechazo": "TIMESTAMP",
-        "id_rechazado_por": "INTEGER",
+        "fecha_rechazo": "TIMESTAMPTZ",
+        "id_rechazado_por": "BIGINT",
     },
     "proyecto": {"precio_negociable": "BOOLEAN NOT NULL DEFAULT FALSE"},
     "postulacion": {"costo_negociable": "BOOLEAN NOT NULL DEFAULT FALSE"},
@@ -48,39 +49,48 @@ COLUMNAS_NUEVAS = {
         "codigo_fallo": "VARCHAR(50)",
         "mensaje_fallo": "VARCHAR(200)",
         "idempotency_key": "VARCHAR(64)",
-        "fecha_confirmacion": "TIMESTAMP",
+        "fecha_confirmacion": "TIMESTAMPTZ",
         "reembolso_id": "VARCHAR(100)",
-        "fecha_reembolso": "TIMESTAMP",
+        "fecha_reembolso": "TIMESTAMPTZ",
         "intentos_verificacion": "INTEGER NOT NULL DEFAULT 0",
     },
-    "liberacion": {"id_entregable": "INTEGER"},
+    "liberacion": {"id_entregable": "BIGINT"},
     "recibo": {"total": "DOUBLE PRECISION"},
     "disputa": {
-        "id_pago": "INTEGER",
-        "id_entregable": "INTEGER",
-        "id_incidencia": "INTEGER",
+        "id_pago": "BIGINT",
+        "id_entregable": "BIGINT",
+        "id_incidencia": "BIGINT",
     },
-    "incidencia": {"id_contrato": "INTEGER", "tipo_detalle": "VARCHAR(100)"},
+    "incidencia": {"id_contrato": "BIGINT", "tipo_detalle": "VARCHAR(100)"},
 }
 
+# Índices únicos que no están cubiertos por restricciones UNIQUE del esquema
+# original. Los que ya existen como constraint se omiten para no duplicarlos.
 INDICES_UNICOS = [
-    "CREATE UNIQUE INDEX IF NOT EXISTS uq_perfil_id_usuario ON perfil (id_usuario)",
-    "CREATE UNIQUE INDEX IF NOT EXISTS uq_postulacion_oferta_dev ON postulacion (id_oferta, id_desarrollador)",
-    "CREATE UNIQUE INDEX IF NOT EXISTS uq_perfil_habilidad ON perfil_habilidad (id_perfil, id_habilidad)",
-    "CREATE UNIQUE INDEX IF NOT EXISTS uq_perfil_tecnologia ON perfil_tecnologia (id_perfil, id_tecnologia)",
-    "CREATE UNIQUE INDEX IF NOT EXISTS uq_categoria_proyecto ON categoria_proyecto (id_proyecto, id_categoria)",
-    "CREATE UNIQUE INDEX IF NOT EXISTS uq_tecnologia_proyecto ON tecnologia_proyecto (id_proyecto, id_tecnologia)",
-    "CREATE UNIQUE INDEX IF NOT EXISTS uq_recibo_id_pago ON recibo (id_pago)",
-    "CREATE UNIQUE INDEX IF NOT EXISTS uq_recibo_folio_integridad ON recibo (folio)",
-    "CREATE UNIQUE INDEX IF NOT EXISTS uq_arbitraje_disputa ON arbitraje (id_disputa)",
-    "CREATE UNIQUE INDEX IF NOT EXISTS uq_pago_transaccion ON pago (transaccion_id) WHERE transaccion_id IS NOT NULL",
     "CREATE UNIQUE INDEX IF NOT EXISTS uq_pago_idempotency ON pago (idempotency_key) WHERE idempotency_key IS NOT NULL",
-    "CREATE UNIQUE INDEX IF NOT EXISTS uq_disputa_incidencia ON disputa (id_incidencia) WHERE id_incidencia IS NOT NULL",
-    "CREATE UNIQUE INDEX IF NOT EXISTS uq_contrato_cliente_producto_activo ON contrato (id_cliente, id_producto) WHERE id_producto IS NOT NULL AND estado <> 'cancelado'",
-    "CREATE UNIQUE INDEX IF NOT EXISTS uq_contrato_encargo_activo ON contrato (id_encargo) WHERE id_encargo IS NOT NULL AND estado <> 'cancelado'",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uq_contrato_cliente_producto_activo ON contrato (id_cliente, id_producto) WHERE id_producto IS NOT NULL AND (estado IS NULL OR estado <> 'cancelado')",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uq_contrato_encargo_activo ON contrato (id_encargo) WHERE id_encargo IS NOT NULL AND (estado IS NULL OR estado <> 'cancelado')",
     "CREATE UNIQUE INDEX IF NOT EXISTS uq_disputa_abierta_contrato ON disputa (id_contrato) WHERE estado IN ('abierta','en_revision') AND id_pago IS NULL AND id_entregable IS NULL",
     "CREATE UNIQUE INDEX IF NOT EXISTS uq_disputa_abierta_pago ON disputa (id_pago) WHERE estado IN ('abierta','en_revision') AND id_pago IS NOT NULL",
     "CREATE UNIQUE INDEX IF NOT EXISTS uq_disputa_abierta_entregable ON disputa (id_entregable) WHERE estado IN ('abierta','en_revision') AND id_entregable IS NOT NULL",
+]
+
+INDICES_ADICIONALES = [
+    "CREATE INDEX IF NOT EXISTS idx_contrato_id_rechazado_por ON contrato (id_rechazado_por)",
+]
+
+# FKs que el esquema original de Supabase no tenía para columnas nuevas.
+FOREIGN_KEYS = [
+    (
+        "contrato",
+        "contrato_id_rechazado_por_fkey",
+        "FOREIGN KEY (id_rechazado_por) REFERENCES usuario(id)",
+    ),
+    (
+        "liberacion",
+        "liberacion_id_entregable_fkey",
+        "FOREIGN KEY (id_entregable) REFERENCES entregable(id)",
+    ),
 ]
 
 
@@ -89,6 +99,20 @@ def _columnas(conexion, tabla):
         return {columna["name"] for columna in inspect(conexion).get_columns(tabla)}
     except Exception:
         return set()
+
+
+def _definicion_constraint(conexion, tabla, nombre):
+    fila = conexion.execute(
+        text(
+            """
+            SELECT pg_get_constraintdef(oid) AS definicion
+            FROM pg_constraint
+            WHERE conrelid = CAST(:tabla AS regclass) AND conname = :nombre
+            """
+        ),
+        {"tabla": tabla, "nombre": nombre},
+    ).scalar()
+    return fila
 
 
 def _validar_sin_duplicados(conexion, tabla, campo, etiqueta, where=""):
@@ -138,10 +162,14 @@ def _migrar_columnas(conexion):
             continue
         for nombre, tipo in columnas.items():
             if nombre not in existentes:
-                conexion.execute(text(f"ALTER TABLE {tabla} ADD COLUMN {nombre} {tipo}"))
+                conexion.execute(
+                    text(f"ALTER TABLE {tabla} ADD COLUMN IF NOT EXISTS {nombre} {tipo}")
+                )
                 print(f"  + {tabla}.{nombre}")
         if tabla == "pago" and "intentos_verificacion" in columnas:
-            conexion.execute(text("UPDATE pago SET intentos_verificacion = 0 WHERE intentos_verificacion IS NULL"))
+            conexion.execute(
+                text("UPDATE pago SET intentos_verificacion = 0 WHERE intentos_verificacion IS NULL")
+            )
 
 
 def _migrar_perfiles(conexion):
@@ -160,14 +188,79 @@ def _migrar_perfiles(conexion):
             sincronizar_tecnologias(perfil, fila["stack_tecnologico"])
 
 
+def _alinear_pago(conexion):
+    """Alinea default y CHECKs de pago con los modelos de la aplicación."""
+    conexion.execute(
+        text("ALTER TABLE pago ALTER COLUMN estado_escrow SET DEFAULT 'pendiente'")
+    )
+
+    definicion = _definicion_constraint(conexion, "pago", "ck_pago_estado_escrow")
+    if not definicion or "pendiente" not in definicion:
+        conexion.execute(text("ALTER TABLE pago DROP CONSTRAINT IF EXISTS pago_estado_escrow_check"))
+        conexion.execute(text("ALTER TABLE pago DROP CONSTRAINT IF EXISTS ck_pago_estado_escrow"))
+        conexion.execute(
+            text(
+                "ALTER TABLE pago ADD CONSTRAINT ck_pago_estado_escrow "
+                "CHECK (estado_escrow IN "
+                "('pendiente','fallido','retenido','liberado','reembolsado','dividido')) NOT VALID"
+            )
+        )
+        conexion.execute(text("ALTER TABLE pago VALIDATE CONSTRAINT ck_pago_estado_escrow"))
+
+    definicion_monto = _definicion_constraint(conexion, "pago", "pago_monto_check")
+    if not definicion_monto or ">=" in definicion_monto:
+        conexion.execute(text("ALTER TABLE pago DROP CONSTRAINT IF EXISTS pago_monto_check"))
+        conexion.execute(
+            text("ALTER TABLE pago ADD CONSTRAINT pago_monto_check CHECK (monto > 0) NOT VALID")
+        )
+        conexion.execute(text("ALTER TABLE pago VALIDATE CONSTRAINT pago_monto_check"))
+
+    definicion_liberacion = _definicion_constraint(
+        conexion, "liberacion", "liberacion_monto_liberado_check"
+    )
+    if not definicion_liberacion or ">=" in definicion_liberacion:
+        conexion.execute(
+            text("ALTER TABLE liberacion DROP CONSTRAINT IF EXISTS liberacion_monto_liberado_check")
+        )
+        conexion.execute(
+            text(
+                "ALTER TABLE liberacion ADD CONSTRAINT liberacion_monto_liberado_check "
+                "CHECK (monto_liberado > 0) NOT VALID"
+            )
+        )
+        conexion.execute(
+            text("ALTER TABLE liberacion VALIDATE CONSTRAINT liberacion_monto_liberado_check")
+        )
+
+
+def _asegurar_foreign_keys(conexion):
+    for tabla, nombre, definicion in FOREIGN_KEYS:
+        if _definicion_constraint(conexion, tabla, nombre):
+            continue
+        conexion.execute(
+            text(f"ALTER TABLE {tabla} ADD CONSTRAINT {nombre} {definicion} NOT VALID")
+        )
+        conexion.execute(text(f"ALTER TABLE {tabla} VALIDATE CONSTRAINT {nombre}"))
+
+
 def main():
-    app = create_app()
+    app = create_app(init_db=False)
     with app.app_context():
-        # create_app/db.create_all crea las tablas faltantes desde los modelos.
+        if db.engine.dialect.name != "postgresql":
+            raise SystemExit(
+                "migrate_mr.py requiere PostgreSQL/Supabase. SQLite solo se usa en pruebas."
+            )
+
+        # Esquema base + tablas IoT y plantillas iniciales.
         db.create_all()
+        from app.contratos.plantillas import ensure_plantillas
+        ensure_plantillas()
+
         conexion = db.session.connection()
         _migrar_columnas(conexion)
         _migrar_perfiles(conexion)
+        _alinear_pago(conexion)
+        _asegurar_foreign_keys(conexion)
 
         errores = _validar_datos(conexion)
         if errores:
@@ -177,32 +270,13 @@ def main():
                 print(f"  - {error}")
             raise SystemExit(1)
 
-        for sentencia in INDICES_UNICOS:
+        for sentencia in INDICES_UNICOS + INDICES_ADICIONALES:
             try:
                 conexion.execute(text(sentencia))
             except Exception as error:
                 db.session.rollback()
                 print(f"ERROR al crear índice: {error}\nSQL: {sentencia}")
                 raise SystemExit(1)
-
-        # En PostgreSQL se pueden mantener los CHECK en una base ya existente
-        # sin reconstruir la tabla (la antigua migración lo hacía solo en SQLite).
-        if conexion.dialect.name == "postgresql":
-            estados = "'pendiente','fallido','retenido','liberado','reembolsado','dividido'"
-            constraint = conexion.execute(text("""
-                SELECT pg_get_constraintdef(oid) AS definicion
-                FROM pg_constraint
-                WHERE conrelid = 'pago'::regclass AND conname = 'ck_pago_estado_escrow'
-            """)).mappings().first()
-            if constraint and "pendiente" not in constraint["definicion"]:
-                conexion.execute(text("ALTER TABLE pago DROP CONSTRAINT ck_pago_estado_escrow"))
-                constraint = None
-            if not constraint:
-                conexion.execute(text(
-                    f"ALTER TABLE pago ADD CONSTRAINT ck_pago_estado_escrow "
-                    f"CHECK (estado_escrow IN ({estados})) NOT VALID"
-                ))
-                conexion.execute(text("ALTER TABLE pago VALIDATE CONSTRAINT ck_pago_estado_escrow"))
 
         db.session.commit()
         print("Migración consolidada completada.")

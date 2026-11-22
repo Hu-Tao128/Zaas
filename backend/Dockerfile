@@ -20,15 +20,15 @@ RUN apt-get update \
 
 WORKDIR /app
 
-# Se instala gunicorn junto con las dependencias de la aplicación. Se usa un
-# solo worker por defecto porque SQLite no soporta bien escrituras concurrentes.
+# Se instala gunicorn junto con las dependencias de la aplicación. El número
+# de workers se controla con GUNICORN_WORKERS y el pool de Postgres.
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt gunicorn==23.0.0
 
 COPY . .
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-RUN mkdir -p /app/instance /app/uploads /app/keys \
+RUN mkdir -p /app/uploads /app/keys \
     && chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 5000

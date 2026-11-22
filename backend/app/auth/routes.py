@@ -12,19 +12,6 @@ from app.auth.perfil_utils import sincronizar_habilidades, sincronizar_tecnologi
 from app.extensions import db
 
 
-def _sincronizar_supabase(firebase_data, tipo_usuario):
-    """Puente best-effort Firebase -> Supabase; nunca bloquea el login local."""
-    try:
-        from app.auth.firebase_supabase import sync_firebase_user
-        return sync_firebase_user(firebase_data, tipo_usuario=tipo_usuario)
-    except Exception as error:  # noqa: BLE001
-        current_app.logger.warning(
-            'No se pudo sincronizar el usuario %s con Supabase: %s',
-            firebase_data.get('uid'), error,
-        )
-        return None
-
-
 def _datos_perfil(datos):
     perfil = {}
     for campo in ('nombres', 'apellido_paterno', 'apellido_materno'):
@@ -39,7 +26,12 @@ def _datos_perfil(datos):
 @auth_bp.route('/callback', methods=['OPTIONS'])
 def handle_options():
     response = make_response()
-    response.headers.add('Access-Control-Allow-Origin', 'http://localhost:3000')
+    origenes = current_app.config.get('CORS_ORIGINS') or []
+    origen = request.headers.get('Origin')
+    if origen in origenes:
+        response.headers.add('Access-Control-Allow-Origin', origen)
+    elif origenes:
+        response.headers.add('Access-Control-Allow-Origin', origenes[0])
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
     response.headers.add('Access-Control-Allow-Methods', 'POST,OPTIONS')
     response.headers.add('Access-Control-Allow-Credentials', 'true')
@@ -81,7 +73,7 @@ def error_sincronizacion(error):
 def find_or_create_user(firebase_data: dict, tipo_usuario='cliente', datos_perfil=None) -> Usuario:
     """
     Busca un usuario por firebase_uid o email. Si no existe, lo crea.
-    Retorna el usuario de la base de datos local (SQLite).
+    Retorna el usuario de la base de datos principal (Supabase Postgres).
 
     El rol y los datos del registro se aplican al crear el usuario.
     """
@@ -126,10 +118,10 @@ def login():
 
 @auth_bp.route('/firebase-login', methods=['POST', 'OPTIONS'])
 def firebase_login():
-    """Login único: valida Firebase y guarda usuario/perfil directo en Supabase.
+    """Login único: valida Firebase y guarda usuario/perfil en Supabase Postgres.
 
-    No depende de Supabase Auth ni de Third-Party Auth. Toda la escritura se
-    hace desde el backend con la service_role key.
+    La escritura se hace con SQLAlchemy sobre la base principal; no se usa
+    Supabase Auth ni PostgREST.
     """
     if request.method == 'OPTIONS':
         return handle_options()
@@ -160,24 +152,6 @@ def firebase_login():
     except ValueError as error:
         return jsonify({'error': str(error)}), 400
 
-    try:
-        from app.auth.firebase_supabase import sync_firebase_user
-        supabase_data = {
-            **firebase_data,
-            'nombres': usuario.nombres,
-            'apellido_paterno': usuario.apellido_paterno,
-            'apellido_materno': usuario.apellido_materno,
-        }
-        supabase_id = sync_firebase_user(supabase_data, tipo_usuario=usuario.tipo_usuario)
-    except Exception as error:  # noqa: BLE001
-        current_app.logger.error(
-            'No se pudo guardar el usuario %s en Supabase: %s',
-            firebase_data.get('uid'), error,
-        )
-        return jsonify({
-            'error': 'No se pudo guardar el usuario en Supabase.',
-        }), 502
-
     login_user(usuario, remember=True)
     return jsonify({
         'ok': True,
@@ -190,7 +164,6 @@ def firebase_login():
             'apellido_paterno': usuario.apellido_paterno,
             'apellido_materno': usuario.apellido_materno or '',
             'tipo_usuario': usuario.tipo_usuario,
-            'supabase_id': supabase_id,
         },
     })
 
@@ -199,7 +172,7 @@ def firebase_login():
 def auth_callback():
     """
     Endpoint que recibe el token de Firebase tras login exitoso.
-    Verifica el token, busca/crea el usuario local y establece la sesión.
+    Verifica el token, busca/crea el usuario en la base principal y establece la sesión.
     """
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
@@ -240,7 +213,7 @@ def registro():
 def registro_callback():
     """
     Endpoint que recibe el token de Firebase tras registro exitoso.
-    Crea el usuario local vinculado al UID de Firebase.
+    Crea el usuario en la base principal vinculado al UID de Firebase.
     """
     if request.method == 'OPTIONS':
         return '', 204
@@ -266,7 +239,6 @@ def registro_callback():
     except ValueError as error:
         return jsonify({'error': str(error)}), 400
     login_user(usuario, remember=True)
-    _sincronizar_supabase(firebase_data, usuario.tipo_usuario)
 
     return jsonify({
         'redirect': url_for('catalogo.index'),

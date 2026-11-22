@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_migrate import Migrate
 from flask_cors import CORS
-from app.extensions import db, login_manager, init_supabase
+from app.extensions import db, login_manager
 from app.auth import auth_bp
 from app.auth.firebase_service import init_firebase_app
 from app.catalogo import catalogo_bp
@@ -12,15 +12,17 @@ from app.pagos.api import pagos_api_bp
 from app.comunicacion import comunicacion_bp
 from app.comunicacion.api import comunicacion_api
 from app.routes import iot_bp
-from app.supabase_api import supabase_bp
 
 
-def create_app(config_class=None):
+def create_app(config_class=None, init_db=None):
     app = Flask(__name__)
     if config_class is None:
         from config import Config
         config_class = Config
     app.config.from_object(config_class)
+
+    if init_db is None:
+        init_db = app.config.get('AUTO_CREATE_SCHEMA', True)
 
     # Orígenes permitidos por CORS. Se configuran por entorno (CORS_ORIGINS)
     # para poder desplegar en Coolify sin tocar el código.
@@ -37,9 +39,6 @@ def create_app(config_class=None):
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Debes iniciar sesión para acceder a esta página.'
-
-    # Inicializar Supabase
-    init_supabase(app)
 
     # Inicializar Firebase Auth (archivo en disco o JSON por variable de entorno)
     init_firebase_app(
@@ -59,7 +58,6 @@ def create_app(config_class=None):
     app.register_blueprint(comunicacion_bp)
     app.register_blueprint(comunicacion_api)
     app.register_blueprint(iot_bp)
-    app.register_blueprint(supabase_bp)
 
     # Contexto para login_manager
     from app.auth.models import Usuario
@@ -68,11 +66,12 @@ def create_app(config_class=None):
     def load_user(user_id):
         return db.session.get(Usuario, int(user_id))
 
-    with app.app_context():
-        from app import models  # noqa: F401  # Registra los modelos IoT/ECBD.
-        db.create_all()
-        # Garantiza que existan las plantillas base de cada tipo de contrato.
-        from app.contratos.plantillas import ensure_plantillas
-        ensure_plantillas()
+    if init_db:
+        with app.app_context():
+            from app import models  # noqa: F401  # Registra los modelos IoT/ECBD.
+            db.create_all()
+            # Garantiza que existan las plantillas base de cada tipo de contrato.
+            from app.contratos.plantillas import ensure_plantillas
+            ensure_plantillas()
 
     return app
