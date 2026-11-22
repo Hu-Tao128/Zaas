@@ -19,7 +19,8 @@ No hace falta Python, Node ni instalar dependencias en el host.
    ```
 
    Edita `.env` y como mínimo cambia `SECRET_KEY`. Opcionalmente configura
-   `SUPABASE_URL`, `SUPABASE_KEY` y los puertos.
+   `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_KEY`, los dominios permitidos
+   (`CORS_ORIGINS`, `CSRF_TRUSTED_ORIGINS`) y los puertos.
 
 2. **Configuración de Firebase del frontend**
 
@@ -28,8 +29,9 @@ No hace falta Python, Node ni instalar dependencias en el host.
    ```
 
    Rellena los valores `VITE_FIREBASE_*` con la configuración web de tu
-   proyecto de Firebase. Este archivo se usa **en tiempo de compilación**, así
-   que si lo cambias hay que reconstruir la imagen del frontend.
+   proyecto de Firebase. Vite los usa **en tiempo de compilación**, así que si
+   los cambias hay que reconstruir la imagen del frontend. También puedes
+   pasarlos como build args (`VITE_FIREBASE_*`) sin crear el archivo.
 
 3. **Llave de Firebase Admin**
 
@@ -39,8 +41,10 @@ No hace falta Python, Node ni instalar dependencias en el host.
    backend/keys/key.json
    ```
 
-   El contenedor la monta en modo de solo lectura. Sin ella, el backend arranca
-   pero no puede verificar los inicios de sesión de Firebase.
+   El contenedor la monta en modo de solo lectura. Como alternativa puedes
+   definir `FIREBASE_CREDENTIALS_JSON` con el JSON completo de la service
+   account (útil en Coolify). Sin credenciales el backend arranca, pero no
+   puede verificar los inicios de sesión de Firebase.
 
 ## Levantar la aplicación
 
@@ -97,6 +101,52 @@ por:
       - ./backend/instance:/app/instance
 ```
 
+## Desplegar en Coolify
+
+El proyecto se puede desplegar como un recurso de Docker Compose o como dos
+aplicaciones separadas (backend y frontend).
+
+### Variables de entorno del backend
+
+Define como mínimo:
+
+| Variable | Ejemplo | Notas |
+|---|---|---|
+| `DATABASE_URL` | `postgresql://usuario:clave@db:5432/zaas` | Acepta `postgres://`, `postgresql://` y `postgresql+psycopg2://`. |
+| `SECRET_KEY` | valor aleatorio largo | No dejes el valor de desarrollo. |
+| `CORS_ORIGINS` | `https://zaas.example.com` | Dominio público del frontend. |
+| `CSRF_TRUSTED_ORIGINS` | `https://zaas.example.com` | Igual que CORS. |
+| `FIREBASE_CREDENTIALS_JSON` | `{"type":"service_account",...}` | JSON completo de la service account. |
+| `SESSION_COOKIE_DOMAIN` | `example.com` | Solo si frontend y backend están en subdominios distintos. |
+| `SESSION_COOKIE_SECURE` | `true` | Con HTTPS. |
+
+Si usas el PostgreSQL administrado por Coolify, copia su URL interna en
+`DATABASE_URL`. Para Supabase utiliza la cadena de conexión con
+`?sslmode=require` (se eliminan automáticamente parámetros de Prisma como
+`pgbouncer` o `connection_limit`).
+
+### Variables de build del frontend
+
+Vite incrusta la configuración de Firebase en el bundle, por lo que estas
+variables deben definirse como **Build Variables** (no solo en runtime):
+
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
+- `VITE_FIREBASE_MEASUREMENT_ID`
+
+Si despliegas frontend y backend por separado, define en el frontend
+`BACKEND_URL` con la URL interna/pública del backend; nginx la usa como destino
+del proxy para `/api`, `/auth`, `/contratos/api` y `/pagos/api`.
+
+### Volumen de datos
+
+En un recurso Compose, el volumen `zaas_db` solo aplica si sigues usando
+SQLite. Con PostgreSQL los datos viven en la base de datos gestionada.
+
 ## Usar PostgreSQL en lugar de SQLite
 
 Añade un servicio de base de datos a `docker-compose.yml`:
@@ -124,7 +174,9 @@ Agrega `zaas_pg` a `volumes` y en `backend` define:
 ```
 
 El backend ya incluye `psycopg2-binary` y `migrate_mr.py` funciona tanto con
-SQLite como con PostgreSQL.
+SQLite como con PostgreSQL. También puedes usar una URL sin driver
+(`postgresql://...` o `postgres://...`): `config.py` la normaliza a
+`postgresql+psycopg2://` automáticamente.
 
 ## Notas y solución de problemas
 
@@ -138,3 +190,11 @@ SQLite como con PostgreSQL.
   fuentes DejaVu. Si usas otra imagen base, instala esas bibliotecas.
 - **La base no se actualiza:** el backend ejecuta `migrate_mr.py` en cada
   arranque; revisa `docker compose logs backend`.
+- **Error de conexión a PostgreSQL:** verifica `DATABASE_URL`, que el servicio
+  `db` esté saludable y, en Supabase, que la URL incluya `?sslmode=require`.
+  Los parámetros `pgbouncer`, `connection_limit` y `schema` se eliminan solos.
+- **CORS bloqueado en el navegador:** define `CORS_ORIGINS` y
+  `CSRF_TRUSTED_ORIGINS` con el dominio público exacto (incluye `https://`).
+- **Firebase no inicializa en Coolify:** define `FIREBASE_CREDENTIALS_JSON`
+  con el JSON completo de la service account, o monta un volumen con
+  `backend/keys/key.json`.
