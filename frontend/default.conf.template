@@ -1,3 +1,7 @@
+# Plantilla de nginx. El entrypoint oficial de la imagen sustituye
+# ${BACKEND_URL} por la variable de entorno (por defecto http://backend:5000).
+# En Coolify puedes desplegar frontend y backend por separado y apuntar
+# BACKEND_URL a la URL interna o pública del backend.
 server {
     listen 80;
     server_name _;
@@ -12,26 +16,27 @@ server {
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
     proxy_read_timeout 120s;
 
     # API JSON de Flask.
     location /api/ {
-        proxy_pass http://backend:5000;
+        proxy_pass ${BACKEND_URL};
     }
 
     # Autenticación (Firebase -> sesión Flask).
     location /auth/ {
-        proxy_pass http://backend:5000;
+        proxy_pass ${BACKEND_URL};
     }
 
     # API de contratos, incluida la descarga de PDF.
     location /contratos/api/ {
-        proxy_pass http://backend:5000;
+        proxy_pass ${BACKEND_URL};
     }
 
     # API de pagos y disputas.
     location /pagos/api/ {
-        proxy_pass http://backend:5000;
+        proxy_pass ${BACKEND_URL};
     }
 
     # Resto de rutas: SPA de React (React Router).
