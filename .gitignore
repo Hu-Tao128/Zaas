@@ -16,6 +16,9 @@ venv/
 .env
 .env.bak
 
+# Docker Compose local overrides (no subir montajes/secretos locales)
+docker-compose.override.yml
+
 # IDE
 .vscode/
 .idea/

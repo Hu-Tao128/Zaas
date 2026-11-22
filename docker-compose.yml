@@ -32,7 +32,8 @@ services:
       SUPABASE_KEY: ${SUPABASE_KEY:-}
 
       # Firebase: archivo montado o JSON de la service account por entorno.
-      FIREBASE_KEY_PATH: ${FIREBASE_KEY_PATH:-keys/key.json}
+      # En Coolify, el File Mount debe apuntar a /app/keys/key.json.
+      FIREBASE_KEY_PATH: ${FIREBASE_KEY_PATH:-/app/keys/key.json}
       FIREBASE_CREDENTIALS_JSON: ${FIREBASE_CREDENTIALS_JSON:-}
 
       # Dominios permitidos y cookies entre subdominios. En Coolify define,
@@ -51,9 +52,13 @@ services:
       # comenta este volumen y descomenta el bind mount de abajo.
       - zaas_db:/app/instance
       # - ./backend/instance:/app/instance
-      # Llave de servicio de Firebase Admin (solo lectura). Si no existe, el
-      # backend arranca igual pero sin autenticación Firebase.
-      - ./backend/keys:/app/keys:ro
+      #
+      # Llave de Firebase Admin. El bind mount de la carpeta está desactivado
+      # a propósito: en Coolify se usa un File Mount en /app/keys/key.json (o
+      # la variable FIREBASE_CREDENTIALS_JSON). Para desarrollo local puedes
+      # usar FIREBASE_CREDENTIALS_JSON o copiar docker-compose.override.yml.example
+      # a docker-compose.override.yml, que vuelve a montar ./backend/keys.
+      # - ./backend/keys:/app/keys:ro
     ports:
       - "${BACKEND_PORT:-5000}:5000"
     healthcheck:

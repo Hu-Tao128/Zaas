@@ -35,16 +35,20 @@ No hace falta Python, Node ni instalar dependencias en el host.
 
 3. **Llave de Firebase Admin**
 
-   Coloca la llave de servicio en:
+   El backend puede obtener la service account de tres formas:
 
-   ```
-   backend/keys/key.json
-   ```
+   - **Coolify (recomendado):** crea un **File Mount** en el servicio `backend`
+     con destino `/app/keys/key.json` y pega el contenido del JSON. Deja
+     `FIREBASE_KEY_PATH=/app/keys/key.json` (valor por defecto del compose).
+   - **Variable de entorno:** define `FIREBASE_CREDENTIALS_JSON` con el JSON
+     completo de la service account.
+   - **Desarrollo local con carpeta:** copia
+     `docker-compose.override.yml.example` a `docker-compose.override.yml`
+     para montar `backend/keys` en `/app/keys` y coloca la llave en
+     `backend/keys/key.json`.
 
-   El contenedor la monta en modo de solo lectura. Como alternativa puedes
-   definir `FIREBASE_CREDENTIALS_JSON` con el JSON completo de la service
-   account (útil en Coolify). Sin credenciales el backend arranca, pero no
-   puede verificar los inicios de sesión de Firebase.
+   Sin credenciales el backend arranca, pero no puede verificar los inicios de
+   sesión de Firebase.
 
 ## Levantar la aplicación
 
@@ -116,7 +120,8 @@ Define como mínimo:
 | `SECRET_KEY` | valor aleatorio largo | No dejes el valor de desarrollo. |
 | `CORS_ORIGINS` | `https://zaas.example.com` | Dominio público del frontend. |
 | `CSRF_TRUSTED_ORIGINS` | `https://zaas.example.com` | Igual que CORS. |
-| `FIREBASE_CREDENTIALS_JSON` | `{"type":"service_account",...}` | JSON completo de la service account. |
+| `FIREBASE_KEY_PATH` | `/app/keys/key.json` | Ruta del File Mount de Firebase. |
+| `FIREBASE_CREDENTIALS_JSON` | `{"type":"service_account",...}` | Alternativa al File Mount. |
 | `SESSION_COOKIE_DOMAIN` | `example.com` | Solo si frontend y backend están en subdominios distintos. |
 | `SESSION_COOKIE_SECURE` | `true` | Con HTTPS. |
 
@@ -124,6 +129,19 @@ Si usas el PostgreSQL administrado por Coolify, copia su URL interna en
 `DATABASE_URL`. Para Supabase utiliza la cadena de conexión con
 `?sslmode=require` (se eliminan automáticamente parámetros de Prisma como
 `pgbouncer` o `connection_limit`).
+
+### Firebase Admin por File Mount en Coolify
+
+En el recurso Compose, añade un **File Mount** al servicio `backend`:
+
+- **Destination Path:** `/app/keys/key.json`
+- **Content:** el JSON completo de la service account.
+- **Variable:** `FIREBASE_KEY_PATH=/app/keys/key.json` (ya es el valor por
+  defecto del compose).
+
+El bind mount `./backend/keys:/app/keys:ro` está comentado en
+`docker-compose.yml` para no chocar con el File Mount. No necesitas volúmenes
+persistentes para la llave.
 
 ### Variables de build del frontend
 
@@ -195,6 +213,6 @@ SQLite como con PostgreSQL. También puedes usar una URL sin driver
   Los parámetros `pgbouncer`, `connection_limit` y `schema` se eliminan solos.
 - **CORS bloqueado en el navegador:** define `CORS_ORIGINS` y
   `CSRF_TRUSTED_ORIGINS` con el dominio público exacto (incluye `https://`).
-- **Firebase no inicializa en Coolify:** define `FIREBASE_CREDENTIALS_JSON`
-  con el JSON completo de la service account, o monta un volumen con
-  `backend/keys/key.json`.
+- **Firebase no inicializa en Coolify:** revisa el File Mount en
+  `/app/keys/key.json` y que `FIREBASE_KEY_PATH` apunte a esa ruta, o define
+  `FIREBASE_CREDENTIALS_JSON` con el JSON completo de la service account.

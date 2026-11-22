@@ -28,7 +28,7 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn==23.0.0
 COPY . .
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-RUN mkdir -p /app/instance /app/uploads \
+RUN mkdir -p /app/instance /app/uploads /app/keys \
     && chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 5000
