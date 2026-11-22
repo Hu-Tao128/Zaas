@@ -1,0 +1,23 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Secretos y configuración local: se inyectan por variables de entorno.
+.env
+.env.*
+
+# No incluir la base local ni las llaves en la imagen.
+instance/
+*.db
+*.sqlite3
+keys/*.json
+keys/
+
+# Pruebas y artefactos que no se necesitan en ejecución.
+tests/
+docs/
+*.md

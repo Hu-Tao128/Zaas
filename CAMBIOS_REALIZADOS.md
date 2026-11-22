@@ -467,3 +467,52 @@ Las plantillas siguen viviendo en la tabla `plantilla_contrato` (sin cambio de e
 - **Solución:** validar el duplicado antes de insertar y capturar `IntegrityError` como respaldo (carreras entre peticiones), devolviendo 409 con un mensaje que invita a revisar o cancelar el contrato existente. El detalle del proyecto informa `contrato_activo` y la UI reemplaza el botón de contratación por un aviso con enlace.
 - Los contratos en estado `cancelado` (incluidos los rechazados, que pasan a `cancelado`) no bloquean la creación de uno nuevo.
 - Pruebas añadidas: `test_contrato_duplicado_devuelve_409_no_500`, `test_contrato_duplicado_tras_cancelar_funciona` y `test_detalle_proyecto_informa_contrato_activo`.
+
+
+## 14. Ejecución con Docker Compose
+
+Fecha de actualización: 22/11/2026.
+
+### 14.1 Objetivo
+
+- Permitir levantar el proyecto completo en otra máquina sin instalar Python, Node ni dependencias del sistema.
+- Mantener el backend Flask, el frontend React y la base de datos en contenedores separados, con persistencia y proxy de API.
+
+### 14.2 Archivos creados
+
+- `docker-compose.yml` (raíz): servicios `backend` y `frontend`, volumen `zaas_db`, healthcheck y puertos configurables.
+- `backend/Dockerfile`: imagen `python:3.12-slim` con las bibliotecas de Pango/Cairo/DejaVu que requiere WeasyPrint y Gunicorn como servidor.
+- `backend/docker-entrypoint.sh`: ejecuta `migrate_mr.py` de forma idempotente y arranca Gunicorn (1 worker y 4 hilos por defecto para SQLite).
+- `backend/.dockerignore`: excluye `.env`, `instance/`, llaves, pruebas y cachés de la imagen.
+- `frontend/Dockerfile`: compilación multi-etapa con Node 20 + pnpm 9 y servidor `nginx:1.27-alpine`.
+- `frontend/nginx.conf`: sirve la SPA con fallback a `index.html` y hace proxy de `/api`, `/auth`, `/contratos/api` y `/pagos/api` hacia `backend:5000`.
+- `frontend/.dockerignore`: excluye `node_modules`, `dist` y `pnpm-workspace.yaml` (usa opciones de pnpm 12, incompatible con la imagen de pnpm 9).
+- `.env.example` (raíz): puertos, `SECRET_KEY`, `DATABASE_URL`, Supabase, ruta de la llave de Firebase y ajustes de Gunicorn.
+- `DOCKER.md`: guía de preparación, ejecución, persistencia, PostgreSQL y solución de problemas.
+- `README.md`: sección breve de inicio con Docker.
+
+### 14.3 Funcionamiento
+
+- El frontend se sirve en `http://localhost:8080` y el backend en `http://localhost:5000` (ambos configurables en `.env`).
+- La SPA usa rutas relativas, por lo que nginx funciona como mismo origen y las cookies de sesión/CSRF viajan sin problemas de CORS.
+- La base SQLite se guarda en el volumen nombrado `zaas_db`; se puede cambiar a `./backend/instance/zaas.db` o a PostgreSQL editando `docker-compose.yml`.
+- La llave de Firebase Admin se monta desde `./backend/keys` en modo de solo lectura; la configuración web de Firebase se toma de `frontend/.env` al compilar.
+- En una base nueva, `migrate_mr.py` crea las 27 tablas y aplica las columnas de contratos, pagos y disputas. Los usuarios se crean al iniciar sesión con Firebase.
+
+### 14.4 Verificación
+
+- `docker compose config` → configuración válida.
+- `docker compose build backend` y `docker compose build frontend` → imágenes construidas correctamente.
+- `docker compose up -d` → backend en estado **healthy** y frontend iniciado.
+- Smoke test a través de nginx:
+  - `GET /` y `GET /contratos/1` → **200** (`text/html`, fallback de la SPA).
+  - `GET /contratos/api/csrf`, `GET /api/catalogo/proyectos` y `GET /pagos/api/csrf` → **200**.
+  - Assets JS servidos con `application/javascript`.
+- WeasyPrint dentro del contenedor generó un PDF de prueba correctamente.
+- Esquema verificado en el volumen: columnas `monto_negociable`, `rechazado`, `motivo_rechazo`, `fecha_rechazo`, `id_rechazado_por`, `notas`, `proyecto.precio_negociable` y `postulacion.costo_negociable` presentes.
+
+### 14.5 Notas
+
+- No se ejecuta `seed.py` en Docker: la versión actual del archivo contiene referencias a variables de una mezcla anterior (`cliente1`, `dev1`, `disputa`, etc.) y falla. El login de Firebase crea los usuarios locales automáticamente.
+- Cambiar `frontend/.env` requiere reconstruir la imagen (`docker compose up -d --build frontend`) porque Vite inserta esos valores en tiempo de compilación.
+- La ruta heredada `/auth/login` (plantilla Flask) responde 500 en esta versión; la SPA usa `/login` y `/auth/firebase-login`, que sí funcionan.
