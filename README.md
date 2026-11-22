@@ -36,21 +36,21 @@ Zaas/
 ## Arquitectura
 
 - **Firebase Auth** → Autenticación (email/password + Google Sign-In)
-- **Supabase (Postgres)** → Modelo relacional del MR (27 tablas)
-- **SQLite local** → Entorno de desarrollo y respaldo del backend Flask
+- **Supabase (Postgres)** → Base de datos principal y única del MR (27 tablas + IoT)
+- **SQLAlchemy + psycopg2** → Acceso a Supabase (Session Pooler)
 - **Firebase Analytics** → Tracking de eventos en el frontend
 
 ### Firebase Auth + Supabase
 
 El frontend autentica con Firebase y el backend valida el ID token en
-`POST /auth/firebase-login`. Desde ahí se guardan `usuario` y `perfil` en
-Supabase con la `service_role` key, sin Supabase Auth ni Third-Party Auth.
+`POST /auth/firebase-login`. Desde ahí se crea/actualiza `usuario` y `perfil`
+directamente en Supabase Postgres mediante SQLAlchemy. No se usa Supabase Auth,
+PostgREST ni la `service_role` key.
 La guía está en [`backend/docs/FIREBASE_SUPABASE.md`](backend/docs/FIREBASE_SUPABASE.md).
 
 ```bash
 cd backend
-python supabase_setup.py --verify           # comprueba las 27 tablas del MR
-python supabase_setup.py --sync-firebase    # usuarios -> public.usuario/perfil
+DATABASE_URL="postgresql://...:5432/postgres?sslmode=require" python migrate_mr.py
 ```
 
 ## Contratos (v1.0)
@@ -85,17 +85,16 @@ cd backend
 python -m venv venv
 source venv/bin/activate  # En Windows: venv\Scripts\activate
 pip install -r requirements.txt
-# Si ya tienes una base local con el esquema anterior:
-python migrate_mr.py      # Ejecuta las migraciones consolidadas (SQLite o PostgreSQL)
-python seed.py            # Agrega datos de prueba sin borrar registros
+cp .env.example .env      # define DATABASE_URL de Supabase
+python migrate_mr.py      # Crea/actualiza el esquema en Supabase
+python seed.py            # (Opcional) datos de demostración
 python run.py             # Servidor en http://localhost:5000
 ```
 
-En SQLite local, el seed carga cuentas, publicaciones, contratos, entregables,
-pagos simulados, disputas e incidencias para probar el panel administrativo.
-Puedes volver a ejecutarlo para conservar los datos y estados existentes.
-Las cuentas añadidas por el seed son registros locales y requieren una cuenta
-en Firebase Auth para iniciar sesión.
+La base de datos es Supabase/PostgreSQL; no hay SQLite en desarrollo ni en
+producción. SQLite queda únicamente como motor de las pruebas automatizadas.
+Las cuentas añadidas por el seed requieren una cuenta en Firebase Auth para
+iniciar sesión.
 
 Para el despliegue HTTPS entre subdominios, configura `SESSION_COOKIE_DOMAIN`
 con el dominio compartido. En localhost se deja sin configurar.
@@ -115,14 +114,15 @@ El proyecto completo se puede levantar con Docker Compose sin instalar Python
 ni Node en la máquina:
 
 ```bash
-cp .env.example .env                    # variables del backend y puertos
+cp .env.example .env                    # DATABASE_URL de Supabase, puertos, etc.
 cp frontend/.env.example frontend/.env  # configuración web de Firebase
 # coloca la llave de Firebase Admin en backend/keys/key.json
 docker compose up --build
 ```
 
-La aplicación queda en <http://localhost:8080>. La guía completa (volúmenes,
-PostgreSQL, solución de problemas) está en [DOCKER.md](DOCKER.md).
+La aplicación queda en <http://localhost:8080>. La guía completa (Supabase,
+Session Pooler, File Mount de Firebase y solución de problemas) está en
+[DOCKER.md](DOCKER.md).
 
 ## Comunicación y administración
 

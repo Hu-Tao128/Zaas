@@ -1,9 +1,9 @@
-# Firebase Auth + Supabase (sin Third-Party Auth)
+# Firebase Auth + Supabase Postgres
 
-ZaaS usa **Firebase Auth** para autenticar y **Supabase/Postgres** como base
-relacional del MR. No se usa Supabase Third-Party Auth ni funciones/triggers
-nativos de Supabase: el backend valida el token de Firebase y escribe
-directamente en Supabase con la `service_role` key.
+ZaaS usa **Firebase Auth** para autenticar y **Supabase/PostgreSQL** como base
+relacional principal. El backend valida el ID token de Firebase y escribe
+`usuario`/`perfil` con **SQLAlchemy**, no con el cliente `supabase-py` ni la
+`service_role` key.
 
 ## Flujo de login
 
@@ -11,10 +11,8 @@ directamente en Supabase con la `service_role` key.
 React (Firebase Auth)
   └─ POST /auth/firebase-login { id_token, tipo_usuario?, nombres?, ... }
        ├─ verifica el ID token con Firebase Admin
-       ├─ crea/actualiza usuario en SQLite (sesión Flask)
-       ├─ upsert en Supabase: public.usuario (por firebase_uid/email)
-       ├─ crea public.perfil si no existe (1:1)
-       └─ devuelve { usuario: { id, firebase_uid, email, tipo_usuario, supabase_id } }
+       ├─ busca/crea Usuario y Perfil con SQLAlchemy en Supabase Postgres
+       └─ devuelve { usuario: { id, firebase_uid, email, tipo_usuario } }
 ```
 
 El endpoint es idempotente y sirve tanto para login como para registro:
@@ -34,35 +32,29 @@ El endpoint es idempotente y sirve tanto para login como para registro:
 ## Configuración
 
 ```env
-SUPABASE_URL=https://<ref>.supabase.co
-SUPABASE_KEY=<service_role_key>          # solo servidor
+DATABASE_URL=postgresql://postgres.<ref>:<clave>@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
+FIREBASE_KEY_PATH=/app/keys/key.json
+# o bien:
+FIREBASE_CREDENTIALS_JSON={"type":"service_account",...}
 ```
 
-La `service_role` key **nunca** debe llegar al navegador. El frontend solo usa
-la API Flask; no se conecta directo a Supabase.
+No se necesitan `SUPABASE_URL` ni `SUPABASE_KEY`.
 
-## Sincronización masiva
+## Esquema
 
-```bash
-cd backend
-source .venv/bin/activate
-
-python supabase_setup.py --verify           # comprueba las 27 tablas del MR
-python supabase_setup.py --sync-firebase    # Firebase usuarios -> usuario/perfil
-```
-
-`--sync-firebase` recorre los usuarios de Firebase con el Admin SDK y reutiliza
-la misma función que el endpoint de login.
+El backend crea/actualiza las tablas con `migrate_mr.py`. Las sesiones Flask se
+guardan con cookies; el usuario autenticado se carga desde `usuario` por id.
 
 ## RLS
 
 Las tablas del MR tienen RLS habilitado sin políticas para `anon`/`authenticated`.
-El backend usa la `service_role` key, que omite RLS. No se requieren políticas
-de Firebase JWT ni la integración Third-Party Auth.
+El backend usa el rol `postgres` del Session Pooler, que omite RLS. El frontend
+solo consume la API Flask.
 
 ## Notas
 
-- El correo se busca como respaldo para no duplicar cuentas creadas antes del puente.
-- Si el email ya pertenece a otra cuenta de Firebase, no se reasigna el `firebase_uid`.
-- Si Supabase falla, `/auth/firebase-login` responde `502` para que el frontend
-  muestre el error; no se crea una sesión a medias.
+- El correo se busca como respaldo para no duplicar cuentas.
+- Si el email ya pertenece a otra cuenta de Firebase, no se reasigna el
+  `firebase_uid`.
+- Si falla la escritura en Supabase, el login responde con error y no se crea
+  una sesión a medias.

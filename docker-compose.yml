@@ -1,17 +1,17 @@
 # Docker Compose para levantar Zaas (backend Flask + frontend React/nginx).
 #
+# La base de datos es Supabase/PostgreSQL. No hay SQLite en producción.
+#
 # Uso local:
-#   1. Copia .env.example a .env y ajusta los valores.
+#   1. Copia .env.example a .env y define DATABASE_URL (Session Pooler).
 #   2. Copia frontend/.env.example a frontend/.env (o define las variables
 #      VITE_* como variables de entorno / build args).
 #   3. Coloca la llave de Firebase Admin en backend/keys/key.json o define
 #      FIREBASE_CREDENTIALS_JSON con el JSON completo.
 #   4. docker compose up --build
 #
-# La aplicación queda disponible en http://localhost:8080
-#
-# En Coolify: define DATABASE_URL, SECRET_KEY, CORS_ORIGINS, las credenciales
-# de Firebase y (si aplica) SUPABASE_* en las variables de entorno del recurso.
+# En Coolify: define DATABASE_URL, SECRET_KEY, CORS_ORIGINS y las credenciales
+# de Firebase en las variables de entorno del recurso.
 name: zaas
 
 services:
@@ -21,15 +21,18 @@ services:
     image: zaas-backend:latest
     restart: unless-stopped
     environment:
-      # Por defecto SQLite en un volumen persistente. En Coolify apunta a tu
-      # PostgreSQL, por ejemplo:
-      #   postgresql+psycopg2://usuario:clave@db:5432/zaas
-      # También se aceptan URLs "postgres://" y "postgresql://"; config.py las
-      # normaliza al driver psycopg2 automáticamente.
-      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/instance/zaas.db}
+      # Cadena de conexión de Supabase Postgres. Usa el Session Pooler
+      # (puerto 5432) e incluye ?sslmode=require. Se aceptan "postgres://",
+      # "postgresql://" y "postgresql+psycopg2://".
+      DATABASE_URL: ${DATABASE_URL:?Define DATABASE_URL (Supabase Session Pooler) en el entorno}
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-cambiar-en-produccion}
-      SUPABASE_URL: ${SUPABASE_URL:-}
-      SUPABASE_KEY: ${SUPABASE_KEY:-}
+
+      # El esquema se crea/actualiza con migrate_mr.py en el entrypoint.
+      AUTO_CREATE_SCHEMA: ${AUTO_CREATE_SCHEMA:-false}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-5}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-10}
+      DB_POOL_RECYCLE: ${DB_POOL_RECYCLE:-300}
+      DB_POOL_TIMEOUT: ${DB_POOL_TIMEOUT:-30}
 
       # Firebase: archivo montado o JSON de la service account por entorno.
       # En Coolify, el File Mount debe apuntar a /app/keys/key.json.
@@ -47,18 +50,10 @@ services:
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-1}
       GUNICORN_THREADS: ${GUNICORN_THREADS:-4}
       GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
-    volumes:
-      # Base de datos SQLite persistente. Si prefieres usar el archivo local,
-      # comenta este volumen y descomenta el bind mount de abajo.
-      - zaas_db:/app/instance
-      # - ./backend/instance:/app/instance
-      #
-      # Llave de Firebase Admin. El bind mount de la carpeta está desactivado
-      # a propósito: en Coolify se usa un File Mount en /app/keys/key.json (o
-      # la variable FIREBASE_CREDENTIALS_JSON). Para desarrollo local puedes
-      # usar FIREBASE_CREDENTIALS_JSON o copiar docker-compose.override.yml.example
-      # a docker-compose.override.yml, que vuelve a montar ./backend/keys.
-      # - ./backend/keys:/app/keys:ro
+    # La llave de Firebase Admin se monta con un File Mount de Coolify en
+    # /app/keys/key.json (o con FIREBASE_CREDENTIALS_JSON). Para desarrollo
+    # local puedes copiar docker-compose.override.yml.example a
+    # docker-compose.override.yml, que vuelve a montar ./backend/keys.
     ports:
       - "${BACKEND_PORT:-5000}:5000"
     healthcheck:
@@ -95,6 +90,3 @@ services:
         condition: service_healthy
     ports:
       - "${FRONTEND_PORT:-8080}:80"
-
-volumes:
-  zaas_db:

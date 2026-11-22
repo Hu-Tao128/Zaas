@@ -1,6 +1,6 @@
 # Comunicación: servicios y pantallas provisionales
 
-El módulo usa los modelos existentes de SQLite/SQLAlchemy: `Conversacion`,
+El módulo usa los modelos SQLAlchemy sobre Supabase Postgres: `Conversacion`,
 `Mensaje`, `Notificacion`, `Calificacion`, `Incidencia` y `SolicitudDemo`.
 Esta última conserva su ubicación en `app.catalogo.models` para no romper
 las referencias del catálogo. No hay cambios de esquema ni dependencias nuevas.
