@@ -33,4 +33,9 @@ RUN mkdir -p /app/instance /app/uploads \
 
 EXPOSE 5000
 
+# Permite que Coolify (u otro orquestador) detecte el estado del contenedor
+# incluso cuando se despliega sin docker-compose.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=5 \
+    CMD python -c "import socket; s = socket.create_connection(('127.0.0.1', 5000), 3); s.close()"
+
 ENTRYPOINT ["docker-entrypoint.sh"]

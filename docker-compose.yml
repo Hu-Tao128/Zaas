@@ -1,12 +1,17 @@
 # Docker Compose para levantar Zaas (backend Flask + frontend React/nginx).
 #
-# Uso rápido:
+# Uso local:
 #   1. Copia .env.example a .env y ajusta los valores.
-#   2. Copia frontend/.env.example a frontend/.env con la configuración de Firebase.
-#   3. Coloca la llave de Firebase Admin en backend/keys/key.json.
+#   2. Copia frontend/.env.example a frontend/.env (o define las variables
+#      VITE_* como variables de entorno / build args).
+#   3. Coloca la llave de Firebase Admin en backend/keys/key.json o define
+#      FIREBASE_CREDENTIALS_JSON con el JSON completo.
 #   4. docker compose up --build
 #
 # La aplicación queda disponible en http://localhost:8080
+#
+# En Coolify: define DATABASE_URL, SECRET_KEY, CORS_ORIGINS, las credenciales
+# de Firebase y (si aplica) SUPABASE_* en las variables de entorno del recurso.
 name: zaas
 
 services:
@@ -16,13 +21,28 @@ services:
     image: zaas-backend:latest
     restart: unless-stopped
     environment:
-      # SQLite dentro de un volumen persistente. Para PostgreSQL cambia esta
-      # variable, por ejemplo: postgresql+psycopg2://usuario:clave@db:5432/zaas
+      # Por defecto SQLite en un volumen persistente. En Coolify apunta a tu
+      # PostgreSQL, por ejemplo:
+      #   postgresql+psycopg2://usuario:clave@db:5432/zaas
+      # También se aceptan URLs "postgres://" y "postgresql://"; config.py las
+      # normaliza al driver psycopg2 automáticamente.
       DATABASE_URL: ${DATABASE_URL:-sqlite:////app/instance/zaas.db}
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-cambiar-en-produccion}
       SUPABASE_URL: ${SUPABASE_URL:-}
       SUPABASE_KEY: ${SUPABASE_KEY:-}
+
+      # Firebase: archivo montado o JSON de la service account por entorno.
       FIREBASE_KEY_PATH: ${FIREBASE_KEY_PATH:-keys/key.json}
+      FIREBASE_CREDENTIALS_JSON: ${FIREBASE_CREDENTIALS_JSON:-}
+
+      # Dominios permitidos y cookies entre subdominios. En Coolify define,
+      # por ejemplo: CORS_ORIGINS=https://zaas.example.com
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
+      SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN:-}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-}
+      SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-}
+
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-1}
       GUNICORN_THREADS: ${GUNICORN_THREADS:-4}
       GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
@@ -31,7 +51,8 @@ services:
       # comenta este volumen y descomenta el bind mount de abajo.
       - zaas_db:/app/instance
       # - ./backend/instance:/app/instance
-      # Llave de servicio de Firebase Admin (solo lectura).
+      # Llave de servicio de Firebase Admin (solo lectura). Si no existe, el
+      # backend arranca igual pero sin autenticación Firebase.
       - ./backend/keys:/app/keys:ro
     ports:
       - "${BACKEND_PORT:-5000}:5000"
@@ -49,8 +70,21 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        # Vite incrusta estas variables en tiempo de build. En Coolify deben
+        # definirse como "Build Variables" del recurso.
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY:-}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN:-}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID:-}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET:-}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID:-}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID:-}
+        VITE_FIREBASE_MEASUREMENT_ID: ${VITE_FIREBASE_MEASUREMENT_ID:-}
     image: zaas-frontend:latest
     restart: unless-stopped
+    environment:
+      # Destino de nginx para /api, /auth, /contratos/api y /pagos/api.
+      BACKEND_URL: ${BACKEND_URL:-http://backend:5000}
     depends_on:
       backend:
         condition: service_healthy
