@@ -11,6 +11,7 @@ from app.pagos import pagos_bp
 from app.pagos.api import pagos_api_bp
 from app.comunicacion import comunicacion_bp
 from app.comunicacion.api import comunicacion_api
+from app.routes import iot_bp
 from app.supabase_api import supabase_bp
 
 
@@ -55,6 +56,7 @@ def create_app(config_class=None):
     app.register_blueprint(pagos_api_bp, url_prefix='/api/pagos', name='pagos_api_alt')
     app.register_blueprint(comunicacion_bp)
     app.register_blueprint(comunicacion_api)
+    app.register_blueprint(iot_bp)
     app.register_blueprint(supabase_bp)
 
     # Contexto para login_manager
@@ -65,6 +67,7 @@ def create_app(config_class=None):
         return db.session.get(Usuario, int(user_id))
 
     with app.app_context():
+        from app import models  # noqa: F401  # Registra los modelos IoT/ECBD.
         db.create_all()
         # Garantiza que existan las plantillas base de cada tipo de contrato.
         from app.contratos.plantillas import ensure_plantillas
