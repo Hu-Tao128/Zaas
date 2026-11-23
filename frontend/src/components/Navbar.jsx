@@ -10,6 +10,7 @@ const ENLACES_PRINCIPALES = [
   { to: '/ofertas', label: 'Ofertas' },
   { to: '/contratos', label: 'Contratos' },
   { to: '/comunicacion', label: 'Comunicación' },
+  { to: '/agente', label: 'Agente' },
 ];
 
 const ENLACES_CUENTA = [

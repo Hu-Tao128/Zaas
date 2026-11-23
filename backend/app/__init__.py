@@ -11,7 +11,7 @@ from app.pagos import pagos_bp
 from app.pagos.api import pagos_api_bp
 from app.comunicacion import comunicacion_bp
 from app.comunicacion.api import comunicacion_api
-from app.routes import iot_bp
+from app.routes import agente_api, iot_bp
 
 
 def create_app(config_class=None, init_db=None):
@@ -58,6 +58,7 @@ def create_app(config_class=None, init_db=None):
     app.register_blueprint(comunicacion_bp)
     app.register_blueprint(comunicacion_api)
     app.register_blueprint(iot_bp)
+    app.register_blueprint(agente_api)
 
     # Contexto para login_manager
     from app.auth.models import Usuario
