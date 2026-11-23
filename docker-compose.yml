@@ -66,6 +66,8 @@ services:
       timeout: 5s
       retries: 10
       start_period: 45s
+      volumes:
+        - /srv/zaas/keys/key.json:/app/keys/key.json:ro
 
   frontend:
     build:
