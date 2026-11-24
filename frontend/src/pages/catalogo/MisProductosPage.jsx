@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import ConfirmDialog from '../../components/ConfirmDialog';
 import { useApi } from '../../hooks/useApi';
 import { catalogoApi } from '../../services/catalogoApi';
 import { AlertaError, Badge, BadgeEstado, Cargando, EmptyCard, ErrorCard } from '../../components/catalogo/CatalogoUI';
@@ -11,9 +12,16 @@ export default function MisProductosPage() {
   const { data, loading, error, recargar } = useApi(() => catalogoApi.misProductos(), []);
   const [mensaje, setMensaje] = useState(location.state?.mensaje);
   const [errorAccion, setErrorAccion] = useState('');
+  const [proyectoACerrar, setProyectoACerrar] = useState(null);
 
-  async function handleCerrar(id) {
-    if (!window.confirm('¿Cerrar este proyecto? Dejará de aparecer en el catálogo público.')) return;
+  function handleCerrar(id) {
+    setProyectoACerrar(id);
+  }
+
+  async function ejecutarCerrar() {
+    if (!proyectoACerrar) return;
+    const id = proyectoACerrar;
+    setProyectoACerrar(null);
     setErrorAccion('');
     try {
       const respuesta = await catalogoApi.cerrarProyecto(id);
@@ -88,6 +96,17 @@ export default function MisProductosPage() {
         </div>
       ) : (
         <EmptyCard>Aún no has publicado proyectos.</EmptyCard>
+      )}
+
+      {proyectoACerrar && (
+        <ConfirmDialog
+          abierto={Boolean(proyectoACerrar)}
+          titulo="Cerrar proyecto"
+          mensaje="¿Cerrar este proyecto? Dejará de aparecer en el catálogo público."
+          onConfirmar={ejecutarCerrar}
+          onCancelar={() => setProyectoACerrar(null)}
+          textoConfirmar="Cerrar proyecto"
+        />
       )}
     </>
   );

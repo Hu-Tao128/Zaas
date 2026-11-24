@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import ConfirmDialog from '../../components/ConfirmDialog';
 import { useApi } from '../../hooks/useApi';
 import { catalogoApi } from '../../services/catalogoApi';
 import { AlertaError, BadgeEstado, Cargando, EmptyCard, ErrorCard } from '../../components/catalogo/CatalogoUI';
@@ -11,15 +12,19 @@ export default function MisOfertasPage() {
   const { data, loading, error, recargar } = useApi(() => catalogoApi.misOfertas(), []);
   const [mensaje, setMensaje] = useState(location.state?.mensaje);
   const [errorAccion, setErrorAccion] = useState('');
+  const [ofertaACerrar, setOfertaACerrar] = useState(null);
 
-  async function handleCerrar(oferta) {
-    const confirmacion = oferta.estado === 'en_progreso'
-      ? '¿Cerrar esta oferta en progreso? Solo es posible si no tiene un contrato activo.'
-      : '¿Cerrar esta oferta? Dejará de aparecer en el listado público y no recibirá más postulaciones.';
-    if (!window.confirm(confirmacion)) return;
+  function handleCerrar(oferta) {
+    setOfertaACerrar(oferta);
+  }
+
+  async function ejecutarCerrar() {
+    if (!ofertaACerrar) return;
+    const id = ofertaACerrar.id;
+    setOfertaACerrar(null);
     setErrorAccion('');
     try {
-      const respuesta = await catalogoApi.cerrarOferta(oferta.id);
+      const respuesta = await catalogoApi.cerrarOferta(id);
       setMensaje(respuesta.mensaje);
       recargar();
     } catch (err) {
@@ -83,6 +88,19 @@ export default function MisOfertasPage() {
         </div>
       ) : (
         <EmptyCard>Aún no has publicado ofertas.</EmptyCard>
+      )}
+
+      {ofertaACerrar && (
+        <ConfirmDialog
+          abierto={Boolean(ofertaACerrar)}
+          titulo="Cerrar oferta"
+          mensaje={ofertaACerrar.estado === 'en_progreso'
+            ? '¿Cerrar esta oferta en progreso? Solo es posible si no tiene un contrato activo.'
+            : '¿Cerrar esta oferta? Dejará de aparecer en el listado público y no recibirá más postulaciones.'}
+          onConfirmar={ejecutarCerrar}
+          onCancelar={() => setOfertaACerrar(null)}
+          textoConfirmar="Cerrar oferta"
+        />
       )}
     </>
   );

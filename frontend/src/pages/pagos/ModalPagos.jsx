@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import './pagos.css';
 
 // Pila de modales abiertos (el último es el de más arriba) y control de bloqueo
 // de scroll para que varios modales apilados no dejen el fondo bloqueado de más.
@@ -191,18 +192,7 @@ export default function ModalPagos({
         <div style={{ overflowY: 'auto', paddingTop: '1rem' }}>{children}</div>
 
         {(pie || mostrarCancelar) && (
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              alignItems: 'center',
-              gap: '12px',
-              flexWrap: 'wrap',
-              paddingTop: '1rem',
-              marginTop: '.5rem',
-              borderTop: '1px solid var(--zaas-border)',
-            }}
-          >
+          <div className="pagos-modal-footer">
             {mostrarCancelar && (
               <button type="button" className="btn btn-secondary" disabled={estado.procesando} onClick={cerrar}>
                 Cancelar

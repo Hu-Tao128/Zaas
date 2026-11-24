@@ -47,10 +47,12 @@ const CODIGOS_ERROR = {
   estado_invalido: 'La operación no está disponible en el estado actual.',
   saldo_insuficiente: 'El monto indicado supera el saldo disponible.',
   monto_invalido: 'El monto indicado no es válido.',
+  tarjeta_no_admitida: 'Esta tarjeta no está admitida en el modo demostración.',
   idempotencia_conflicto: 'Ya se está procesando una operación similar. Espera un momento e inténtalo de nuevo.',
 };
 
 const CODIGOS_FALLO = {
+  tarjeta_no_admitida: 'Esta tarjeta no está admitida en el modo demostración.',
   expirado: 'El tiempo para confirmar el pago expiró. Puedes intentar un nuevo depósito.',
   fondos_insuficientes: 'El medio de pago no tiene fondos suficientes.',
   tarjeta_rechazada: 'El medio de pago fue rechazado.',
@@ -60,9 +62,12 @@ const CODIGOS_FALLO = {
 
 export function mensajeError(err) {
   if (!err) return 'Ocurrió un problema. Inténtalo de nuevo.';
-  const codigo = err.codigo;
+  const codigo = err.codigo || (err.data && err.data.codigo);
   const errores = err.errores || {};
   const codigoFallo = errores.codigo_fallo || (err.data && err.data.codigo_fallo);
+  if (codigo === 'tarjeta_no_admitida' || codigoFallo === 'tarjeta_no_admitida') {
+    return 'Esta tarjeta no está admitida en el modo demostración.';
+  }
   if (codigoFallo && CODIGOS_FALLO[codigoFallo]) return CODIGOS_FALLO[codigoFallo];
   if (codigo && CODIGOS_ERROR[codigo]) return CODIGOS_ERROR[codigo];
   if (err.status === 401 || err.status === 403) return CODIGOS_ERROR.permisos;
@@ -73,6 +78,25 @@ export function mensajeError(err) {
     return err.message;
   }
   return CODIGOS_ERROR.error_interno;
+}
+
+export function montoACentavos(valor) {
+  if (valor == null || valor === '') return 0;
+  const s = String(valor).trim();
+  if (!s) return 0;
+  const partes = s.split('.');
+  const entero = parseInt(partes[0] || '0', 10);
+  const decimalStr = (partes[1] || '').padEnd(2, '0').slice(0, 2);
+  const decimal = parseInt(decimalStr, 10);
+  return (Number.isNaN(entero) ? 0 : entero) * 100 + (Number.isNaN(decimal) ? 0 : decimal);
+}
+
+// Convierte centavos enteros a cadena decimal sin pasar por coma flotante.
+export function centavosAMonto(centavos) {
+  const n = Number.isFinite(centavos) ? Math.trunc(centavos) : 0;
+  const signo = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  return `${signo}${Math.trunc(abs / 100)}.${String(abs % 100).padStart(2, '0')}`;
 }
 
 export function parseMonto(valor) {

@@ -6,14 +6,6 @@
     <p><strong>Monto a depositar:</strong> ${{ contrato.costo_acordado }}</p>
     <div class="alert alert-warning" role="status">
         <strong>Modo demostración:</strong> no se realizan cargos reales.
-        <details style="margin-top:0.5rem;">
-            <summary>Tarjetas de prueba admitidas</summary>
-            <ul style="margin:0.5rem 0 0 1.25rem;">
-                <li><code>4242 4242 4242 4242</code> — Aprobada (simulación de depósito en garantía).</li>
-                <li><code>4000 0000 0000 0002</code> — Rechazada (simulación de pago no completado).</li>
-                <li><code>4000 0000 0000 3220</code> — Requiere verificación (código de prueba: <code>123456</code>).</li>
-            </ul>
-        </details>
     </div>
     <form method="POST">
         {{ form.hidden_tag() if form else '' }}
@@ -24,7 +16,7 @@
         </div>
         <div class="form-group">
             <label>Número de tarjeta</label>
-            <input type="text" name="numero" placeholder="•••• •••• •••• ••••" class="form-control" autocomplete="off" required>
+            <input type="text" name="numero" placeholder="Número de tarjeta" class="form-control" autocomplete="off" required>
         </div>
         <div class="form-group">
             <label>Vencimiento (MM/AA)</label>
