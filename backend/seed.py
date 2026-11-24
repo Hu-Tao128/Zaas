@@ -1,9 +1,7 @@
-"""Agrega datos de demostración a la base SQLite local sin borrar registros."""
+"""Agrega datos de demostración a la base principal sin borrar registros."""
 
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
-
-from sqlalchemy.engine import make_url
 
 from app import create_app
 from app.auth.models import Usuario, Perfil, Habilidad, PerfilHabilidad, PerfilTecnologia
@@ -308,12 +306,7 @@ def seed(config_class=None):
     if config_class is None:
         from config import Config
         config_class = Config
-    if make_url(config_class.SQLALCHEMY_DATABASE_URI).get_backend_name() != 'sqlite':
-        raise SystemExit('El seed está destinado a una base SQLite local.')
-
     class ConfigSeed(config_class):
-        SUPABASE_URL = ''
-        SUPABASE_KEY = ''
         FIREBASE_KEY_PATH = ''
 
     app = create_app(ConfigSeed)

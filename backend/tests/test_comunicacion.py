@@ -18,8 +18,6 @@ class TestConfig:
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     WTF_CSRF_ENABLED = True
-    SUPABASE_URL = ''
-    SUPABASE_KEY = ''
     FIREBASE_KEY_PATH = 'no-test-credentials.json'
 
 

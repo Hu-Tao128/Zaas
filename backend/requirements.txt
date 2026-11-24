@@ -33,7 +33,6 @@ google-cloud-storage==3.17.1
 google-crc32c==1.9.0
 google-resumable-media==2.11.0
 googleapis-common-protos==1.76.0
-gotrue==2.12.4
 grpcio==1.85.0
 grpcio-status==1.85.0
 h11==0.16.0
@@ -48,11 +47,11 @@ itsdangerous==2.2.0
 Jinja2==3.1.6
 Mako==1.4.3
 MarkupSafe==3.0.4
+mcp==1.30.0
 msgpack==1.2.4
 multidict==7.2.1
 opentelemetry-api==1.45.2
 packaging==26.3
-postgrest==1.0.2
 propcache==0.5.4
 proto-plus==1.29.0
 protobuf==7.36.2
@@ -66,16 +65,10 @@ PyJWT==2.15.1
 pyparsing==3.3.3
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
-realtime==2.4.3
 requests==2.34.2
 six==1.17.0
 SQLAlchemy==2.1.6
-storage3==0.11.3
 StrEnum==0.4.15
-supabase==2.15.2
-supabase-auth==2.33.0
-supabase-functions==2.33.0
-supafunc==0.9.4
 typing-inspection==0.4.4
 typing_extensions==4.16.0
 uritemplate==4.2.0

@@ -60,7 +60,11 @@ export default function DetallePostulacionPage() {
           {postulacion.oferta.estado === 'cerrado' && <BadgeEstado estado="cerrado" />}
           {postulacion.oferta.estado === 'en_progreso' && <BadgeEstado estado="en_progreso" />}
         </p>
-        <p><strong>Costo propuesto:</strong> {formatDinero(postulacion.costo_propuesto)}</p>
+        <p>
+          <strong>Costo propuesto:</strong> {formatDinero(postulacion.costo_propuesto)}
+          {' · '}
+          {postulacion.costo_negociable ? 'negociable' : 'fijo'}
+        </p>
         <p><strong>Enviada:</strong> {formatFechaHora(postulacion.fecha_hora)}</p>
 
         <h3 className="catalogo-section-title">Detalles de la propuesta</h3>

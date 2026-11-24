@@ -26,6 +26,7 @@ function ProyectoForm({ proyecto }) {
     titulo: proyecto?.titulo || '',
     descripcion: proyecto?.descripcion || '',
     precio: proyecto?.precio?.toString() || '',
+    precio_negociable: Boolean(proyecto?.precio_negociable),
     categorias_ids: proyecto?.categorias.map((item) => item.id) || [],
     tecnologias_ids: proyecto?.tecnologias.map((item) => item.id) || [],
     demo_habilitada: proyecto?.demo_habilitada || false,
@@ -103,6 +104,20 @@ function ProyectoForm({ proyecto }) {
             required
           />
         </FormField>
+        <div className="form-group catalogo-checkbox">
+          <input
+            id="precio_negociable"
+            name="precio_negociable"
+            type="checkbox"
+            checked={datos.precio_negociable}
+            onChange={actualizarCampo}
+          />
+          <label htmlFor="precio_negociable">Precio negociable</label>
+          <small className="form-hint" style={{ display: 'block', marginLeft: '1.75rem' }}>
+            Si lo desactivas, el cliente no podrá cambiar el precio al crear el contrato.
+          </small>
+        </div>
+
         <FormField
           label="Categorías"
           name="categorias_ids"

@@ -76,6 +76,9 @@ export const contratosApi = {
   crear: (datos) => peticion('POST', '/crear', datos),
   aceptar: (id) => peticion('POST', `/${id}/aceptar`, { acepto: true }),
   cancelar: (id) => peticion('POST', `/${id}/cancelar`, { confirmar: true }),
+  rechazar: (id, datos) => peticion('POST', `/${id}/rechazar`, datos),
+  actualizarNegociacion: (id, datos) => peticion('POST', `/${id}/negociacion`, datos),
+  enviarOferta: (id, datos) => peticion('POST', `/${id}/oferta`, datos),
 
   crearEntregable: (id, datos) => peticion('POST', `/${id}/entregables`, datos),
   revisarEntregable: (id, datos) => peticion('POST', `/entregables/${id}/revisar`, datos),

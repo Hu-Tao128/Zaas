@@ -92,11 +92,12 @@ export default function ContratoForm() {
         const plantillaBase = data.plantillas.find((p) => p.tipo === tipoSugerido)
           || data.plantillas.find((p) => p.es_base)
           || data.plantillas[0];
+        const montoSugerido = costoInicial(data.contexto.costo_sugerido);
         setValores((actual) => ({
           ...actual,
-          costo_acordado: actual.costo_acordado
-            || costoInicial(costoParametro)
-            || costoInicial(data.contexto.costo_sugerido),
+          costo_acordado: data.contexto.negociable
+            ? (actual.costo_acordado || costoInicial(costoParametro) || montoSugerido)
+            : montoSugerido,
           plantilla_id: actual.plantilla_id || (plantillaBase ? String(plantillaBase.id) : ''),
         }));
         setCargandoOpciones(false);
@@ -120,6 +121,7 @@ export default function ContratoForm() {
   const montoReferencia = producto
     ? producto.precio
     : (oferta?.costo_postulado ?? oferta?.presupuesto);
+  const negociable = Boolean(contexto?.negociable);
   const plantillaSeleccionada = opciones?.plantillas.find(
     (plantilla) => plantilla.id === Number(valores.plantilla_id),
   );
@@ -234,6 +236,8 @@ export default function ContratoForm() {
                   ? `Monto de referencia: ${formatDinero(montoReferencia)}`
                   : 'Sin monto de referencia'}
                 {' · '}
+                {negociable ? 'Monto negociable' : 'Monto no negociable'}
+                {' · '}
                 El objeto no se puede cambiar desde este formulario.
               </span>
             </div>
@@ -242,7 +246,8 @@ export default function ContratoForm() {
           <div className="contrato-form-grid">
             <div className="form-group">
               <label htmlFor="contrato-costo">
-                Costo acordado (MXN) <span className="zaas-required-asterisk">*</span>
+                {negociable ? 'Tu oferta (MXN)' : 'Costo acordado (MXN)'}{' '}
+                <span className="zaas-required-asterisk">*</span>
               </label>
               <input
                 id="contrato-costo"
@@ -251,16 +256,21 @@ export default function ContratoForm() {
                 placeholder="15000.00"
                 value={valores.costo_acordado}
                 onChange={(e) => {
+                  if (!negociable) return;
                   const v = e.target.value;
                   if (/^\d*\.?\d{0,2}$/.test(v)) actualizar('costo_acordado', v);
                 }}
                 onBlur={() => marcarTocado('costo_acordado')}
+                readOnly={!negociable}
+                aria-readonly={!negociable}
                 aria-invalid={Boolean(mostrarError('costo_acordado'))}
                 aria-describedby={`contrato-costo-hint${mostrarError('costo_acordado') ? ' contrato-costo-error' : ''}`}
                 required
               />
               <small className="form-hint" id="contrato-costo-hint">
-                Monto que se retendrá en Escrow hasta validar los entregables.
+                {negociable
+                  ? 'El desarrollador marcó este monto como negociable. Envía tu oferta; quedará sujeta a la firma de ambas partes.'
+                  : 'El desarrollador fijó este monto como no negociable; no puede modificarse desde el cliente.'}
               </small>
               {mostrarError('costo_acordado') && (
                 <small className="field-error" id="contrato-costo-error" role="alert">
@@ -374,7 +384,9 @@ export default function ContratoForm() {
 
             <hr className="proyecto-sidebar-divider" />
 
-            <span className="contrato-summary-label">Monto a custodiar</span>
+            <span className="contrato-summary-label">
+              {negociable ? 'Oferta a custodiar' : 'Monto a custodiar'}
+            </span>
             <strong className="contrato-summary-amount">
               {valores.costo_acordado && Number(valores.costo_acordado) > 0
                 ? formatDinero(valores.costo_acordado)

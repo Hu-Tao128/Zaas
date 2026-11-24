@@ -3,6 +3,7 @@ Servicio de autenticación con Firebase Admin SDK.
 Inicializa Firebase y provee funciones para verificar tokens y gestionar usuarios.
 """
 
+import json
 import os
 import firebase_admin
 from firebase_admin import auth
@@ -11,9 +12,12 @@ from firebase_admin import auth
 _firebase_initialized = False
 
 
-def init_firebase_app(key_path: str) -> bool:
+def init_firebase_app(key_path: str, credentials_json: str | None = None) -> bool:
     """
     Inicializa Firebase Admin SDK con la service account key.
+
+    Acepta el JSON de la service account directamente (útil en plataformas como
+    Coolify donde no conviene montar archivos) o la ruta a un archivo local.
     Retorna True si la inicialización fue exitosa.
     """
     global _firebase_initialized
@@ -21,11 +25,14 @@ def init_firebase_app(key_path: str) -> bool:
     if _firebase_initialized:
         return True
 
-    if not os.path.exists(key_path):
-        return False
-
     try:
-        cred = firebase_admin.credentials.Certificate(key_path)
+        if credentials_json:
+            cred = firebase_admin.credentials.Certificate(json.loads(credentials_json))
+        elif key_path and os.path.exists(key_path):
+            cred = firebase_admin.credentials.Certificate(key_path)
+        else:
+            return False
+
         firebase_admin.initialize_app(cred)
         _firebase_initialized = True
         return True
