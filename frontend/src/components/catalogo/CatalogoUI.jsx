@@ -151,3 +151,24 @@ export function AlertaError({ children }) {
   if (!children) return null;
   return <div className="alert alert-danger" role="alert">{children}</div>;
 }
+
+export function ChipSelector({ opciones, seleccionados, onToggle }) {
+  return (
+    <div className="chip-selector" role="group">
+      {opciones.map((item) => {
+        const activo = seleccionados.includes(item.id);
+        return (
+          <button
+            key={item.id}
+            type="button"
+            className={`chip ${activo ? 'chip-activo' : ''}`}
+            aria-pressed={activo}
+            onClick={() => onToggle(item.id)}
+          >
+            {item.nombre}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

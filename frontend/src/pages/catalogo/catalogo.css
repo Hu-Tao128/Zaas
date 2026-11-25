@@ -3473,3 +3473,25 @@
 .notificacion-card-link:hover {
   background-color: #fef2f2;
 }
+
+.chip-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  padding: 6px 14px;
+  border: 1px solid #ccc;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.chip:hover {
+  border-color: #888;
+}
+.chip-activo {
+  background: var(--zaas-primary);
+  border-color: var(--zaas-primary);
+  color: #fff;
+}

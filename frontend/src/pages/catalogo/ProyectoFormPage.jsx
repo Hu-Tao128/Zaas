@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCatalogo } from '../../context/CatalogoContext';
 import { useApi } from '../../hooks/useApi';
 import { catalogoApi } from '../../services/catalogoApi';
-import { AlertaError, Cargando, ErrorCard, FormField } from '../../components/catalogo/CatalogoUI';
+import { AlertaError, Cargando, ErrorCard, FormField, ChipSelector } from '../../components/catalogo/CatalogoUI';
 
 export default function ProyectoFormPage() {
   const { id } = useParams();
@@ -39,9 +39,16 @@ function ProyectoForm({ proyecto }) {
     setDatos((actuales) => ({ ...actuales, [name]: type === 'checkbox' ? checked : value }));
   }
 
-  function actualizarSeleccion(event) {
-    const valores = Array.from(event.target.selectedOptions, (option) => Number(option.value));
-    setDatos((actuales) => ({ ...actuales, [event.target.name]: valores }));
+  function alternarSeleccion(campo, id) {
+    setDatos((actuales) => {
+      const seleccionados = actuales[campo];
+      return {
+        ...actuales,
+        [campo]: seleccionados.includes(id)
+          ? seleccionados.filter((item) => item !== id)
+          : [...seleccionados, id],
+      };
+    });
   }
 
   function validar() {
@@ -107,21 +114,26 @@ function ProyectoForm({ proyecto }) {
           label="Categorías"
           name="categorias_ids"
           error={errores.categorias_ids}
-          hint={categorias.length ? 'Mantén Ctrl (o Cmd) para elegir varias.' : 'No hay categorías registradas.'}
+          hint={categorias.length ? 'Toca para seleccionar una o varias.' : 'No hay categorías registradas.'}
         >
-          <select id="categorias_ids" name="categorias_ids" multiple value={datos.categorias_ids} onChange={actualizarSeleccion}>
-            {categorias.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}
-          </select>
+          <ChipSelector
+            opciones={categorias}
+            seleccionados={datos.categorias_ids}
+            onToggle={(id) => alternarSeleccion('categorias_ids', id)}
+          />
         </FormField>
+
         <FormField
           label="Tecnologías"
           name="tecnologias_ids"
           error={errores.tecnologias_ids}
-          hint={tecnologias.length ? 'Mantén Ctrl (o Cmd) para elegir varias.' : 'No hay tecnologías registradas.'}
+          hint={tecnologias.length ? 'Toca para seleccionar una o varias.' : 'No hay tecnologías registradas.'}
         >
-          <select id="tecnologias_ids" name="tecnologias_ids" multiple value={datos.tecnologias_ids} onChange={actualizarSeleccion}>
-            {tecnologias.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}
-          </select>
+          <ChipSelector
+            opciones={tecnologias}
+            seleccionados={datos.tecnologias_ids}
+            onToggle={(id) => alternarSeleccion('tecnologias_ids', id)}
+          />
         </FormField>
         <div className="form-group catalogo-checkbox">
           <input id="demo_habilitada" name="demo_habilitada" type="checkbox" checked={datos.demo_habilitada} onChange={actualizarCampo} />
