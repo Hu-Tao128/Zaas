@@ -81,6 +81,9 @@ TARJETAS_PRUEBA = {
 }
 
 CODIGO_VERIFICACION_PRUEBA = "123456"
+# Prefijo fijo para transacciones de tarjeta que requieren código de verificación
+PREFIJO_TRANSACCION_VERIFICACION = "TX-VERIF-"
+MAX_INTENTOS_VERIFICACION = 3
 
 
 class ProveedorPagoSimulado:
@@ -104,14 +107,15 @@ class ProveedorPagoSimulado:
 
     def crear_cobro(self, monto, moneda, numero, vencimiento, cvc):
         self._validar_formato(numero, vencimiento, cvc)
-        transaccion_id = f"TX-{uuid.uuid4().hex[:12].upper()}"
         resultado = TARJETAS_PRUEBA[numero]
         marca = "Visa"
         ultimos4 = numero[-4:]
+        if resultado == "verificacion":
+            transaccion_id = f"{PREFIJO_TRANSACCION_VERIFICACION}{uuid.uuid4().hex[:10].upper()}"
+            return {"transaccion_id": transaccion_id, "marca": marca, "ultimos4": ultimos4, "resultado": "verificacion"}
+        transaccion_id = f"TX-{uuid.uuid4().hex[:12].upper()}"
         if resultado == "aprobada":
             return {"transaccion_id": transaccion_id, "marca": marca, "ultimos4": ultimos4, "resultado": "aprobada"}
-        if resultado == "verificacion":
-            return {"transaccion_id": transaccion_id, "marca": marca, "ultimos4": ultimos4, "resultado": "verificacion"}
         _, codigo, mensaje = resultado
         return {
             "transaccion_id": transaccion_id,
@@ -204,6 +208,34 @@ def _pago_expirado(pago, ahora=None):
         return False
     ahora = ahora or _ahora()
     return ahora >= (pago.fecha_pago + timedelta(minutes=_expiracion_minutos()))
+
+
+def requiere_verificacion(pago, ahora=None) -> bool:
+    """Determina si un pago requiere código de verificación.
+
+    Campo derivado en memoria (sin modificar esquema ni columnas):
+    - Debe estar en estado 'pendiente'.
+    - El identificador de transacción debe tener el prefijo de verificación.
+    - No debe haber expirado.
+    - No debe haber alcanzado el límite de intentos fallidos.
+    """
+    if not pago or pago.estado_escrow != "pendiente":
+        return False
+    if not (pago.transaccion_id or "").startswith(PREFIJO_TRANSACCION_VERIFICACION):
+        return False
+    if _pago_expirado(pago, ahora=ahora):
+        return False
+    if (pago.intentos_verificacion or 0) >= MAX_INTENTOS_VERIFICACION:
+        return False
+    return True
+
+
+def intentos_restantes_verificacion(pago) -> int:
+    """Calcula los intentos de verificación restantes para un pago."""
+    if not pago:
+        return 0
+    intentos = int(getattr(pago, "intentos_verificacion", 0) or 0)
+    return max(0, MAX_INTENTOS_VERIFICACION - intentos)
 
 
 # ---------------------------------------------------------------------------
@@ -547,7 +579,7 @@ def verificar_pago(pago, codigo):
         return pago
 
     pago.intentos_verificacion = int(pago.intentos_verificacion or 0) + 1
-    if pago.intentos_verificacion >= 3:
+    if pago.intentos_verificacion >= MAX_INTENTOS_VERIFICACION:
         _fallar_pago(pago, "verificacion_fallida", "La verificación del pago no fue exitosa.")
         db.session.commit()
         raise VerificacionInvalidaError("La verificación del pago no fue exitosa.")

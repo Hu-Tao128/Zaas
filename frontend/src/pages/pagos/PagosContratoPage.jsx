@@ -1,29 +1,26 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useCatalogo } from '../../context/CatalogoContext';
 import { pagosApi } from '../../services/pagosApi';
 import { contratosApi } from '../../services/contratosApi';
 import { formatFechaHora } from '../catalogo/catalogoUtils';
 import { Cargando, ErrorCard } from '../../components/catalogo/CatalogoUI';
-import { ESTADOS_PAGO_LABEL, formatMonto, mensajeError, parseMonto } from './pagosUtils';
+import { ESTADOS_PAGO_LABEL, centavosAMonto, formatMonto, mensajeError, montoACentavos, parseMonto } from './pagosUtils';
+import ModalPagos from './ModalPagos';
+import './pagos.css';
 
-function Modal({ titulo, abierto, onCerrar, children, ancho = 560 }) {
-  if (!abierto) return null;
-  return (
-    <div role="dialog" aria-modal="true" aria-label={titulo} style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
-      <button type="button" aria-label="Cerrar" onClick={onCerrar} style={{ position: 'absolute', inset: 0, background: 'rgba(15,23,42,.45)', border: 0 }} />
-      <div className="card" style={{ position: 'relative', maxWidth: ancho, margin: '6vh auto', padding: '1rem 1.25rem', maxHeight: '88vh', overflow: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '.75rem' }}>
-          <h2 className="contrato-form-title" style={{ margin: 0 }}>{titulo}</h2>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onCerrar}>Cerrar</button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
+const OPCION_SELECCIONA = '__selecciona__';
+
+function motivoFallo(pago) {
+  if (pago?.mensaje_fallo) return pago.mensaje_fallo;
+  if (pago?.codigo_fallo === 'tarjeta_rechazada') return 'El medio de pago fue rechazado.';
+  if (pago?.codigo_fallo === 'fondos_insuficientes') return 'El medio de pago no tiene fondos suficientes.';
+  if (pago?.codigo_fallo === 'verificacion_expirada') return 'El tiempo límite para verificar el pago expiró.';
+  if (pago?.codigo_fallo === 'intentos_agotados') return 'Se agotaron los intentos de verificación permitidos.';
+  return 'No se pudo completar el depósito.';
 }
 
-function CampoMonto({ id, label, value, onChange, placeholder = '0.00' }) {
+function CampoMonto({ id, label, value, onChange, onBlur, error = '', ayuda = null }) {
   return (
     <div className="form-group">
       <label htmlFor={id}>{label}</label>
@@ -31,13 +28,18 @@ function CampoMonto({ id, label, value, onChange, placeholder = '0.00' }) {
         id={id}
         type="text"
         inputMode="decimal"
-        placeholder={placeholder}
+        autoComplete="off"
         value={value}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${id}-error` : undefined}
         onChange={(e) => {
           const v = e.target.value;
           if (/^\d*\.?\d{0,2}$/.test(v)) onChange(v);
         }}
+        onBlur={onBlur}
       />
+      {ayuda}
+      {error && <p id={`${id}-error`} className="pagos-error-campo" role="alert">{error}</p>}
     </div>
   );
 }
@@ -56,14 +58,139 @@ export default function PagosContratoPage() {
   const [enviando, setEnviando] = useState(false);
 
   const [modalDeposito, setModalDeposito] = useState(false);
+  const [pasoDeposito, setPasoDeposito] = useState('formulario'); // 'formulario' | 'procesando' | 'verificacion' | 'resultado'
   const [formDeposito, setFormDeposito] = useState({ monto: '', numero: '', vencimiento: '', cvc: '' });
+  const [errorCampoDeposito, setErrorCampoDeposito] = useState('');
   const [pagoActual, setPagoActual] = useState(null);
   const [codigo, setCodigo] = useState('');
+  const [errorModal, setErrorModal] = useState('');
+  const intervaloRef = useRef(null);
 
   const [modalLiberar, setModalLiberar] = useState(null); // pago
-  const [formLiberar, setFormLiberar] = useState({ monto: '', id_entregable: '', motivo: '' });
+  const [pasoLiberar, setPasoLiberar] = useState('formulario'); // 'formulario' | 'revision'
+  const [confirmadoTodo, setConfirmadoTodo] = useState(false);
+  const [formLiberar, setFormLiberar] = useState({ monto: '', id_entregable: OPCION_SELECCIONA, motivo: '' });
+  const [errorCampoLiberar, setErrorCampoLiberar] = useState('');
+  const ejecutandoLiberacionRef = useRef(false);
+  const botonVolverRef = useRef(null);
 
   const [modalRecibo, setModalRecibo] = useState(null); // {pago, recibo}
+
+  useEffect(() => {
+    return () => {
+      if (intervaloRef.current) {
+        clearInterval(intervaloRef.current);
+        intervaloRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (pasoLiberar === 'revision' && botonVolverRef.current) {
+      botonVolverRef.current.focus();
+    }
+  }, [pasoLiberar]);
+
+  function abrirModalDeposito() {
+    if (intervaloRef.current) {
+      clearInterval(intervaloRef.current);
+      intervaloRef.current = null;
+    }
+    setErrorAccion('');
+    setErrorModal('');
+    setErrorCampoDeposito('');
+    setCodigo('');
+    setPagoActual(null);
+    setFormDeposito({ monto: '', numero: '', vencimiento: '', cvc: '' });
+    setPasoDeposito('formulario');
+    setModalDeposito(true);
+  }
+
+  function cerrarModalDeposito() {
+    if (intervaloRef.current) {
+      clearInterval(intervaloRef.current);
+      intervaloRef.current = null;
+    }
+    setModalDeposito(false);
+    setPasoDeposito('formulario');
+    setErrorModal('');
+    setErrorCampoDeposito('');
+    setCodigo('');
+    setFormDeposito({ monto: '', numero: '', vencimiento: '', cvc: '' });
+  }
+
+  function validarMontoDeposito(valor) {
+    const v = String(valor || '').trim();
+    if (!v) return 'El monto a depositar es obligatorio.';
+    if (!/^\d+(\.\d{1,2})?$/.test(v)) return 'El monto debe ser un número válido (hasta 2 decimales).';
+    const centavos = montoACentavos(v);
+    if (centavos <= 0) return 'El monto debe ser mayor a 0.';
+    const pendienteCentavos = montoACentavos(resumen?.por_depositar);
+    if (pendienteCentavos > 0 && centavos > pendienteCentavos) {
+      return `El monto supera lo que falta por depositar: ${formatMonto(resumen?.por_depositar, moneda)}.`;
+    }
+    return null;
+  }
+
+  function validarCampoDeposito(valor) {
+    setErrorCampoDeposito(validarMontoDeposito(valor) || '');
+  }
+
+  function abrirModalLiberar(pago) {
+    setErrorAccion('');
+    setErrorModal('');
+    setPasoLiberar('formulario');
+    setConfirmadoTodo(false);
+    setErrorCampoLiberar('');
+    setFormLiberar({ monto: '', id_entregable: OPCION_SELECCIONA, motivo: '' });
+    setModalLiberar(pago);
+  }
+
+  function cerrarModalLiberar() {
+    if (enviando) return;
+    setModalLiberar(null);
+    setPasoLiberar('formulario');
+    setConfirmadoTodo(false);
+    setErrorCampoLiberar('');
+    setFormLiberar({ monto: '', id_entregable: OPCION_SELECCIONA, motivo: '' });
+  }
+
+  function validarMontoLiberacion(valor, disponible) {
+    const v = String(valor || '').trim();
+    if (!v) return 'El monto a liberar es obligatorio.';
+    if (!/^\d+(\.\d{1,2})?$/.test(v)) return 'El monto debe ser un número válido (hasta 2 decimales).';
+    const centavos = montoACentavos(v);
+    if (centavos <= 0) return 'El monto debe ser mayor a 0.';
+    const dispCentavos = montoACentavos(disponible);
+    if (centavos > dispCentavos) {
+      return `El monto supera el disponible para liberar: ${formatMonto(disponible, modalLiberar?.moneda || moneda)}.`;
+    }
+    return null;
+  }
+
+  function validarCampoLiberar(valor) {
+    setErrorCampoLiberar(validarMontoLiberacion(valor, modalLiberar?.disponible) || '');
+  }
+
+  function abrirModalVerificacion(pago) {
+    if (intervaloRef.current) {
+      clearInterval(intervaloRef.current);
+      intervaloRef.current = null;
+    }
+    setErrorAccion('');
+    setErrorModal('');
+    setCodigo('');
+    setPagoActual(pago);
+    setPasoDeposito('verificacion');
+    setModalDeposito(true);
+  }
+
+  const tituloModalDeposito = useMemo(() => {
+    if (pasoDeposito === 'verificacion') return 'Verificación requerida';
+    if (pasoDeposito === 'procesando') return 'Procesando depósito';
+    if (pasoDeposito === 'resultado') return 'Resultado del depósito';
+    return 'Depositar fondos en garantía';
+  }, [pasoDeposito]);
 
   const esCliente = usuario?.tipo_usuario === 'cliente';
   const esDev = usuario?.tipo_usuario === 'desarrollador';
@@ -92,6 +219,32 @@ export default function PagosContratoPage() {
 
   useEffect(() => { cargar(); }, [id]);
 
+  // Refresca la lista cada 5 s mientras exista algún depósito pendiente (hasta 2 minutos)
+  useEffect(() => {
+    const tienePendientes = items.some((p) => p.estado_escrow === 'pendiente');
+    if (!tienePendientes) return undefined;
+
+    let transcurrido = 0;
+    const intervalId = setInterval(() => {
+      transcurrido += 5000;
+      cargar(true);
+      if (transcurrido >= 120000) {
+        clearInterval(intervalId);
+      }
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [items, id]);
+
+  const depositosValidos = useMemo(
+    () => items.filter((p) => p.estado_escrow !== 'fallido'),
+    [items],
+  );
+  const intentosNoCompletados = useMemo(
+    () => items.filter((p) => p.estado_escrow === 'fallido'),
+    [items],
+  );
+
   const entregablesAprobados = useMemo(
     () => (contrato?.entregables || []).filter((e) => e.estado === 'aprobado'),
     [contrato],
@@ -103,21 +256,9 @@ export default function PagosContratoPage() {
     return parseMonto(resumen.por_depositar) > 0;
   }, [esCliente, contrato, resumen]);
 
-  function validarMonto(valor, etiqueta = 'El monto') {
-    if (!valor || !String(valor).trim()) return `${etiqueta} es obligatorio.`;
-    if (!/^\d+(\.\d{1,2})?$/.test(String(valor).trim())) return `${etiqueta} debe ser un número válido (hasta 2 decimales).`;
-    if (Number(valor) <= 0) return `${etiqueta} debe ser mayor a 0.`;
-    return null;
-  }
-
-  function validarDeposito() {
-    const errMonto = validarMonto(formDeposito.monto, 'El monto a depositar');
-    if (errMonto) return errMonto;
-    if (resumen && Number(formDeposito.monto) > parseMonto(resumen.por_depositar) + 0.0001) {
-      return 'El monto supera el importe pendiente por depositar.';
-    }
+  function validarDatosPago() {
     const numero = formDeposito.numero.replace(/\s/g, '');
-    if (!/^\d{13,19}$/.test(numero)) return 'El número de tarjeta no es válido.';
+    if (!/^\d{13,19}$/.test(numero)) return 'Los datos del medio de pago no son válidos.';
     if (!/^\d{2}\/\d{2}$/.test(formDeposito.vencimiento)) return 'El vencimiento debe tener formato MM/AA.';
     if (!/^\d{3,4}$/.test(formDeposito.cvc)) return 'El código de seguridad no es válido.';
     return null;
@@ -125,11 +266,15 @@ export default function PagosContratoPage() {
 
   async function registrarDeposito(e) {
     e.preventDefault();
-    const err = validarDeposito();
-    if (err) { setErrorAccion(err); return; }
+    const errMonto = validarMontoDeposito(formDeposito.monto);
+    setErrorCampoDeposito(errMonto || '');
+    if (errMonto) return;
+    const err = validarDatosPago();
+    if (err) { setErrorModal(err); return; }
     setEnviando(true);
     setMensaje('');
     setErrorAccion('');
+    setErrorModal('');
     const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     try {
       const datos = await pagosApi.crear({
@@ -141,28 +286,47 @@ export default function PagosContratoPage() {
           cvc: formDeposito.cvc,
         },
       }, idempotencyKey);
-      setMensaje('Solicitud de depósito enviada. Esperando confirmación del procesamiento.');
-      setPagoActual(datos.pago);
+
+      const pagoCreado = datos.pago;
+      setPagoActual(pagoCreado);
       setFormDeposito({ monto: '', numero: '', vencimiento: '', cvc: '' });
-      setModalDeposito(false);
       await cargar(true);
-      let intentos = 0;
-      const intervalo = setInterval(async () => {
-        intentos += 1;
-        try {
-          const actualizado = await pagosApi.obtener(datos.pago.id);
-          setPagoActual(actualizado.pago);
-          if (actualizado.pago.estado_escrow !== 'pendiente' || intentos >= 15) {
-            clearInterval(intervalo);
-            await cargar(true);
+
+      if (pagoCreado?.requiere_verificacion) {
+        setPasoDeposito('verificacion');
+        setEnviando(false);
+      } else if (pagoCreado?.estado_escrow === 'pendiente') {
+        setPasoDeposito('procesando');
+        setEnviando(false);
+        let intentos = 0;
+        if (intervaloRef.current) clearInterval(intervaloRef.current);
+        intervaloRef.current = setInterval(async () => {
+          intentos += 1;
+          try {
+            const actualizado = await pagosApi.obtener(pagoCreado.id);
+            setPagoActual(actualizado.pago);
+            if (actualizado.pago.estado_escrow !== 'pendiente' || intentos >= 15) {
+              if (intervaloRef.current) {
+                clearInterval(intervaloRef.current);
+                intervaloRef.current = null;
+              }
+              setPasoDeposito('resultado');
+              await cargar(true);
+            }
+          } catch {
+            if (intervaloRef.current) {
+              clearInterval(intervaloRef.current);
+              intervaloRef.current = null;
+            }
+            setPasoDeposito('resultado');
           }
-        } catch {
-          clearInterval(intervalo);
-        }
-      }, 2000);
+        }, 1500);
+      } else {
+        setPasoDeposito('resultado');
+        setEnviando(false);
+      }
     } catch (err2) {
-      setErrorAccion(mensajeError(err2));
-    } finally {
+      setErrorModal(mensajeError(err2));
       setEnviando(false);
     }
   }
@@ -170,51 +334,76 @@ export default function PagosContratoPage() {
   async function verificar() {
     if (!pagoActual) return;
     setEnviando(true);
-    setErrorAccion('');
+    setErrorModal('');
     try {
       const datos = await pagosApi.verificar(pagoActual.id, codigo);
       setPagoActual(datos.pago);
       setMensaje('Pago verificado correctamente.');
       setCodigo('');
+      setPasoDeposito('resultado');
       await cargar(true);
     } catch (err) {
-      setErrorAccion(mensajeError(err));
+      setErrorModal(mensajeError(err));
+      try {
+        const actualizado = await pagosApi.obtener(pagoActual.id);
+        setPagoActual(actualizado.pago);
+        if (actualizado.pago.estado_escrow === 'fallido') {
+          setPasoDeposito('resultado');
+        }
+      } catch {
+        // noop
+      }
+      await cargar(true);
     } finally {
       setEnviando(false);
     }
   }
 
-  function abrirModalLiberar(pago) {
-    setErrorAccion('');
-    setFormLiberar({ monto: pago.disponible || '', id_entregable: '', motivo: '' });
-    setModalLiberar(pago);
+  function prepararRevisionLiberacion(e) {
+    e.preventDefault();
+    const err = validarMontoLiberacion(formLiberar.monto, modalLiberar?.disponible);
+    setErrorCampoLiberar(err || '');
+    if (err) return;
+    setConfirmadoTodo(false);
+    setPasoLiberar('revision');
   }
 
-  async function confirmarLiberacion(e) {
-    e.preventDefault();
-    if (!modalLiberar) return;
-    const errMonto = validarMonto(formLiberar.monto, 'El monto a liberar');
-    if (errMonto) { setErrorAccion(errMonto); return; }
-    if (Number(formLiberar.monto) > parseMonto(modalLiberar.disponible) + 0.0001) {
-      setErrorAccion('El monto a liberar supera el saldo disponible de este depósito.');
+  async function confirmarLiberacion() {
+    if (!modalLiberar || ejecutandoLiberacionRef.current || enviando) return;
+    const err = validarMontoLiberacion(formLiberar.monto, modalLiberar.disponible);
+    if (err) {
+      setErrorCampoLiberar(err);
+      setPasoLiberar('formulario');
       return;
     }
+    const centavos = montoACentavos(formLiberar.monto);
+    const disponibleCentavos = montoACentavos(modalLiberar.disponible);
+    if (centavos === disponibleCentavos && !confirmadoTodo) return;
+
+    ejecutandoLiberacionRef.current = true;
     setEnviando(true);
     setErrorAccion('');
     try {
       await pagosApi.crearLiberacion({
         id_pago: modalLiberar.id,
-        monto_liberado: Number(formLiberar.monto),
-        id_entregable: formLiberar.id_entregable ? Number(formLiberar.id_entregable) : undefined,
+        monto_liberado: centavosAMonto(centavos),
+        id_entregable: formLiberar.id_entregable && formLiberar.id_entregable !== OPCION_SELECCIONA
+          ? Number(formLiberar.id_entregable)
+          : undefined,
         motivo: formLiberar.motivo || undefined,
       });
       setMensaje('Liberación registrada correctamente.');
       setModalLiberar(null);
-      setFormLiberar({ monto: '', id_entregable: '', motivo: '' });
+      setPasoLiberar('formulario');
+      setConfirmadoTodo(false);
+      setErrorCampoLiberar('');
+      setFormLiberar({ monto: '', id_entregable: OPCION_SELECCIONA, motivo: '' });
       await cargar(true);
     } catch (err) {
-      setErrorAccion(mensajeError(err));
+      setErrorCampoLiberar(mensajeError(err));
+      setPasoLiberar('formulario');
     } finally {
+      ejecutandoLiberacionRef.current = false;
       setEnviando(false);
     }
   }
@@ -228,6 +417,12 @@ export default function PagosContratoPage() {
 
   const moneda = resumen?.moneda || 'MXN';
   const estadoContrato = contrato?.estado;
+
+  const disponibleLiberarCentavos = montoACentavos(modalLiberar?.disponible);
+  const montoLiberarCentavos = montoACentavos(formLiberar.monto);
+  const restanteLiberarCentavos = Math.max(0, disponibleLiberarCentavos - montoLiberarCentavos);
+  const esLiberacionTotal = disponibleLiberarCentavos > 0 && montoLiberarCentavos === disponibleLiberarCentavos;
+  const montoLiberarValido = Boolean(modalLiberar) && !validarMontoLiberacion(formLiberar.monto, modalLiberar.disponible);
 
   return (
     <div className="contratos-page">
@@ -253,14 +448,6 @@ export default function PagosContratoPage() {
 
       <div className="alert alert-warning" role="status">
         <strong>Modo demostración:</strong> no se realizan cargos reales.
-        <details style={{ marginTop: '0.5rem' }}>
-          <summary>Tarjetas de prueba admitidas</summary>
-          <ul style={{ margin: '0.5rem 0 0 1.25rem' }}>
-            <li><code>4242 4242 4242 4242</code> — Aprobada (simulación de depósito en garantía).</li>
-            <li><code>4000 0000 0000 0002</code> — Rechazada (simulación de pago no completado).</li>
-            <li><code>4000 0000 0000 3220</code> — Requiere verificación (código de prueba: <code>123456</code>).</li>
-          </ul>
-        </details>
       </div>
 
       {resumen && (
@@ -268,23 +455,33 @@ export default function PagosContratoPage() {
           <h2 className="contrato-section-title">Resumen de fondos</h2>
           <div className="contrato-escrow-breakdown" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' }}>
             <div><span>Costo acordado</span><strong>{formatMonto(resumen.costo_acordado, moneda)}</strong></div>
-            <div><span>Depositado</span><strong>{formatMonto(resumen.depositado, moneda)}</strong></div>
-            <div><span>En custodia</span><strong>{formatMonto(resumen.en_custodia, moneda)}</strong></div>
-            <div><span>Liberado</span><strong>{formatMonto(resumen.liberado, moneda)}</strong></div>
-            <div><span>Por depositar</span><strong>{formatMonto(resumen.por_depositar, moneda)}</strong></div>
+            <div><span>Depositado</span><strong className={parseMonto(resumen.depositado) <= 0 ? 'pagos-cifra-sin-fondos' : ''}>{formatMonto(resumen.depositado, moneda)}</strong></div>
+            <div><span>En custodia</span><strong className={parseMonto(resumen.en_custodia) <= 0 ? 'pagos-cifra-sin-fondos' : ''}>{formatMonto(resumen.en_custodia, moneda)}</strong></div>
+            <div><span>Liberado</span><strong className={parseMonto(resumen.liberado) <= 0 ? 'pagos-cifra-sin-fondos' : ''}>{formatMonto(resumen.liberado, moneda)}</strong></div>
+            <div><span>Por depositar</span><strong className={parseMonto(resumen.por_depositar) <= 0 ? 'pagos-cifra-sin-fondos' : ''}>{formatMonto(resumen.por_depositar, moneda)}</strong></div>
           </div>
           {esCliente && (
-            <div style={{ marginTop: '1rem', display: 'flex', gap: '.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="pagos-actions-group" style={{ marginTop: '1rem' }}>
               {puedeDepositar ? (
-                <button type="button" className="btn btn-primary" onClick={() => { setErrorAccion(''); setModalDeposito(true); }}>
+                <button type="button" className="btn btn-primary" onClick={abrirModalDeposito}>
                   Depositar fondos
                 </button>
+              ) : estadoContrato === 'borrador' ? (
+                <p className="contrato-accion-nota" style={{ margin: 0 }}>
+                  El contrato está en borrador; debe formalizarse y ser aceptado antes de poder realizar depósitos en garantía.
+                </p>
               ) : estadoContrato === 'pendiente' ? (
-                <p className="contrato-accion-nota" style={{ margin: 0 }}>Falta la firma del desarrollador para poder depositar.</p>
+                <p className="contrato-accion-nota" style={{ margin: 0 }}>
+                  Falta la firma del desarrollador para poder depositar.
+                </p>
               ) : parseMonto(resumen.por_depositar) <= 0 ? (
-                <p className="contrato-accion-nota" style={{ margin: 0 }}>No hay monto pendiente por depositar.</p>
+                <p className="contrato-accion-nota" style={{ margin: 0 }}>
+                  No hay monto pendiente por depositar.
+                </p>
               ) : !['aceptado', 'en_progreso', 'entregado'].includes(estadoContrato || '') ? (
-                <p className="contrato-accion-nota" style={{ margin: 0 }}>Los depósitos no están disponibles en el estado actual del contrato.</p>
+                <p className="contrato-accion-nota" style={{ margin: 0 }}>
+                  Los depósitos no están disponibles en el estado actual del contrato.
+                </p>
               ) : null}
             </div>
           )}
@@ -301,23 +498,9 @@ export default function PagosContratoPage() {
         </section>
       )}
 
-      {pagoActual && pagoActual.estado_escrow === 'pendiente' && (
-        <section className="card contrato-section" aria-label="Verificación de pago">
-          <h2 className="contrato-section-title">Verificación requerida</h2>
-          <p className="catalogo-muted">Ingresa el código de verificación para confirmar el depósito en garantía.</p>
-          <div className="form-group" style={{ maxWidth: 320 }}>
-            <label htmlFor="codigo-verificacion">Código de verificación</label>
-            <input id="codigo-verificacion" type="text" value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="Código" autoComplete="one-time-code" />
-          </div>
-          <button type="button" className="btn btn-primary btn-sm" disabled={enviando || !codigo.trim()} onClick={verificar}>
-            {enviando ? 'Verificando...' : 'Verificar depósito'}
-          </button>
-        </section>
-      )}
-
       <section aria-label="Depósitos y liberaciones" style={{ marginTop: '1rem' }}>
         <h2 className="contrato-section-title">Depósitos</h2>
-        {items.length === 0 ? (
+        {depositosValidos.length === 0 ? (
           <div className="card contrato-empty">
             <h3 className="contrato-empty-title">Sin depósitos registrados</h3>
             <p className="contrato-empty-text">
@@ -326,7 +509,7 @@ export default function PagosContratoPage() {
           </div>
         ) : (
           <div className="contratos-grid">
-            {items.map((pago, idx) => {
+            {depositosValidos.map((pago, idx) => {
               const disponible = parseMonto(pago.disponible);
               const liberadoPago = parseMonto(pago.liberado);
               const puedeLiberarPago = esCliente && pago.estado_escrow === 'retenido' && disponible > 0;
@@ -340,16 +523,14 @@ export default function PagosContratoPage() {
                   </div>
                   <h3 className="contrato-card-title">{formatMonto(pago.monto, pago.moneda || moneda)}</h3>
                   <div className="contrato-card-meta" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '.25rem' }}>
-                    <span>Disponible: <strong>{formatMonto(pago.disponible, pago.moneda || moneda)}</strong></span>
-                    <span>Liberado: {formatMonto(pago.liberado, pago.moneda || moneda)}</span>
+                    <span className={disponible <= 0 ? 'pagos-cifra-sin-fondos' : ''}>
+                      Disponible: <strong>{formatMonto(pago.disponible, pago.moneda || moneda)}</strong>
+                    </span>
+                    <span className={liberadoPago <= 0 ? 'pagos-cifra-sin-fondos' : ''}>
+                      Liberado: {formatMonto(pago.liberado, pago.moneda || moneda)}
+                    </span>
                     <span>Fecha: {formatFechaHora(pago.fecha_pago)}</span>
                   </div>
-                  {pago.estado_escrow === 'fallido' && pago.mensaje_fallo && (
-                    <p className="contrato-card-party"><strong>Motivo:</strong> {pago.mensaje_fallo}</p>
-                  )}
-                  {pago.estado_escrow === 'fallido' && !pago.mensaje_fallo && pago.codigo_fallo && (
-                    <p className="contrato-card-party"><strong>Motivo:</strong> No se pudo completar el depósito.</p>
-                  )}
 
                   {(pago.liberaciones || []).length > 0 && (
                     <div style={{ marginTop: '.5rem' }}>
@@ -364,7 +545,7 @@ export default function PagosContratoPage() {
                     </div>
                   )}
 
-                  <div className="catalogo-actions-group" style={{ marginTop: '.75rem', flexWrap: 'wrap' }}>
+                  <div className="pagos-actions-group" style={{ marginTop: '.75rem' }}>
                     {pago.recibo && (
                       <button type="button" className="btn btn-secondary btn-sm" onClick={() => setModalRecibo({ pago, recibo: pago.recibo })}>
                         Ver recibo
@@ -375,8 +556,13 @@ export default function PagosContratoPage() {
                         Liberar fondos
                       </button>
                     )}
+                    {esCliente && pago.requiere_verificacion && (
+                      <button type="button" className="btn btn-warning btn-sm" onClick={() => abrirModalVerificacion(pago)}>
+                        Completar verificación
+                      </button>
+                    )}
                     {esCliente && pago.estado_escrow === 'retenido' && disponible <= 0 && (
-                      <span className="catalogo-muted" style={{ fontSize: '.85rem' }}>Sin saldo disponible para liberar.</span>
+                      <span className="pagos-cifra-sin-fondos" style={{ fontSize: '.85rem' }}>Sin saldo disponible para liberar.</span>
                     )}
                   </div>
                 </article>
@@ -384,47 +570,220 @@ export default function PagosContratoPage() {
             })}
           </div>
         )}
+
+        {intentosNoCompletados.length > 0 && (
+          <details className="card" style={{ marginTop: '1.25rem', padding: '1rem' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
+              Intentos no completados ({intentosNoCompletados.length})
+            </summary>
+            <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {intentosNoCompletados.map((intento, idx) => (
+                <div
+                  key={intento.id || idx}
+                  style={{
+                    padding: '0.75rem',
+                    border: '1px solid var(--zaas-border, #e2e8f0)',
+                    borderRadius: '6px',
+                    backgroundColor: '#f8fafc',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <strong>{formatMonto(intento.monto, intento.moneda || moneda)}</strong>
+                    <span className="contrato-badge contrato-badge--neutral">No completado</span>
+                  </div>
+                  <p style={{ margin: '0.35rem 0 0', fontSize: '0.9rem', color: 'var(--zaas-text-muted, #64748b)' }}>
+                    Fecha: {formatFechaHora(intento.fecha_pago || intento.created_at)}
+                  </p>
+                  <p style={{ margin: '0.35rem 0 0', fontSize: '0.9rem' }}>
+                    <strong>Motivo:</strong> {motivoFallo(intento)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
       </section>
 
-      <Modal titulo="Depositar fondos en garantía" abierto={modalDeposito} onCerrar={() => !enviando && setModalDeposito(false)}>
-        <p className="catalogo-muted" style={{ marginTop: 0 }}>
-          Ingresa el monto y los datos de la tarjeta de prueba. No se realiza ningún cargo real y no se almacenan datos sensibles del medio de pago.
-        </p>
-        <form onSubmit={registrarDeposito}>
-          <CampoMonto id="dep-monto" label="Monto a depositar" value={formDeposito.monto} onChange={(v) => setFormDeposito({ ...formDeposito, monto: v })} />
-          {resumen && <p className="form-hint">Monto pendiente por depositar: {formatMonto(resumen.por_depositar, moneda)}</p>}
-          <div className="form-group">
-            <label htmlFor="dep-numero">Número de tarjeta</label>
-            <input id="dep-numero" type="text" inputMode="numeric" autoComplete="off" value={formDeposito.numero} onChange={(e) => setFormDeposito({ ...formDeposito, numero: e.target.value })} placeholder="Número de tarjeta" />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem' }}>
-            <div className="form-group">
-              <label htmlFor="dep-venc">Vencimiento (MM/AA)</label>
-              <input id="dep-venc" type="text" autoComplete="off" value={formDeposito.vencimiento} onChange={(e) => setFormDeposito({ ...formDeposito, vencimiento: e.target.value })} placeholder="MM/AA" />
-            </div>
-            <div className="form-group">
-              <label htmlFor="dep-cvc">Código de seguridad</label>
-              <input id="dep-cvc" type="text" inputMode="numeric" autoComplete="off" value={formDeposito.cvc} onChange={(e) => setFormDeposito({ ...formDeposito, cvc: e.target.value })} placeholder="CVC" />
-            </div>
-          </div>
-          <div className="catalogo-actions-group" style={{ marginTop: '.5rem' }}>
-            <button type="submit" className="btn btn-primary" disabled={enviando}>{enviando ? 'Procesando...' : 'Depositar en garantía'}</button>
-            <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => setModalDeposito(false)}>Cancelar</button>
-          </div>
-        </form>
-      </Modal>
-
-      <Modal titulo="Liberar fondos" abierto={Boolean(modalLiberar)} onCerrar={() => !enviando && setModalLiberar(null)}>
-        {modalLiberar && (
-          <form onSubmit={confirmarLiberacion}>
+      <ModalPagos
+        titulo={tituloModalDeposito}
+        abierto={modalDeposito}
+        onCerrar={cerrarModalDeposito}
+        procesando={enviando || pasoDeposito === 'procesando'}
+        cerrarEnFondo={false}
+      >
+        {pasoDeposito === 'formulario' && (
+          <>
             <p className="catalogo-muted" style={{ marginTop: 0 }}>
-              Saldo disponible de este depósito: <strong>{formatMonto(modalLiberar.disponible, modalLiberar.moneda || moneda)}</strong>
+              Ingresa el monto y los datos del medio de pago. No se almacenan datos sensibles.
             </p>
-            <CampoMonto id="lib-monto" label="Monto a liberar" value={formLiberar.monto} onChange={(v) => setFormLiberar({ ...formLiberar, monto: v })} />
+            {errorModal && <div className="alert alert-danger" role="alert" style={{ marginBottom: '1rem' }}>{errorModal}</div>}
+            <form onSubmit={registrarDeposito}>
+              <CampoMonto
+                id="dep-monto"
+                label="Monto a depositar"
+                value={formDeposito.monto}
+                error={errorCampoDeposito}
+                ayuda={resumen && <p className="form-hint">Por depositar: {formatMonto(resumen.por_depositar, moneda)}</p>}
+                onChange={(v) => {
+                  setFormDeposito({ ...formDeposito, monto: v });
+                  setErrorCampoDeposito(validarMontoDeposito(v) || '');
+                }}
+                onBlur={() => validarCampoDeposito(formDeposito.monto)}
+              />
+              <div className="form-group">
+                <label htmlFor="dep-numero">Número de tarjeta</label>
+                <input id="dep-numero" type="text" inputMode="numeric" autoComplete="off" value={formDeposito.numero} onChange={(e) => setFormDeposito({ ...formDeposito, numero: e.target.value })} placeholder="Número de tarjeta" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem' }}>
+                <div className="form-group">
+                  <label htmlFor="dep-venc">Vencimiento (MM/AA)</label>
+                  <input id="dep-venc" type="text" autoComplete="off" value={formDeposito.vencimiento} onChange={(e) => setFormDeposito({ ...formDeposito, vencimiento: e.target.value })} placeholder="MM/AA" />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="dep-cvc">Código de seguridad</label>
+                  <input id="dep-cvc" type="text" inputMode="numeric" autoComplete="off" value={formDeposito.cvc} onChange={(e) => setFormDeposito({ ...formDeposito, cvc: e.target.value })} placeholder="CVC" />
+                </div>
+              </div>
+              <div className="pagos-modal-footer">
+                <button type="button" className="btn btn-secondary" disabled={enviando} onClick={cerrarModalDeposito}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={enviando}>
+                  {enviando ? 'Procesando...' : 'Depositar en garantía'}
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+
+        {pasoDeposito === 'procesando' && (
+          <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+            <h3 style={{ marginTop: 0 }}>Procesando…</h3>
+            <p className="catalogo-muted">
+              Estamos procesando tu depósito en garantía. Por favor, espera un momento.
+            </p>
+            <div className="zaas-spinner" style={{ margin: '1.5rem auto' }} aria-hidden="true" />
+          </div>
+        )}
+
+        {pasoDeposito === 'verificacion' && (
+          <div>
+            <p className="catalogo-muted" style={{ marginTop: 0 }}>
+              Esta verificación es requerida por el emisor de tu tarjeta para validar la autenticidad de la transacción antes de retener los fondos en garantía.
+            </p>
+            <div className="alert alert-info" style={{ marginBottom: '1rem' }}>
+              <div>Código de prueba: <strong>123456</strong></div>
+              <div style={{ marginTop: '.25rem' }}>
+                Intentos restantes: <strong>{pagoActual?.intentos_restantes ?? 3}</strong>
+              </div>
+            </div>
+            {errorModal && <div className="alert alert-danger" role="alert" style={{ marginBottom: '1rem' }}>{errorModal}</div>}
+            <form onSubmit={(e) => { e.preventDefault(); verificar(); }}>
+              <div className="form-group" style={{ maxWidth: 320 }}>
+                <label htmlFor="codigo-verificacion">Código de verificación</label>
+                <input
+                  id="codigo-verificacion"
+                  type="text"
+                  value={codigo}
+                  onChange={(e) => setCodigo(e.target.value)}
+                  placeholder="123456"
+                  autoComplete="one-time-code"
+                  disabled={enviando}
+                />
+              </div>
+              <div className="pagos-modal-footer">
+                <button type="button" className="btn btn-secondary" disabled={enviando} onClick={cerrarModalDeposito}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={enviando || !codigo.trim()}>
+                  {enviando ? 'Verificando...' : 'Verificar depósito'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {pasoDeposito === 'resultado' && (
+          <div>
+            {pagoActual?.estado_escrow === 'retenido' ? (
+              <>
+                <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
+                  <strong>¡Depósito exitoso!</strong> Los fondos por {formatMonto(pagoActual?.monto, pagoActual?.moneda || moneda)} han sido retenidos en garantía de forma segura.
+                </div>
+                <p className="catalogo-muted">
+                  Los fondos permanecerán en custodia hasta que autorices su liberación tras recibir los entregables pactados.
+                </p>
+                <div className="pagos-modal-footer">
+                  {pagoActual?.recibo && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        const r = pagoActual.recibo;
+                        const p = pagoActual;
+                        cerrarModalDeposito();
+                        setModalRecibo({ pago: p, recibo: r });
+                      }}
+                    >
+                      Ver recibo
+                    </button>
+                  )}
+                  <button type="button" className="btn btn-primary" onClick={cerrarModalDeposito}>
+                    Aceptar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>
+                  <strong>No se pudo completar el depósito.</strong>
+                  <div style={{ marginTop: '.25rem' }}>
+                    {pagoActual?.mensaje_fallo || 'La transacción no pudo ser autorizada.'}
+                  </div>
+                </div>
+                <div className="pagos-modal-footer">
+                  <button type="button" className="btn btn-primary" onClick={cerrarModalDeposito}>
+                    Entendido
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </ModalPagos>
+
+      <ModalPagos
+        titulo="Liberar fondos"
+        abierto={Boolean(modalLiberar)}
+        onCerrar={cerrarModalLiberar}
+        procesando={enviando}
+        cerrarEnFondo={false}
+      >
+        {modalLiberar && pasoLiberar === 'formulario' && (
+          <form onSubmit={prepararRevisionLiberacion}>
+            <CampoMonto
+              id="lib-monto"
+              label="Monto a liberar"
+              value={formLiberar.monto}
+              error={errorCampoLiberar}
+              ayuda={<p className="form-hint">Disponible para liberar: {formatMonto(modalLiberar.disponible, modalLiberar.moneda || moneda)}</p>}
+              onChange={(v) => {
+                setFormLiberar({ ...formLiberar, monto: v });
+                setErrorCampoLiberar(validarMontoLiberacion(v, modalLiberar.disponible) || '');
+              }}
+              onBlur={() => validarCampoLiberar(formLiberar.monto)}
+            />
             <div className="form-group">
               <label htmlFor="lib-entregable">Entregable asociado (opcional)</label>
-              <select id="lib-entregable" value={formLiberar.id_entregable} onChange={(e) => setFormLiberar({ ...formLiberar, id_entregable: e.target.value })}>
-                <option value="">Sin entregable específico</option>
+              <select
+                id="lib-entregable"
+                value={entregablesAprobados.length ? formLiberar.id_entregable : ''}
+                onChange={(e) => setFormLiberar({ ...formLiberar, id_entregable: e.target.value })}
+              >
+                {entregablesAprobados.length > 0 && (
+                  <option value={OPCION_SELECCIONA} disabled>Selecciona un entregable</option>
+                )}
+                <option value="">Sin entregable asociado</option>
                 {entregablesAprobados.map((e) => (
                   <option key={e.id} value={e.id}>{e.titulo || 'Entregable aprobado'}</option>
                 ))}
@@ -434,15 +793,65 @@ export default function PagosContratoPage() {
               <label htmlFor="lib-motivo">Motivo (opcional)</label>
               <input id="lib-motivo" type="text" value={formLiberar.motivo} onChange={(e) => setFormLiberar({ ...formLiberar, motivo: e.target.value })} placeholder="Ej. Entregable aprobado" />
             </div>
-            <div className="catalogo-actions-group" style={{ marginTop: '.5rem' }}>
-              <button type="submit" className="btn btn-primary" disabled={enviando}>{enviando ? 'Liberando...' : 'Confirmar liberación'}</button>
-              <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => setModalLiberar(null)}>Cancelar</button>
+            <div className="pagos-modal-footer">
+              <button type="button" className="btn btn-secondary" disabled={enviando} onClick={cerrarModalLiberar}>Cancelar</button>
+              <button type="submit" className="btn btn-primary" disabled={enviando || !montoLiberarValido}>Revisar liberación</button>
             </div>
           </form>
         )}
-      </Modal>
 
-      <Modal titulo="Recibo de depósito" abierto={Boolean(modalRecibo)} onCerrar={() => setModalRecibo(null)} ancho={640}>
+        {modalLiberar && pasoLiberar === 'revision' && (
+          <div>
+            <p style={{ marginTop: 0, fontWeight: 600 }}>
+              Liberarás {formatMonto(centavosAMonto(montoLiberarCentavos), modalLiberar.moneda || moneda)} al desarrollador.{' '}
+              Quedarán en custodia {formatMonto(centavosAMonto(restanteLiberarCentavos), modalLiberar.moneda || moneda)}.
+            </p>
+            {esLiberacionTotal && (
+              <div className="alert alert-warning pagos-aviso-total" role="alert">
+                <strong>Vas a liberar TODO el saldo en custodia.</strong>
+              </div>
+            )}
+            <p className="catalogo-muted">Esta acción no se puede deshacer.</p>
+            {esLiberacionTotal && (
+              <label className="pagos-check-confirmar">
+                <input
+                  type="checkbox"
+                  checked={confirmadoTodo}
+                  onChange={(e) => setConfirmadoTodo(e.target.checked)}
+                />
+                Confirmo que quiero liberar todo el saldo
+              </label>
+            )}
+            <div className="pagos-modal-footer">
+              <button
+                ref={botonVolverRef}
+                type="button"
+                className="btn btn-secondary"
+                disabled={enviando}
+                onClick={() => setPasoLiberar('formulario')}
+              >
+                Volver
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={enviando || (esLiberacionTotal && !confirmadoTodo)}
+                onClick={confirmarLiberacion}
+              >
+                {enviando ? 'Confirmando...' : 'Confirmar liberación'}
+              </button>
+            </div>
+          </div>
+        )}
+      </ModalPagos>
+
+      <ModalPagos
+        titulo="Recibo de depósito"
+        abierto={Boolean(modalRecibo)}
+        onCerrar={() => setModalRecibo(null)}
+        cerrarEnFondo={true}
+        ancho={640}
+      >
         {modalRecibo && (
           <div>
             <dl style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '.4rem .75rem', margin: 0 }}>
@@ -467,7 +876,7 @@ export default function PagosContratoPage() {
             )}
           </div>
         )}
-      </Modal>
+      </ModalPagos>
     </div>
   );
 }

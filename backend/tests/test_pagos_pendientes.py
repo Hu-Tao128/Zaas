@@ -461,3 +461,149 @@ class HeredadoLiberarComportamientoTests(BasePagos):
         # al menos un pago debe seguir retenido con custodia
         retenidos = [p for p in contrato.pagos if p.estado_escrow == 'retenido']
         self.assertTrue(len(retenidos) >= 1)
+
+
+class VerificacionTarjetaTests(BasePagos):
+    def test_tarjeta_aprobada_nunca_requiere_verificacion(self):
+        # Durante la espera y al consultarla varias veces, nunca devuelve requiere_verificacion
+        os.environ["PAGOS_CONFIRM_DELAY"] = "10"
+        os.environ["PAGOS_CONFIRMACION_INMEDIATA"] = "0"
+        p = services.registrar_pago(
+            self.contrato, self.cliente, monto=50.0,
+            tarjeta={"numero": "4242424242424242", "vencimiento": "12/30", "cvc": "123"},
+            idempotency_key="taprob1"
+        )
+        db.session.commit()
+        db.session.refresh(p)
+        self.assertEqual(p.estado_escrow, "pendiente")
+        self.assertFalse(p.transaccion_id.startswith(services.PREFIJO_TRANSACCION_VERIFICACION))
+        self.assertFalse(services.requiere_verificacion(p))
+
+        c = self.login(self.cliente)
+        # Consultar varias veces durante la espera
+        for _ in range(5):
+            r = c.get(f"/pagos/api/{p.id}")
+            self.assertEqual(r.status_code, 200)
+            data = r.get_json()
+            self.assertFalse(data["pago"]["requiere_verificacion"])
+            self.assertEqual(data["pago"]["estado_escrow"], "pendiente")
+
+        # Consultar en lista de pagos del contrato
+        r_list = c.get(f"/pagos/api/contrato/{self.contrato.id}")
+        self.assertEqual(r_list.status_code, 200)
+        items = r_list.get_json().get("items", [])
+        pago_item = next((item for item in items if item["id"] == p.id), None)
+        self.assertIsNotNone(pago_item)
+        self.assertFalse(pago_item["requiere_verificacion"])
+
+        # Una vez retenido/confirmado sigue sin requerir verificacion
+        services._confirmar_como_retenido(p)
+        db.session.commit()
+        r_conf = c.get(f"/pagos/api/{p.id}")
+        self.assertEqual(r_conf.status_code, 200)
+        self.assertFalse(r_conf.get_json()["pago"]["requiere_verificacion"])
+
+    def test_tarjeta_verificacion_devuelve_requiere_verificacion_y_prefijo(self):
+        p = services.registrar_pago(
+            self.contrato, self.cliente, monto=60.0,
+            tarjeta={"numero": "4000000000003220", "vencimiento": "12/30", "cvc": "123"},
+            idempotency_key="tverif1"
+        )
+        db.session.commit()
+        db.session.refresh(p)
+        self.assertEqual(p.estado_escrow, "pendiente")
+        self.assertTrue(p.transaccion_id.startswith(services.PREFIJO_TRANSACCION_VERIFICACION))
+        self.assertTrue(services.requiere_verificacion(p))
+        self.assertEqual(services.intentos_restantes_verificacion(p), 3)
+
+        c = self.login(self.cliente)
+        r = c.get(f"/pagos/api/{p.id}")
+        self.assertEqual(r.status_code, 200)
+        pago_data = r.get_json()["pago"]
+        self.assertTrue(pago_data["requiere_verificacion"])
+        self.assertEqual(pago_data["intentos_restantes"], 3)
+        self.assertTrue(pago_data["transaccion_id"].startswith(services.PREFIJO_TRANSACCION_VERIFICACION))
+
+    def test_tarjeta_verificacion_se_apaga_al_verificar(self):
+        p = services.registrar_pago(
+            self.contrato, self.cliente, monto=70.0,
+            tarjeta={"numero": "4000000000003220", "vencimiento": "12/30", "cvc": "123"},
+            idempotency_key="tverif_ok"
+        )
+        db.session.commit()
+        c = self.login(self.cliente)
+
+        r_verif = c.post(f"/pagos/api/pagos/{p.id}/verificar", json={"codigo": "123456"})
+        self.assertEqual(r_verif.status_code, 200, r_verif.get_data(as_text=True))
+        data = r_verif.get_json()
+        self.assertTrue(data["ok"])
+        self.assertEqual(data["pago"]["estado_escrow"], "retenido")
+        self.assertFalse(data["pago"]["requiere_verificacion"])
+
+        # Al consultarlo posteriormente
+        r_get = c.get(f"/pagos/api/{p.id}")
+        self.assertFalse(r_get.get_json()["pago"]["requiere_verificacion"])
+
+    def test_tarjeta_verificacion_se_apaga_al_fallar_intentos(self):
+        p = services.registrar_pago(
+            self.contrato, self.cliente, monto=80.0,
+            tarjeta={"numero": "4000000000003220", "vencimiento": "12/30", "cvc": "123"},
+            idempotency_key="tverif_fail"
+        )
+        db.session.commit()
+        c = self.login(self.cliente)
+
+        # Intento 1
+        r1 = c.post(f"/pagos/api/pagos/{p.id}/verificar", json={"codigo": "000000"})
+        self.assertEqual(r1.status_code, 400)
+        data1 = r1.get_json()
+        self.assertEqual(data1["intentos_restantes"], 2)
+        self.assertTrue(data1["pago"]["requiere_verificacion"])
+
+        # Intento 2
+        r2 = c.post(f"/pagos/api/pagos/{p.id}/verificar", json={"codigo": "000000"})
+        self.assertEqual(r2.status_code, 400)
+        data2 = r2.get_json()
+        self.assertEqual(data2["intentos_restantes"], 1)
+        self.assertTrue(data2["pago"]["requiere_verificacion"])
+
+        # Intento 3: se agotan intentos y el pago pasa a fallido
+        r3 = c.post(f"/pagos/api/pagos/{p.id}/verificar", json={"codigo": "000000"})
+        self.assertEqual(r3.status_code, 400)
+        data3 = r3.get_json()
+        self.assertEqual(data3["intentos_restantes"], 0)
+        self.assertEqual(data3["pago"]["estado_escrow"], "fallido")
+        self.assertEqual(data3["pago"]["codigo_fallo"], "verificacion_fallida")
+        self.assertFalse(data3["pago"]["requiere_verificacion"])
+
+        # Consultar el pago: requiere_verificacion está apagado
+        r_get = c.get(f"/pagos/api/{p.id}")
+        self.assertFalse(r_get.get_json()["pago"]["requiere_verificacion"])
+
+    def test_tarjeta_verificacion_se_apaga_al_expirar(self):
+        p = services.registrar_pago(
+            self.contrato, self.cliente, monto=90.0,
+            tarjeta={"numero": "4000000000003220", "vencimiento": "12/30", "cvc": "123"},
+            idempotency_key="tverif_exp"
+        )
+        db.session.commit()
+        c = self.login(self.cliente)
+
+        # Verificar que inicialmente requiere verificación
+        r1 = c.get(f"/pagos/api/{p.id}")
+        self.assertTrue(r1.get_json()["pago"]["requiere_verificacion"])
+
+        # Simular expiración
+        p.fecha_pago = datetime.utcnow() - timedelta(minutes=services._expiracion_minutos() + 2)
+        db.session.commit()
+
+        # En memoria ya no requiere verificación porque expiró
+        self.assertFalse(services.requiere_verificacion(p))
+
+        # Al consultarlo, la API lo normaliza a fallido/expirado y no requiere verificación
+        r2 = c.get(f"/pagos/api/{p.id}")
+        self.assertEqual(r2.status_code, 200)
+        data2 = r2.get_json()["pago"]
+        self.assertEqual(data2["estado_escrow"], "fallido")
+        self.assertEqual(data2["codigo_fallo"], "expirado")
+        self.assertFalse(data2["requiere_verificacion"])

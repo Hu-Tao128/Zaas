@@ -16,7 +16,7 @@ from sqlalchemy import or_
 from app.contratos.models import Contrato, Entregable
 from app.extensions import db
 from app.pagos import services
-from app.pagos.errors import PagoError, PagoPermisoError, PagoValidacionError
+from app.pagos.errors import PagoError, PagoPermisoError, PagoValidacionError, VerificacionInvalidaError
 from app.pagos.models import Arbitraje, Disputa, Liberacion, Pago, Recibo
 
 
@@ -313,6 +313,8 @@ def _pago(item):
         "disponible": _money_str(disponible),
         "recibo": _recibo(recibo),
         "liberaciones": [_liberacion(x) for x in (item.liberaciones or [])],
+        "requiere_verificacion": services.requiere_verificacion(item),
+        "intentos_restantes": services.intentos_restantes_verificacion(item),
     }
 
 
@@ -383,6 +385,18 @@ def verificar_pago(id):
         services.verificar_pago(pago, datos.get("codigo"))
         db.session.refresh(pago)
         return _ok("Pago verificado correctamente.", pago=_pago(pago))
+    except VerificacionInvalidaError as exc:
+        pago = db.session.get(Pago, id)
+        intentos = services.intentos_restantes_verificacion(pago) if pago else 0
+        pago_dict = _pago(pago) if pago else None
+        return jsonify({
+            "ok": False,
+            "mensaje": exc.mensaje,
+            "errores": getattr(exc, "errores", {}),
+            "codigo": getattr(exc, "codigo", "verificacion_invalida"),
+            "intentos_restantes": intentos,
+            "pago": pago_dict,
+        }), exc.status_code
     except Exception as exc:
         db.session.rollback()
         return _error_desde_exc(exc)

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import ConfirmDialog from '../../components/ConfirmDialog';
 import { useCatalogo } from '../../context/CatalogoContext';
 import { useApi } from '../../hooks/useApi';
 import { catalogoApi } from '../../services/catalogoApi';
@@ -28,6 +29,7 @@ export default function DetalleOfertaPage() {
   const location = useLocation();
   const { data, loading, error } = useApi(() => catalogoApi.oferta(id), [id]);
   const [errorAccion, setErrorAccion] = useState('');
+  const [confirmarCerrar, setConfirmarCerrar] = useState(false);
 
   if (loading) return <Cargando />;
   if (error) return <ErrorCard error={error} volverA="/ofertas" volverTexto="Volver a las ofertas" />;
@@ -37,11 +39,12 @@ export default function DetalleOfertaPage() {
   const esDesarrollador = usuario.tipo_usuario === 'desarrollador';
   const requerimientos = extraerRequerimientos(oferta.descripcion_requerimientos);
 
-  async function handleCerrar() {
-    const confirmacion = oferta.estado === 'en_progreso'
-      ? '¿Cerrar esta oferta en progreso? Solo es posible si no tiene un contrato activo.'
-      : '¿Cerrar esta oferta? Dejará de aparecer en el listado público y no recibirá más postulaciones.';
-    if (!window.confirm(confirmacion)) return;
+  function handleCerrar() {
+    setConfirmarCerrar(true);
+  }
+
+  async function ejecutarCerrar() {
+    setConfirmarCerrar(false);
     setErrorAccion('');
     try {
       const respuesta = await catalogoApi.cerrarOferta(oferta.id);
@@ -273,6 +276,17 @@ export default function DetalleOfertaPage() {
           )}
         </section>
       )}
+
+      <ConfirmDialog
+        abierto={confirmarCerrar}
+        titulo="Cerrar oferta"
+        mensaje={oferta?.estado === 'en_progreso'
+          ? '¿Cerrar esta oferta en progreso? Solo es posible si no tiene un contrato activo.'
+          : '¿Cerrar esta oferta? Dejará de aparecer en el listado público y no recibirá más postulaciones.'}
+        onConfirmar={ejecutarCerrar}
+        onCancelar={() => setConfirmarCerrar(false)}
+        textoConfirmar="Cerrar oferta"
+      />
     </div>
   );
 }
