@@ -1,0 +1,77 @@
+/* Estilos locales para las pantallas y modales de pagos */
+
+/* Grupo de botones y acciones */
+.pagos-actions-group,
+.pagos-btn-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Pie de modales: alineado a la derecha, botón principal a la derecha */
+.pagos-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--zaas-border, #e2e8f0);
+}
+
+/* Foco neutro en los campos de los modales (sin rojo espurio de navegador) */
+.pagos-modal-panel input,
+.pagos-modal-panel select,
+.pagos-modal-panel textarea {
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.pagos-modal-panel input:focus,
+.pagos-modal-panel select:focus,
+.pagos-modal-panel textarea:focus {
+  outline: none;
+  border-color: var(--zaas-primary, #2563eb);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+/* El rojo solo para errores reales o marcados con aria-invalid */
+.pagos-modal-panel input[aria-invalid="true"],
+.pagos-modal-panel input.is-invalid,
+.pagos-modal-panel .has-error input {
+  border-color: var(--zaas-danger, #ef4444);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+/* Validación junto al campo de monto */
+.pagos-error-campo {
+  margin: 0.35rem 0 0;
+  color: var(--zaas-danger, #ef4444);
+  font-size: 0.875rem;
+}
+
+/* Aviso destacado al liberar la totalidad del saldo */
+.pagos-aviso-total {
+  margin-bottom: 0.75rem;
+}
+
+.pagos-check-confirmar {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.pagos-check-confirmar input {
+  margin-top: 0.15rem;
+}
+
+/* Tono neutro en las cifras sin fondos o vacías */
+.pagos-cifra-neutra,
+.pagos-cifra-sin-fondos {
+  color: var(--zaas-text-muted, #64748b);
+  font-weight: 500;
+}

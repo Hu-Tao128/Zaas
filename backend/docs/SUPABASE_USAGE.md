@@ -1,63 +1,84 @@
 # Supabase en ZaaS
 
+## Arquitectura
+
+Supabase/PostgreSQL es la **base de datos principal y única** del backend. El
+acceso se hace con **SQLAlchemy + psycopg2** a través de `DATABASE_URL`; ya no
+se usa el cliente `supabase-py`, PostgREST, Supabase Auth ni la `service_role`
+key.
+
+```
+React → Flask (SQLAlchemy/psycopg2) → Supabase Postgres (Session Pooler)
+             │
+             └── Firebase Admin (solo verificación de ID tokens)
+```
+
 ## Configuración
 
-1. Copia `.env.example` a `.env` y completa:
-   ```bash
-   cp .env.example .env
-   ```
-2. Obtén `SUPABASE_URL` y `SUPABASE_KEY` (service_role) en
-   [Supabase Dashboard](https://app.supabase.com/project/_/settings/api).
-
-No se usa Supabase Auth ni Third-Party Auth. Firebase autentica y el backend
-guarda los usuarios en Supabase con la `service_role` key.
-
-## Login Firebase -> Supabase
-
-El frontend envía el ID token de Firebase a:
-
-```
-POST /auth/firebase-login
+```env
+DATABASE_URL=postgresql://postgres.<ref>:<clave>@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
+SECRET_KEY=<clave larga y aleatoria>
 ```
 
-El backend:
+Usa el **Session Pooler** (puerto 5432). `config.py` normaliza `postgres://` y
+`postgresql://` al driver `psycopg2`, elimina parámetros de Prisma
+(`pgbouncer`, `connection_limit`, `schema`) y añade `sslmode=require` en hosts
+de Supabase si falta.
 
-1. verifica el token con Firebase Admin,
-2. crea/actualiza el usuario local (sesión Flask),
-3. hace upsert en `public.usuario` por `firebase_uid`/`email`,
-4. crea `public.perfil` si falta,
-5. devuelve `id`, `firebase_uid`, `email`, `tipo_usuario` y `supabase_id`.
+Para el Transaction Pooler (puerto 6543) el backend usa `NullPool`
+automáticamente, pero no es recomendable para ejecutar DDL.
 
-Guía completa: [`FIREBASE_SUPABASE.md`](FIREBASE_SUPABASE.md).
+## Esquema y migraciones
 
-## Sincronización masiva
+El esquema se crea/actualiza con:
 
 ```bash
 cd backend
-source .venv/bin/activate
-
-python supabase_setup.py --verify           # 27 tablas del MR
-python supabase_setup.py --sync-firebase    # usuarios de Firebase -> Supabase
+DATABASE_URL="postgresql://...:5432/postgres?sslmode=require" python migrate_mr.py
 ```
 
-## Cliente en el backend
+`migrate_mr.py` es idempotente: crea tablas faltantes (incluidas las de IoT),
+añade columnas, alinea checks/FKs conocidas y crea índices únicos. El entrypoint
+de Docker lo ejecuta antes de arrancar Gunicorn.
+
+En producción `AUTO_CREATE_SCHEMA=false` evita que cada worker ejecute DDL al
+importar la aplicación.
+
+## Acceso a datos
 
 ```python
-from app.extensions import get_supabase
+from app.extensions import db
 
-client = get_supabase()
-respuesta = client.table('usuario').select('*').eq('firebase_uid', uid).execute()
+usuarios = db.session.execute(db.select(Usuario)).scalars().all()
 ```
+
+Todas las consultas, relaciones y transacciones usan SQLAlchemy. No hay una
+segunda fuente de verdad.
 
 ## RLS
 
-Las tablas tienen RLS habilitado y sin políticas para `anon`/`authenticated`.
-El backend usa `service_role`, que omite RLS. El frontend no se conecta directo
-a Supabase; consume la API Flask.
+Las tablas del MR tienen RLS habilitado sin políticas para `anon`/`authenticated`.
+El backend se conecta con el rol `postgres` del Session Pooler, que omite RLS.
+El frontend no se conecta directo a Supabase; solo consume la API Flask.
+
+Si usas un rol restringido en lugar de `postgres`, deberás otorgarle privilegios
+sobre las tablas o deshabilitar RLS.
+
+## Migración de datos desde SQLite
+
+```bash
+cd backend
+DATABASE_URL="postgresql://..." \
+  python scripts/migrate_sqlite_to_supabase.py \
+  --source sqlite:///instance/zaas.db --mode merge
+```
+
+El script empareja usuarios por `firebase_uid`/`email`, remapea FKs, conserva
+las plantillas y resetea las secuencias. Usa `--dry-run` para revisar antes.
 
 ## Notas
 
-- El cliente se inicializa una sola vez al arrancar la app (`init_supabase`).
-- No mezcles SQLAlchemy y Supabase para la misma tabla: elige una fuente de
-  verdad. SQLite es el entorno local y Supabase el MR compartido.
-- Para queries complejas, usa Supabase; para relaciones y transacciones, SQLAlchemy.
+- SQLite solo se usa como motor de las pruebas automatizadas.
+- No configure `SUPABASE_URL`/`SUPABASE_KEY`: ya no son necesarias.
+- Para migraciones DDL que el pooler rechace, usa la conexión directa o el SQL
+  Editor de Supabase.

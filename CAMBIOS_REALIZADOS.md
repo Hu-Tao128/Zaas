@@ -414,3 +414,105 @@ Las plantillas siguen viviendo en la tabla `plantilla_contrato` (sin cambio de e
 - El flujo Flask con plantillas HTML de contratos sigue presente como compatibilidad, pero la interfaz activa es la de React bajo `/contratos/*`.
 - Los cambios de esta actualización quedaron **sin commit** en la rama `sidrac`.
 
+
+## 13. Contratos: rechazo con motivo y monto negociable
+
+### 13.1 Objetivo
+
+- Permitir que el desarrollador rechace un contrato creado por el cliente indicando el motivo.
+- Ocultar los contratos rechazados de los menús de ambas partes y notificar al cliente.
+- Permitir que el desarrollador decida si el monto es negociable. Si no lo es, el cliente no puede modificarlo; si lo es, el cliente puede enviar una oferta y la interfaz muestra “Oferta” en lugar de “Monto acordado”.
+
+> El detalle de disputas ya forma parte de la integración de `develop`; esta actualización no modifica esa área.
+
+### 13.2 Modelo y migración
+
+- `Contrato`: `notas`, `monto_negociable`, `rechazado`, `motivo_rechazo`, `fecha_rechazo`, `id_rechazado_por`, relación `rechazado_por` y propiedad `estado_visible` (`rechazado` cuando aplica).
+- `Proyecto`: `precio_negociable`.
+- `Postulacion`: `costo_negociable`.
+- `backend/migrate_mr.py`: agrega las columnas con `DEFAULT FALSE` y tipos compatibles con SQLite/PostgreSQL.
+
+### 13.3 Backend
+
+- `/contratos/api/crear` deduce la negociabilidad del producto o de la postulación aceptada; si el monto es fijo, ignora el costo enviado por el navegador y usa el sugerido. Guarda el snapshot en `monto_negociable` y las notas en `notas`.
+- `POST /contratos/api/<id>/rechazar`: solo el desarrollador, antes de su firma, con motivo obligatorio (10–1000 caracteres). Marca `rechazado`, guarda motivo/fecha/autor, pasa el contrato a `cancelado` y notifica al cliente.
+- `POST /contratos/api/<id>/negociacion`: el desarrollador activa/desactiva la negociación antes de firmar y notifica al cliente cuando cambia.
+- `POST /contratos/api/<id>/oferta`: el cliente propone un nuevo monto solo si `monto_negociable` es verdadero, no hay firmas y el contrato sigue en `borrador`/`pendiente`. Regenera el documento y notifica al desarrollador.
+- El listado de contratos (API y flujo Flask heredado) filtra `rechazado=False`.
+- Serialización con `estado_visible`, datos del rechazo y `monto_negociable`; acciones `puede_rechazar`, `puede_definir_negociacion` y `puede_ofertar`.
+- PDF: estado “Rechazado”, motivo/fecha y etiqueta “Oferta” vs “Costo acordado”.
+- Catálogo: formularios y respuestas JSON incluyen `precio_negociable` y `costo_negociable`; el flujo Flask heredado también los guarda.
+- `GET /api/catalogo/proyectos/<id>` incluye `contrato_activo` (`id` y estado) para el cliente autenticado, de modo que la UI no vuelva a ofrecer la contratación.
+- Creación de contratos: pre-validación del contrato activo por cliente+producto (o cliente+oferta) e interceptación de `IntegrityError`; ambos casos responden **409** con mensaje claro en lugar de **500**. El flujo Flask heredado aplica la misma validación sobre el formulario.
+
+### 13.4 Frontend
+
+- `ContratoForm.jsx`: si es fijo, el costo queda bloqueado; si es negociable, el campo se llama “Tu oferta (MXN)”.
+- `ContratoDetalle.jsx`: banner de rechazo, control de negociación, formulario de rechazo, formulario de oferta del cliente y etiquetas correctas del monto.
+- `ContratoUI.jsx` y `ContratosList.jsx`: estado visual “Rechazado”.
+- `ProyectoFormPage.jsx` y `PostularPage.jsx`: casillas “Precio negociable” y “Costo negociable”; los detalles muestran la condición.
+- `contratosApi.js`: métodos `rechazar`, `actualizarNegociacion` y `enviarOferta`.
+- `DetalleProyectoPage.jsx`: si el cliente ya tiene un contrato activo para el proyecto, muestra el aviso “Ya tienes un contrato registrado para este proyecto” con enlace al contrato, en lugar del botón “Contratar con Escrow”.
+
+### 13.5 Verificación
+
+- `python -m unittest discover -s tests -q` desde `backend/` → **108 tests, OK** (19 en `test_contratos_rechazo_negociacion.py`).
+- `npm run build` → **OK**; solo se mantiene el warning preexistente de chunk > 500 kB.
+- Migración comprobada en SQLite: las columnas booleanas con `DEFAULT FALSE` se agregan y toman valor `0` en filas existentes.
+
+### 13.6 Corrección del error 500 al crear contratos
+
+- **Síntoma:** crear un contrato desde el área de cliente funcionaba con algunos proyectos (p. ej. Carlos Aya) y devolvía 500 con otros (Ana García, Luis Martínez).
+- **Causa:** el índice único `uq_contrato_cliente_producto_activo` (`WHERE estado <> 'cancelado'`) impide más de un contrato activo por cliente y producto. El usuario de prueba ya tenía contratos `pendiente` para los proyectos de Ana y Luis, pero no para el de Carlos Aya; el `INSERT` lanzaba `UNIQUE constraint failed: contrato.id_cliente, contrato.id_producto` y se propagaba como 500.
+- **Solución:** validar el duplicado antes de insertar y capturar `IntegrityError` como respaldo (carreras entre peticiones), devolviendo 409 con un mensaje que invita a revisar o cancelar el contrato existente. El detalle del proyecto informa `contrato_activo` y la UI reemplaza el botón de contratación por un aviso con enlace.
+- Los contratos en estado `cancelado` (incluidos los rechazados, que pasan a `cancelado`) no bloquean la creación de uno nuevo.
+- Pruebas añadidas: `test_contrato_duplicado_devuelve_409_no_500`, `test_contrato_duplicado_tras_cancelar_funciona` y `test_detalle_proyecto_informa_contrato_activo`.
+
+
+## 14. Ejecución con Docker Compose
+
+Fecha de actualización: 22/11/2026.
+
+### 14.1 Objetivo
+
+- Permitir levantar el proyecto completo en otra máquina sin instalar Python, Node ni dependencias del sistema.
+- Mantener el backend Flask, el frontend React y la base de datos en contenedores separados, con persistencia y proxy de API.
+
+### 14.2 Archivos creados
+
+- `docker-compose.yml` (raíz): servicios `backend` y `frontend`, volumen `zaas_db`, healthcheck y puertos configurables.
+- `backend/Dockerfile`: imagen `python:3.12-slim` con las bibliotecas de Pango/Cairo/DejaVu que requiere WeasyPrint y Gunicorn como servidor.
+- `backend/docker-entrypoint.sh`: ejecuta `migrate_mr.py` de forma idempotente y arranca Gunicorn (1 worker y 4 hilos por defecto para SQLite).
+- `backend/.dockerignore`: excluye `.env`, `instance/`, llaves, pruebas y cachés de la imagen.
+- `frontend/Dockerfile`: compilación multi-etapa con Node 20 + pnpm 9 y servidor `nginx:1.27-alpine`.
+- `frontend/nginx.conf`: sirve la SPA con fallback a `index.html` y hace proxy de `/api`, `/auth`, `/contratos/api` y `/pagos/api` hacia `backend:5000`.
+- `frontend/.dockerignore`: excluye `node_modules`, `dist` y `pnpm-workspace.yaml` (usa opciones de pnpm 12, incompatible con la imagen de pnpm 9).
+- `.env.example` (raíz): puertos, `SECRET_KEY`, `DATABASE_URL`, Supabase, ruta de la llave de Firebase y ajustes de Gunicorn.
+- `DOCKER.md`: guía de preparación, ejecución, persistencia, PostgreSQL y solución de problemas.
+- `README.md`: sección breve de inicio con Docker.
+
+### 14.3 Funcionamiento
+
+- El frontend se sirve en `http://localhost:8080` y el backend en `http://localhost:5000` (ambos configurables en `.env`).
+- La SPA usa rutas relativas, por lo que nginx funciona como mismo origen y las cookies de sesión/CSRF viajan sin problemas de CORS.
+- La base SQLite se guarda en el volumen nombrado `zaas_db`; se puede cambiar a `./backend/instance/zaas.db` o a PostgreSQL editando `docker-compose.yml`.
+- La llave de Firebase Admin se monta desde `./backend/keys` en modo de solo lectura; la configuración web de Firebase se toma de `frontend/.env` al compilar.
+- En una base nueva, `migrate_mr.py` crea las 27 tablas y aplica las columnas de contratos, pagos y disputas. Los usuarios se crean al iniciar sesión con Firebase.
+
+### 14.4 Verificación
+
+- `docker compose config` → configuración válida.
+- `docker compose build backend` y `docker compose build frontend` → imágenes construidas correctamente.
+- `docker compose up -d` → backend en estado **healthy** y frontend iniciado.
+- Smoke test a través de nginx:
+  - `GET /` y `GET /contratos/1` → **200** (`text/html`, fallback de la SPA).
+  - `GET /contratos/api/csrf`, `GET /api/catalogo/proyectos` y `GET /pagos/api/csrf` → **200**.
+  - Assets JS servidos con `application/javascript`.
+- WeasyPrint dentro del contenedor generó un PDF de prueba correctamente.
+- Esquema verificado en el volumen: columnas `monto_negociable`, `rechazado`, `motivo_rechazo`, `fecha_rechazo`, `id_rechazado_por`, `notas`, `proyecto.precio_negociable` y `postulacion.costo_negociable` presentes.
+
+### 14.5 Notas
+
+- No se ejecuta `seed.py` en Docker: la versión actual del archivo contiene referencias a variables de una mezcla anterior (`cliente1`, `dev1`, `disputa`, etc.) y falla. El login de Firebase crea los usuarios locales automáticamente.
+- Cambiar `frontend/.env` requiere reconstruir la imagen (`docker compose up -d --build frontend`) porque Vite inserta esos valores en tiempo de compilación.
+- La ruta heredada `/auth/login` (plantilla Flask) responde 500 en esta versión; la SPA usa `/login` y `/auth/firebase-login`, que sí funcionan.

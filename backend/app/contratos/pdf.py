@@ -21,6 +21,7 @@ ESTADOS = {
     'entregado': 'Entregado',
     'finalizado': 'Finalizado',
     'cancelado': 'Cancelado',
+    'rechazado': 'Rechazado',
 }
 
 ESTADOS_ESCROW = {
@@ -129,7 +130,8 @@ def _estado_escrow(contrato):
 
 def generar_pdf_contrato(contrato) -> bytes:
     """Construye y devuelve el PDF del contrato en cualquier estado."""
-    estado = ESTADOS.get(contrato.estado, contrato.estado or 'Sin estado')
+    estado_clave = 'rechazado' if contrato.rechazado else contrato.estado
+    estado = ESTADOS.get(estado_clave, estado_clave or 'Sin estado')
     tipo = _tipo_contrato(contrato)
     objeto = contrato.objeto
     escrow = _estado_escrow(contrato)
@@ -168,6 +170,16 @@ def generar_pdf_contrato(contrato) -> bytes:
         '<p class="muted">Este contrato todavía no tiene términos generados.</p>'
     )
 
+    rechazo_html = ''
+    if contrato.rechazado:
+        rechazo_html = (
+            '<tr><th>Motivo del rechazo</th><td>'
+            f'{_e(contrato.motivo_rechazo or "No especificado")}</td></tr>'
+            '<tr><th>Fecha del rechazo</th><td>'
+            f'{_e(_fecha(contrato.fecha_rechazo))}</td></tr>'
+        )
+    etiqueta_monto = 'Oferta' if contrato.monto_negociable else 'Costo acordado'
+
     contenido = f"""<!doctype html>
 <html lang="es">
 <head>
@@ -198,10 +210,11 @@ def generar_pdf_contrato(contrato) -> bytes:
       <tr><th>Desarrollador</th><td>{_e(contrato.desarrollador.nombre_completo if contrato.desarrollador else 'No disponible')}</td></tr>
       <tr><th>Tipo de contrato</th><td>{_e(tipo)}</td></tr>
       <tr><th>Objeto</th><td>{_e(objeto)}</td></tr>
-      <tr><th>Costo acordado</th><td>{_e(_dinero(contrato.costo_acordado))} MXN</td></tr>
+      <tr><th>{_e(etiqueta_monto)}</th><td>{_e(_dinero(contrato.costo_acordado))} MXN</td></tr>
       <tr><th>Fecha de creación</th><td>{_e(_fecha(contrato.fecha_creacion))}</td></tr>
       <tr><th>Estado Escrow</th><td>{_e(escrow)}</td></tr>
       <tr><th>Plantilla utilizada</th><td>{_e(contrato.plantilla.nombre if contrato.plantilla else 'Plantilla base')}</td></tr>
+      {rechazo_html}
     </table>
   </section>
 

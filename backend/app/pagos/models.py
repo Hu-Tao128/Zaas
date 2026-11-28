@@ -1,5 +1,6 @@
 from datetime import datetime
 from app.extensions import db
+from app.types import UTCDateTime
 
 
 class Pago(db.Model):
@@ -18,8 +19,8 @@ class Pago(db.Model):
     monto = db.Column(db.Float, nullable=False)
     estado_escrow = db.Column(db.String(20), default='pendiente')
     # estados: retenido, liberado, reembolsado, dividido
-    fecha_pago = db.Column(db.DateTime, default=datetime.utcnow)
-    fecha_liberacion = db.Column(db.DateTime)
+    fecha_pago = db.Column(UTCDateTime(), default=datetime.utcnow)
+    fecha_liberacion = db.Column(UTCDateTime())
     metodo_pago = db.Column(db.String(50))
     transaccion_id = db.Column(db.String(100), unique=True)
     moneda = db.Column(db.String(3), nullable=False, default='MXN')
@@ -29,9 +30,9 @@ class Pago(db.Model):
     codigo_fallo = db.Column(db.String(50))
     mensaje_fallo = db.Column(db.String(200))
     idempotency_key = db.Column(db.String(64), unique=True)
-    fecha_confirmacion = db.Column(db.DateTime)
+    fecha_confirmacion = db.Column(UTCDateTime())
     reembolso_id = db.Column(db.String(100))
-    fecha_reembolso = db.Column(db.DateTime)
+    fecha_reembolso = db.Column(UTCDateTime())
     intentos_verificacion = db.Column(db.Integer, nullable=False, default=0)
 
     contrato = db.relationship('Contrato', back_populates='pagos')
@@ -55,7 +56,7 @@ class Liberacion(db.Model):
     id_entregable = db.Column(db.Integer, db.ForeignKey('entregable.id'))
     monto_liberado = db.Column(db.Float, nullable=False)
     motivo = db.Column(db.Text)
-    fecha_hora = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_hora = db.Column(UTCDateTime(), default=datetime.utcnow)
 
     pago = db.relationship('Pago', back_populates='liberaciones')
     usuario = db.relationship('Usuario', back_populates='liberaciones')
@@ -74,7 +75,7 @@ class Recibo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     id_pago = db.Column(db.Integer, db.ForeignKey('pago.id'), nullable=False, unique=True)
     folio = db.Column(db.String(50), unique=True, nullable=False)
-    fecha_emision = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_emision = db.Column(UTCDateTime(), default=datetime.utcnow)
     total = db.Column(db.Float)
     contenido_html = db.Column(db.Text)
 
@@ -107,10 +108,10 @@ class Disputa(db.Model):
     id_incidencia = db.Column(db.Integer, db.ForeignKey('incidencia.id'), unique=True)
     tipo = db.Column(db.String(50), nullable=False)
     descripcion = db.Column(db.Text, nullable=False)
-    fecha_hora_publicacion = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_hora_publicacion = db.Column(UTCDateTime(), default=datetime.utcnow)
     estado = db.Column(db.String(20), default='abierta')
     # estados: abierta, en_revision, resuelta, cerrada
-    fecha_hora_resolucion = db.Column(db.DateTime)
+    fecha_hora_resolucion = db.Column(UTCDateTime())
     resolucion = db.Column(db.Text)
 
     contrato = db.relationship('Contrato', back_populates='disputas')
@@ -147,7 +148,7 @@ class Arbitraje(db.Model):
     decision = db.Column(db.String(20), nullable=False)  # liberar, reembolsar, dividir
     porcentaje_desarrollador = db.Column(db.Float)  # 0-100, solo si decision='dividir'
     notas = db.Column(db.Text)
-    fecha_hora = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_hora = db.Column(UTCDateTime(), default=datetime.utcnow)
 
     disputa = db.relationship('Disputa', back_populates='arbitrajes')
     arbitro = db.relationship('Usuario', back_populates='arbitrajes')

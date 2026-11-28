@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ComunicacionPage from './pages/ComunicacionPage';
 import AdminPage from './pages/AdminPage';
+import AgenteChatPage from './pages/AgenteChatPage';
 import CatalogoIndexPage from './pages/catalogo/CatalogoIndexPage';
 import DetalleProyectoPage from './pages/catalogo/DetalleProyectoPage';
 import ProyectoFormPage from './pages/catalogo/ProyectoFormPage';
@@ -96,6 +97,7 @@ export default function App() {
               <Route path="contratos/nuevo" element={<ContratoForm />} />
               <Route path="contratos/:id" element={<ContratoDetalle />} />
               <Route path="contratos/:id/pagos" element={<PagosContratoPage />} />
+              <Route path="agente" element={<AgenteChatPage />} />
               <Route path="disputas" element={<DisputasPage />} />
               <Route path="disputas/:id" element={<DisputaDetallePage />} />
               <Route path="notificaciones" element={<NotificacionesPage />} />

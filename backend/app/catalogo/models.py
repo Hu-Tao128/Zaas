@@ -1,5 +1,6 @@
 from datetime import datetime
 from app.extensions import db
+from app.types import UTCDateTime
 
 
 class Proyecto(db.Model):
@@ -15,8 +16,9 @@ class Proyecto(db.Model):
     titulo = db.Column(db.String(200), nullable=False)
     descripcion = db.Column(db.Text)
     precio = db.Column(db.Float, nullable=False)
+    precio_negociable = db.Column(db.Boolean, nullable=False, default=False)
     demo_habilitada = db.Column(db.Boolean, default=False)
-    fecha_publicacion = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_publicacion = db.Column(UTCDateTime(), default=datetime.utcnow)
     estado = db.Column(db.String(20), default='activo')  # activo, cerrado
 
     # Relaciones
@@ -99,8 +101,8 @@ class OfertaTrabajo(db.Model):
     descripcion_requerimientos = db.Column(db.Text)
     presupuesto = db.Column(db.Float)
     estado = db.Column(db.String(20), default='abierto')  # abierto, en_progreso, cerrado
-    fecha_publicacion = db.Column(db.DateTime, default=datetime.utcnow)
-    fecha_entrega = db.Column(db.DateTime)
+    fecha_publicacion = db.Column(UTCDateTime(), default=datetime.utcnow)
+    fecha_entrega = db.Column(UTCDateTime())
 
     cliente = db.relationship('Usuario', back_populates='ofertas')
     postulaciones = db.relationship('Postulacion', back_populates='oferta', cascade='all, delete-orphan')
@@ -132,8 +134,9 @@ class Postulacion(db.Model):
     id_oferta = db.Column(db.Integer, db.ForeignKey('oferta_trabajo.id'), nullable=False)
     detalles = db.Column(db.Text)
     costo_propuesto = db.Column(db.Float)
+    costo_negociable = db.Column(db.Boolean, nullable=False, default=False)
     estado = db.Column(db.String(20), default='pendiente')  # pendiente, aceptada, rechazada
-    fecha_hora = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_hora = db.Column(UTCDateTime(), default=datetime.utcnow)
 
     desarrollador = db.relationship('Usuario', backref='postulaciones')
     oferta = db.relationship('OfertaTrabajo', back_populates='postulaciones')
@@ -150,7 +153,7 @@ class SolicitudDemo(db.Model):
     id_cliente = db.Column(db.Integer, db.ForeignKey('usuario.id'))
     nombre_contacto = db.Column(db.String(150))
     correo_contacto = db.Column(db.String(150))
-    fecha_solicitud = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_solicitud = db.Column(UTCDateTime(), default=datetime.utcnow)
 
     producto = db.relationship('Proyecto', back_populates='solicitudes_demo')
     cliente = db.relationship('Usuario', backref='solicitudes_demo')

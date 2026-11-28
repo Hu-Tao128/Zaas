@@ -8,6 +8,7 @@ const ESTADOS = {
   entregado: { label: 'Entregado', clase: 'contrato-badge--entregado' },
   finalizado: { label: 'Finalizado', clase: 'contrato-badge--finalizado' },
   cancelado: { label: 'Cancelado', clase: 'contrato-badge--cancelado' },
+  rechazado: { label: 'Rechazado', clase: 'contrato-badge--cancelado' },
 };
 
 export function EstadoContratoBadge({ estado }) {

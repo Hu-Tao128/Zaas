@@ -568,7 +568,8 @@
   padding: 0.25rem 0;
 }
 
-.catalog-actions-group {
+.catalog-actions-group,
+.catalogo-actions-group {
   display: flex;
   align-items: center;
   flex-wrap: wrap;

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import ConfirmDialog from '../../components/ConfirmDialog';
 import { useApi } from '../../hooks/useApi';
 import { catalogoApi } from '../../services/catalogoApi';
 import { AlertaError, BadgeEstado, Cargando, ErrorCard } from '../../components/catalogo/CatalogoUI';
@@ -11,14 +12,21 @@ export default function DetallePostulacionPage() {
   const [mensaje, setMensaje] = useState('');
   const [errorAccion, setErrorAccion] = useState('');
   const [procesando, setProcesando] = useState(false);
+  const [dialogo, setDialogo] = useState(null);
 
   if (loading && !data) return <Cargando />;
   if (error) return <ErrorCard error={error} volverA="/mis-postulaciones" volverTexto="Volver a mis postulaciones" />;
 
   const { postulacion, es_cliente: esCliente } = data;
 
-  async function resolver(accion, confirmacion) {
-    if (!window.confirm(confirmacion)) return;
+  function resolver(accion, confirmacion, titulo = 'Confirmar') {
+    setDialogo({ accion, confirmacion, titulo });
+  }
+
+  async function ejecutarAccion() {
+    if (!dialogo) return;
+    const { accion } = dialogo;
+    setDialogo(null);
     setErrorAccion('');
     setMensaje('');
     setProcesando(true);
@@ -36,8 +44,9 @@ export default function DetallePostulacionPage() {
   const aceptar = () => resolver(
     catalogoApi.aceptarPostulacion,
     '¿Aceptar esta postulación? La oferta pasará a en progreso y las demás postulaciones pendientes se rechazarán.',
+    'Aceptar postulación',
   );
-  const rechazar = () => resolver(catalogoApi.rechazarPostulacion, '¿Rechazar esta postulación?');
+  const rechazar = () => resolver(catalogoApi.rechazarPostulacion, '¿Rechazar esta postulación?', 'Rechazar postulación');
 
   return (
     <>
@@ -51,7 +60,11 @@ export default function DetallePostulacionPage() {
           {postulacion.oferta.estado === 'cerrado' && <BadgeEstado estado="cerrado" />}
           {postulacion.oferta.estado === 'en_progreso' && <BadgeEstado estado="en_progreso" />}
         </p>
-        <p><strong>Costo propuesto:</strong> {formatDinero(postulacion.costo_propuesto)}</p>
+        <p>
+          <strong>Costo propuesto:</strong> {formatDinero(postulacion.costo_propuesto)}
+          {' · '}
+          {postulacion.costo_negociable ? 'negociable' : 'fijo'}
+        </p>
         <p><strong>Enviada:</strong> {formatFechaHora(postulacion.fecha_hora)}</p>
 
         <h3 className="catalogo-section-title">Detalles de la propuesta</h3>
@@ -77,6 +90,18 @@ export default function DetallePostulacionPage() {
           )}
         </div>
       </article>
+
+      {dialogo && (
+        <ConfirmDialog
+          abierto={Boolean(dialogo)}
+          titulo={dialogo.titulo}
+          mensaje={dialogo.confirmacion}
+          textoConfirmar={dialogo.titulo}
+          onConfirmar={ejecutarAccion}
+          onCancelar={() => setDialogo(null)}
+          procesando={procesando}
+        />
+      )}
     </>
   );
 }

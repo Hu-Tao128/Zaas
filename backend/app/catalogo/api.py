@@ -128,6 +128,7 @@ def _proyecto(p):
         'titulo': p.titulo,
         'descripcion': p.descripcion,
         'precio': p.precio,
+        'precio_negociable': bool(p.precio_negociable),
         'demo_habilitada': bool(p.demo_habilitada),
         'fecha_publicacion': _iso(p.fecha_publicacion, utc=True),
         'estado': p.estado,
@@ -159,6 +160,7 @@ def _postulacion(p):
         'id_oferta': p.id_oferta,
         'detalles': p.detalles,
         'costo_propuesto': p.costo_propuesto,
+        'costo_negociable': bool(p.costo_negociable),
         'estado': p.estado,
         'fecha_hora': _iso(p.fecha_hora, utc=True),
         'desarrollador': _usuario_publico(p.desarrollador),
@@ -216,7 +218,27 @@ def detalle_proyecto(id):
     if not proyecto:
         return _error('Proyecto no encontrado.', 404)
     es_dueno = current_user.is_authenticated and current_user.id == proyecto.id_usuario
-    return jsonify({'proyecto': _proyecto(proyecto), 'es_dueno': es_dueno})
+
+    contrato_activo = None
+    if current_user.is_authenticated and current_user.tipo_usuario == 'cliente':
+        contrato = db.session.execute(
+            db.select(Contrato).filter(
+                Contrato.id_cliente == current_user.id,
+                Contrato.id_producto == proyecto.id,
+                Contrato.estado != 'cancelado',
+            ).order_by(Contrato.fecha_creacion.desc())
+        ).scalars().first()
+        if contrato is not None:
+            contrato_activo = {
+                'id': contrato.id,
+                'estado': contrato.estado_visible,
+            }
+
+    return jsonify({
+        'proyecto': _proyecto(proyecto),
+        'es_dueno': es_dueno,
+        'contrato_activo': contrato_activo,
+    })
 
 
 @catalogo_api_bp.get('/mis-productos')
@@ -231,8 +253,11 @@ def mis_productos():
 def _guardar_proyecto(proyecto=None):
     """Valida el JSON y crea (proyecto=None) o actualiza un proyecto. Devuelve (proyecto, respuesta_error)."""
     form = ProyectoForm(
-        formdata=_formdata(_datos_json(), bools=('demo_habilitada',),
-                           listas=('categorias_ids', 'tecnologias_ids')),
+        formdata=_formdata(
+            _datos_json(),
+            bools=('demo_habilitada', 'precio_negociable'),
+            listas=('categorias_ids', 'tecnologias_ids'),
+        ),
         meta={'csrf': False},
     )
     _cargar_opciones(form)
@@ -244,6 +269,7 @@ def _guardar_proyecto(proyecto=None):
     proyecto.titulo = form.titulo.data.strip()
     proyecto.descripcion = form.descripcion.data.strip()
     proyecto.precio = form.precio.data
+    proyecto.precio_negociable = form.precio_negociable.data
     proyecto.demo_habilitada = form.demo_habilitada.data
     _sincronizar_relaciones(proyecto, form.categorias_ids.data, form.tecnologias_ids.data)
     db.session.commit()
@@ -447,11 +473,16 @@ def postular(id):
         return _error('Ya te postulaste a esta oferta.', 409, {'id_postulacion': existente.id})
     if oferta.estado != 'abierto' or _hay_aceptada(id):
         return _error(_motivo_oferta_no_abierta(oferta.estado if oferta.estado != 'abierto' else 'en_progreso'), 409)
-    form = PostulacionForm(formdata=_formdata(_datos_json()), meta={'csrf': False})
+    form = PostulacionForm(
+        formdata=_formdata(_datos_json(), bools=('costo_negociable',)),
+        meta={'csrf': False},
+    )
     if not form.validate():
         return _form_invalido(form)
     ok, _nivel, mensaje, _destino = _enviar_postulacion(
-        current_user.id, id, form.detalles.data.strip(), form.costo_propuesto.data)
+        current_user.id, id, form.detalles.data.strip(),
+        form.costo_propuesto.data, form.costo_negociable.data,
+    )
     if not ok:
         return _error(mensaje, 409)
     return _ok(mensaje, 201, postulacion=_postulacion(_postulacion_de(current_user.id, id)))

@@ -1,0 +1,41 @@
+# Imagen del backend Flask de Zaas.
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+# Dependencias de sistema requeridas por WeasyPrint (generación de PDF) y
+# utilidades básicas. Se instalan solo las bibliotecas de ejecución.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libpango-1.0-0 \
+        libpangoft2-1.0-0 \
+        libharfbuzz-subset0 \
+        libcairo2 \
+        libgdk-pixbuf-2.0-0 \
+        shared-mime-info \
+        fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Se instala gunicorn junto con las dependencias de la aplicación. El número
+# de workers se controla con GUNICORN_WORKERS y el pool de Postgres.
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt gunicorn==23.0.0
+
+COPY . .
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+RUN mkdir -p /app/uploads /app/keys \
+    && chmod +x /usr/local/bin/docker-entrypoint.sh
+
+EXPOSE 5000
+
+# Permite que Coolify (u otro orquestador) detecte el estado del contenedor
+# incluso cuando se despliega sin docker-compose.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=5 \
+    CMD python -c "import socket; s = socket.create_connection(('127.0.0.1', 5000), 3); s.close()"
+
+ENTRYPOINT ["docker-entrypoint.sh"]

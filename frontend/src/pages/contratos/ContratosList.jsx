@@ -111,7 +111,7 @@ export default function ContratosList() {
                       <span className="contrato-id">Contrato #{contrato.id}</span>
                       <RolBadge rol={contrato.rol} />
                     </div>
-                    <EstadoContratoBadge estado={contrato.estado} />
+                    <EstadoContratoBadge estado={contrato.estado_visible || contrato.estado} />
                   </div>
 
                   <h2 className="contrato-card-title">

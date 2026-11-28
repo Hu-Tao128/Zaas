@@ -19,6 +19,8 @@ const modules = [
     to: '?modulo=contratos', action: 'Ver contratos' },
   { title: 'Pagos y disputas', description: 'Consulta los pagos en Escrow y atiende las disputas.',
     to: '?modulo=pagos', action: 'Ver pagos y disputas' },
+  { title: 'Agente ECBD', description: 'Conversa con el agente para consultar el estado, ejecutar el ETL y generar datasets.',
+    to: '/agente', action: 'Abrir agente' },
 ];
 
 export default function AdminPage() {

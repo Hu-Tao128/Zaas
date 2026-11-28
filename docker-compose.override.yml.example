@@ -1,0 +1,13 @@
+# Override opcional para desarrollo local con Docker Compose.
+#
+# Docker Compose carga automáticamente "docker-compose.override.yml" si existe.
+# Copia este archivo para montar backend/keys en el contenedor cuando NO uses
+# Coolify File Mount ni FIREBASE_CREDENTIALS_JSON:
+#
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+#
+# En Coolify NO copies este archivo: usa un File Mount en /app/keys/key.json.
+services:
+  backend:
+    volumes:
+      - ./backend/keys:/app/keys:ro

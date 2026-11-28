@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import ConfirmDialog from '../../components/ConfirmDialog';
 import { useCatalogo } from '../../context/CatalogoContext';
 import { useApi } from '../../hooks/useApi';
 import { catalogoApi } from '../../services/catalogoApi';
@@ -19,14 +20,19 @@ export default function DetalleProyectoPage() {
   const location = useLocation();
   const { data, loading, error } = useApi(() => catalogoApi.proyecto(id), [id]);
   const [errorAccion, setErrorAccion] = useState('');
+  const [confirmarCerrar, setConfirmarCerrar] = useState(false);
 
   if (loading) return <Cargando />;
   if (error) return <ErrorCard error={error} />;
 
-  const { proyecto, es_dueno: esDueno } = data;
+  const { proyecto, es_dueno: esDueno, contrato_activo: contratoActivo } = data;
 
-  async function handleCerrar() {
-    if (!window.confirm('¿Cerrar este proyecto? Dejará de aparecer en el catálogo público.')) return;
+  function handleCerrar() {
+    setConfirmarCerrar(true);
+  }
+
+  async function ejecutarCerrar() {
+    setConfirmarCerrar(false);
     setErrorAccion('');
     try {
       const respuesta = await catalogoApi.cerrarProyecto(proyecto.id);
@@ -239,6 +245,11 @@ export default function DetalleProyectoPage() {
               <div className="proyecto-price-highlight" aria-label={`Precio: ${formatDinero(proyecto.precio)}`}>
                 {formatDinero(proyecto.precio)}
               </div>
+              <p className="catalogo-muted">
+                {proyecto.precio_negociable
+                  ? 'Precio negociable: podrás proponer un monto al contratar.'
+                  : 'Precio fijo: no se puede modificar al contratar.'}
+              </p>
 
               {/* Insignia Escrow Prominente */}
               <div className="escrow-guarantee-badge">
@@ -328,27 +339,35 @@ export default function DetalleProyectoPage() {
                 <>
                   {/* CTA Primario: 'Contratar' en Rojo Principal (#DC2626) con texto blanco */}
                   {usuario.tipo_usuario === 'cliente' ? (
-                    <Link
-                      to={urlContratarProyecto(proyecto)}
-                      className="btn btn-primary btn-contratar-cta"
-                      aria-label={`Iniciar contrato de compra con Escrow para ${proyecto.titulo}`}
-                    >
-                      <svg
-                        aria-hidden="true"
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+                    contratoActivo ? (
+                      <div className="alert alert-warning" role="status">
+                        Ya tienes un contrato registrado para este proyecto
+                        {' '}(estado: {contratoActivo.estado}).{' '}
+                        <Link to={`/contratos/${contratoActivo.id}`}>Ver contrato</Link>
+                      </div>
+                    ) : (
+                      <Link
+                        to={urlContratarProyecto(proyecto)}
+                        className="btn btn-primary btn-contratar-cta"
+                        aria-label={`Iniciar contrato de compra con Escrow para ${proyecto.titulo}`}
                       >
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                        <path d="m9 12 2 2 4-4" />
-                      </svg>
-                      <span>Contratar con Escrow</span>
-                    </Link>
+                        <svg
+                          aria-hidden="true"
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                          <path d="m9 12 2 2 4-4" />
+                        </svg>
+                        <span>Contratar con Escrow</span>
+                      </Link>
+                    )
                   ) : (
                     <div className="catalogo-muted" style={{ fontSize: '0.85rem', textAlign: 'center', marginBottom: '0.5rem' }}>
                       Inicia sesión como cliente para adquirir este SaaS con Escrow.
@@ -408,6 +427,15 @@ export default function DetalleProyectoPage() {
           </div>
         </aside>
       </div>
+
+      <ConfirmDialog
+        abierto={confirmarCerrar}
+        titulo="Cerrar proyecto"
+        mensaje="¿Cerrar este proyecto? Dejará de aparecer en el catálogo público."
+        onConfirmar={ejecutarCerrar}
+        onCancelar={() => setConfirmarCerrar(false)}
+        textoConfirmar="Cerrar proyecto"
+      />
     </div>
   );
 }
